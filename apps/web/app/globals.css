@@ -1,26 +1,63 @@
+@config "../tailwind.config.ts";
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
+  /* CSS Variables (Light) */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: 248 250 252;          /* #F8FAFC */
+    --surface: 255 255 255;     /* #FFFFFF */
+    --surface-2: 241 245 249;   /* #F1F5F9 */
+    --border: 229 231 235;      /* #E5E7EB */
+    --border-hover: 209 213 219;/* #D1D5DB */
+    --text: 17 24 39;           /* #111827 */
+    --text-2: 107 114 128;      /* #6B7280 */
+    --muted: 156 163 175;       /* #9CA3AF */
+    --primary: 16 185 129;      /* #10B981 */
+    --primary-hover: 52 211 153;/* #34D399 */
+    --accent: 6 214 160;        /* #06D6A0 */
+    --error: 239 68 68;         /* #EF4444 */
+    --warning: 245 158 11;      /* #F59E0B */
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* CSS Variables (Dark) */
+  .dark {
+    --bg: 10 14 23;             /* #0A0E17 */
+    --surface: 17 24 39;        /* #111827 */
+    --surface-2: 31 41 55;      /* #1F2937 */
+    --border: 45 55 72;         /* #2D3748 */
+    --border-hover: 74 85 104;  /* #4A5568 */
+    --text: 249 250 251;        /* #F9FAFB */
+    --text-2: 156 163 175;      /* #9CA3AF */
+    --muted: 107 114 128;       /* #6B7280 */
+    --primary: 16 185 129;      /* #10B981 */
+    --primary-hover: 52 211 153;/* #34D399 */
+    --accent: 6 214 160;        /* #06D6A0 */
+    --error: 239 68 68;         /* #EF4444 */
+    --warning: 245 158 11;      /* #F59E0B */
+  }
+
+  ::selection {
+    background: rgb(var(--primary) / 0.18);
+    color: rgb(var(--primary));
+  }
+
+  /* Autofill */
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 30px rgb(var(--surface)) inset !important;
+    -webkit-text-fill-color: rgb(var(--text)) !important;
+  }
+
+  /* Hide native password reveal controls so only custom eye icon is shown */
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
+  }
+
+  input[type="password"]::-webkit-credentials-auto-fill-button,
+  input[type="password"]::-webkit-contacts-auto-fill-button,
+  input[type="password"]::-webkit-password-toggle-button {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
