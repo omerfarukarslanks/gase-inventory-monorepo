@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import AuthTabs from "./AuthTabs";
 import PasswordStrength from "./PasswordStrength";
 import { BuildIcon, CheckIcon, EmailIcon, LockIcon, UserIcon } from "../auth/icon";
-import InputField from "../Input/InputField";
+import InputField from "../ui/InputField";
 import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
 
