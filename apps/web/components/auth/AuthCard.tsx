@@ -8,6 +8,8 @@ import { BuildIcon, CheckIcon, EmailIcon, LockIcon, UserIcon } from "../auth/ico
 import InputField from "../ui/InputField";
 import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
+import { login } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 
 type Mode = "login" | "signup";
 
@@ -24,6 +26,7 @@ export default function AuthCard({ initialMode }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -37,8 +40,8 @@ export default function AuthCard({ initialMode }: Props) {
 
   // initial route safety
   useEffect(() => {
-    if (initialMode === "signup" && !pathname?.includes("/signup")) router.replace("/signup");
-    if (initialMode === "login" && pathname?.includes("/signup")) router.replace("/login");
+    if (initialMode === "signup" && !pathname?.includes("/signup")) router.replace("/auth/signup");
+    if (initialMode === "login" && pathname?.includes("/signup")) router.replace("/auth/login");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -47,6 +50,7 @@ export default function AuthCard({ initialMode }: Props) {
     setStep(1);
     setErrors({});
     setSuccessMsg("");
+    setErrorMsg("");
     setAgreed(false);
     setRemember(false);
     setForm({ tenantName: "", fullName: "", email: "", password: "", confirmPassword: "" });
@@ -91,17 +95,33 @@ export default function AuthCard({ initialMode }: Props) {
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
+    setErrorMsg("");
 
-    if (mode === "signup") {
-      setSuccessMsg("Hesap oluşturuldu!");
-      setTimeout(() => {
-        router.push("/auth/login");
-        setSuccessMsg("");
-      }, 1200);
-    } else {
-      setSuccessMsg("Giriş başarılı!");
+    try {
+      if (mode === "login") {
+        debugger
+        const response = await login(form.email, form.password);
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
+        setSuccessMsg("Giriş başarılı!");
+        setTimeout(() => router.push("/dashboard"), 800);
+      } else {
+        // signup mock — henüz endpoint yok
+        await new Promise((r) => setTimeout(r, 1500));
+        setSuccessMsg("Hesap oluşturuldu!");
+        setTimeout(() => {
+          router.push("/auth/login");
+          setSuccessMsg("");
+        }, 1200);
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Bir hata oluştu. Lütfen tekrar deneyin.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,6 +140,15 @@ export default function AuthCard({ initialMode }: Props) {
             <CheckIcon />
           </div>
           {successMsg}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-3 text-[12.5px] font-medium text-red-600 dark:text-red-400 animate-si">
+          <div className="h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </div>
+          {errorMsg}
         </div>
       )}
 
