@@ -8,6 +8,9 @@ import { BuildIcon, CheckIcon, EmailIcon, LockIcon, UserIcon } from "../auth/ico
 import InputField from "../ui/InputField";
 import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
+import { login, signup } from "@/app/auth/auth";
+import { ApiError } from "@/lib/api";
+import Button from "../ui/Button";
 
 type Mode = "login" | "signup";
 
@@ -24,12 +27,14 @@ export default function AuthCard({ initialMode }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     tenantName: "",
-    fullName: "",
+    name: "",
+    surname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -37,8 +42,8 @@ export default function AuthCard({ initialMode }: Props) {
 
   // initial route safety
   useEffect(() => {
-    if (initialMode === "signup" && !pathname?.includes("/signup")) router.replace("/signup");
-    if (initialMode === "login" && pathname?.includes("/signup")) router.replace("/login");
+    if (initialMode === "signup" && !pathname?.includes("/signup")) router.replace("/auth/signup");
+    if (initialMode === "login" && pathname?.includes("/signup")) router.replace("/auth/login");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -47,9 +52,10 @@ export default function AuthCard({ initialMode }: Props) {
     setStep(1);
     setErrors({});
     setSuccessMsg("");
+    setErrorMsg("");
     setAgreed(false);
     setRemember(false);
-    setForm({ tenantName: "", fullName: "", email: "", password: "", confirmPassword: "" });
+    setForm({ tenantName: "", name: "", surname: "", email: "", password: "", confirmPassword: "" });
   }, [mode]);
 
   const set = (k: keyof typeof form, v: string) => {
@@ -62,7 +68,8 @@ export default function AuthCard({ initialMode }: Props) {
 
     if (mode === "signup" && step === 1) {
       if (!form.tenantName.trim()) e.tenantName = "Firma adı zorunludur";
-      if (!form.fullName.trim()) e.fullName = "Ad Soyad zorunludur";
+      if (!form.name.trim()) e.name = "Ad zorunludur";
+      if (!form.surname.trim()) e.surname = "Soyad zorunludur";
     }
 
     if (mode === "login" || (mode === "signup" && step === 2)) {
@@ -91,17 +98,42 @@ export default function AuthCard({ initialMode }: Props) {
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
+    setErrorMsg("");
 
-    if (mode === "signup") {
-      setSuccessMsg("Hesap oluşturuldu!");
-      setTimeout(() => {
-        router.push("/auth/login");
-        setSuccessMsg("");
-      }, 1200);
-    } else {
-      setSuccessMsg("Giriş başarılı!");
+    try {
+      if (mode === "login") {
+        const response = await login(form.email, form.password);
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
+        setSuccessMsg("Giriş başarılı!");
+        setTimeout(() => router.push("/dashboard"), 800);
+      } else {
+        // signup mock — henüz endpoint yok
+        const body = {
+          tenantName: form.tenantName,
+          name: form.name,
+          surname: form.surname,
+          email: form.email,
+          password: form.password,
+        };
+        const response = await signup(body);
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
+        await new Promise((r) => setTimeout(r, 1500));
+        setSuccessMsg("Hesap oluşturuldu!");
+        setTimeout(() => {
+          router.push("/auth/login");
+          setSuccessMsg("");
+        }, 1200);
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setErrorMsg(err.message);
+      } else {
+        setErrorMsg("Bir hata oluştu. Lütfen tekrar deneyin.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,6 +152,15 @@ export default function AuthCard({ initialMode }: Props) {
             <CheckIcon />
           </div>
           {successMsg}
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-3 text-[12.5px] font-medium text-red-600 dark:text-red-400 animate-si">
+          <div className="h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+          </div>
+          {errorMsg}
         </div>
       )}
 
@@ -171,13 +212,22 @@ export default function AuthCard({ initialMode }: Props) {
             error={errors.tenantName}
           />
           <InputField
-            label="Ad Soyad"
+            label="Ad"
             type="text"
-            placeholder="Adınız Soyadınız"
+            placeholder="Adınız"
             icon={UserIcon}
-            value={form.fullName}
-            onChange={(v) => set("fullName", v)}
-            error={errors.fullName}
+            value={form.name}
+            onChange={(v) => set("name", v)}
+            error={errors.name}
+          />
+          <InputField
+            label="Soyad"
+            type="text"
+            placeholder="Soyadınız"
+            icon={UserIcon}
+            value={form.surname}
+            onChange={(v) => set("surname", v)}
+            error={errors.surname}
           />
         </div>
       )}
@@ -234,7 +284,11 @@ export default function AuthCard({ initialMode }: Props) {
             <span className="text-[13px] text-text2">Beni hatırla</span>
           </label>
 
-          <button type="button" className="text-[13px] font-semibold text-primary hover:opacity-90 cursor-pointer">
+          <button
+            type="button"
+            onClick={() => router.push("/auth/forgot-password")}
+            className="text-[13px] font-semibold text-primary hover:opacity-90 cursor-pointer"
+          >
             Şifremi unuttum
           </button>
         </div>
@@ -271,16 +325,16 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Actions */}
       <div className="flex gap-2.5">
         {mode === "signup" && step === 2 && (
-          <button
+          <Button
+            label="← Geri"
             type="button"
             onClick={() => setStep(1)}
             className="rounded-[10px] border-[1.5px] border-border cursor-pointer px-5 py-[14px] text-[14px] font-semibold text-text2 hover:border-borderHover transition-all duration-200"
-          >
-            ← Geri
-          </button>
+          />
         )}
 
-        <button
+        <Button
+          label={loading ? "İşleniyor..." : mode === "login" ? "Giriş Yap" : step === 1 ? "Devam Et →" : "Hesap Oluştur"}
           onClick={submit}
           disabled={loading}
           className={[
@@ -289,23 +343,7 @@ export default function AuthCard({ initialMode }: Props) {
               ? "bg-surface2 cursor-wait"
               : "bg-gradient-to-br from-primary to-accent shadow-glow hover:opacity-[0.98]",
           ].join(" ")}
-        >
-          {loading ? (
-            <>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-sp">
-                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.3)" strokeWidth="3" />
-                <path d="M12 2a10 10 0 019.95 9" stroke="white" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-              İşleniyor...
-            </>
-          ) : mode === "login" ? (
-            "Giriş Yap"
-          ) : step === 1 ? (
-            "Devam Et →"
-          ) : (
-            "Hesap Oluştur"
-          )}
-        </button>
+        />
       </div>
 
       {/* Divider */}
@@ -324,14 +362,9 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Bottom link */}
       <p className="mt-8 text-center text-[13px] text-muted">
         {mode === "login" ? "Hesabınız yok mu? " : "Zaten hesabınız var mı? "}
-        <button
-          className="text-primary font-semibold cursor-pointer hover:opacity-90"
-          onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")}
-          type="button"
-        >
-          {mode === "login" ? "Kayıt olun" : "Giriş yapın"}
-        </button>
+        <Button label={mode === "login" ? "Kayıt olun" : "Giriş yapın"} onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")} />
       </p>
     </div>
   );
 }
+
