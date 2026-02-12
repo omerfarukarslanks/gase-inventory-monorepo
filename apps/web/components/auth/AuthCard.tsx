@@ -109,7 +109,13 @@ export default function AuthCard({ initialMode }: Props) {
         setTimeout(() => router.push("/dashboard"), 800);
       } else {
         // signup mock — henüz endpoint yok
-        const {confirmPassword, ...body} = form;
+        const body = {
+          tenantName: form.tenantName,
+          name: form.name,
+          surname: form.surname,
+          email: form.email,
+          password: form.password,
+        };
         const response = await signup(body);
         localStorage.setItem("token", response.access_token);
         localStorage.setItem("user", JSON.stringify(response.user));
@@ -278,7 +284,11 @@ export default function AuthCard({ initialMode }: Props) {
             <span className="text-[13px] text-text2">Beni hatırla</span>
           </label>
 
-          <button type="button" className="text-[13px] font-semibold text-primary hover:opacity-90 cursor-pointer">
+          <button
+            type="button"
+            onClick={() => router.push("/auth/forgot-password")}
+            className="text-[13px] font-semibold text-primary hover:opacity-90 cursor-pointer"
+          >
             Şifremi unuttum
           </button>
         </div>
@@ -357,3 +367,4 @@ export default function AuthCard({ initialMode }: Props) {
     </div>
   );
 }
+
