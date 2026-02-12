@@ -8,8 +8,9 @@ import { BuildIcon, CheckIcon, EmailIcon, LockIcon, UserIcon } from "../auth/ico
 import InputField from "../ui/InputField";
 import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
-import { login } from "@/lib/auth";
+import { login, signup } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
+import Button from "../ui/Button";
 
 type Mode = "login" | "signup";
 
@@ -32,7 +33,8 @@ export default function AuthCard({ initialMode }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     tenantName: "",
-    fullName: "",
+    name: "",
+    surname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -53,7 +55,7 @@ export default function AuthCard({ initialMode }: Props) {
     setErrorMsg("");
     setAgreed(false);
     setRemember(false);
-    setForm({ tenantName: "", fullName: "", email: "", password: "", confirmPassword: "" });
+    setForm({ tenantName: "", name: "", surname: "", email: "", password: "", confirmPassword: "" });
   }, [mode]);
 
   const set = (k: keyof typeof form, v: string) => {
@@ -66,7 +68,8 @@ export default function AuthCard({ initialMode }: Props) {
 
     if (mode === "signup" && step === 1) {
       if (!form.tenantName.trim()) e.tenantName = "Firma adı zorunludur";
-      if (!form.fullName.trim()) e.fullName = "Ad Soyad zorunludur";
+      if (!form.name.trim()) e.name = "Ad zorunludur";
+      if (!form.surname.trim()) e.surname = "Soyad zorunludur";
     }
 
     if (mode === "login" || (mode === "signup" && step === 2)) {
@@ -99,7 +102,6 @@ export default function AuthCard({ initialMode }: Props) {
 
     try {
       if (mode === "login") {
-        debugger
         const response = await login(form.email, form.password);
         localStorage.setItem("token", response.access_token);
         localStorage.setItem("user", JSON.stringify(response.user));
@@ -107,6 +109,10 @@ export default function AuthCard({ initialMode }: Props) {
         setTimeout(() => router.push("/dashboard"), 800);
       } else {
         // signup mock — henüz endpoint yok
+        const {confirmPassword, ...body} = form;
+        const response = await signup(body);
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
         await new Promise((r) => setTimeout(r, 1500));
         setSuccessMsg("Hesap oluşturuldu!");
         setTimeout(() => {
@@ -200,13 +206,22 @@ export default function AuthCard({ initialMode }: Props) {
             error={errors.tenantName}
           />
           <InputField
-            label="Ad Soyad"
+            label="Ad"
             type="text"
-            placeholder="Adınız Soyadınız"
+            placeholder="Adınız"
             icon={UserIcon}
-            value={form.fullName}
-            onChange={(v) => set("fullName", v)}
-            error={errors.fullName}
+            value={form.name}
+            onChange={(v) => set("name", v)}
+            error={errors.name}
+          />
+          <InputField
+            label="Soyad"
+            type="text"
+            placeholder="Soyadınız"
+            icon={UserIcon}
+            value={form.surname}
+            onChange={(v) => set("surname", v)}
+            error={errors.surname}
           />
         </div>
       )}
@@ -300,16 +315,16 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Actions */}
       <div className="flex gap-2.5">
         {mode === "signup" && step === 2 && (
-          <button
+          <Button
+            label="← Geri"
             type="button"
             onClick={() => setStep(1)}
             className="rounded-[10px] border-[1.5px] border-border cursor-pointer px-5 py-[14px] text-[14px] font-semibold text-text2 hover:border-borderHover transition-all duration-200"
-          >
-            ← Geri
-          </button>
+          />
         )}
 
-        <button
+        <Button
+          label={loading ? "İşleniyor..." : mode === "login" ? "Giriş Yap" : step === 1 ? "Devam Et →" : "Hesap Oluştur"}
           onClick={submit}
           disabled={loading}
           className={[
@@ -318,23 +333,7 @@ export default function AuthCard({ initialMode }: Props) {
               ? "bg-surface2 cursor-wait"
               : "bg-gradient-to-br from-primary to-accent shadow-glow hover:opacity-[0.98]",
           ].join(" ")}
-        >
-          {loading ? (
-            <>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-sp">
-                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.3)" strokeWidth="3" />
-                <path d="M12 2a10 10 0 019.95 9" stroke="white" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-              İşleniyor...
-            </>
-          ) : mode === "login" ? (
-            "Giriş Yap"
-          ) : step === 1 ? (
-            "Devam Et →"
-          ) : (
-            "Hesap Oluştur"
-          )}
-        </button>
+        />
       </div>
 
       {/* Divider */}
@@ -353,13 +352,7 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Bottom link */}
       <p className="mt-8 text-center text-[13px] text-muted">
         {mode === "login" ? "Hesabınız yok mu? " : "Zaten hesabınız var mı? "}
-        <button
-          className="text-primary font-semibold cursor-pointer hover:opacity-90"
-          onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")}
-          type="button"
-        >
-          {mode === "login" ? "Kayıt olun" : "Giriş yapın"}
-        </button>
+        <Button label={mode === "login" ? "Kayıt olun" : "Giriş yapın"} onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")} />
       </p>
     </div>
   );
