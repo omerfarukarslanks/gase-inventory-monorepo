@@ -10,10 +10,11 @@ import {
   type Store,
   type StoresListMeta,
 } from "@/lib/stores";
-import Drawer, { type DrawerSide } from "@/components/ui/Drawer";
+import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import InputField from "@/components/ui/InputField";
+import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
 type StoreForm = {
@@ -34,15 +35,24 @@ const EMPTY_FORM: StoreForm = {
   description: "",
 };
 
+function useDebounceStr(value: string, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function StoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerSide, setDrawerSide] = useState<DrawerSide>("right");
   const [submitting, setSubmitting] = useState(false);
   const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -52,6 +62,7 @@ export default function StoresPage() {
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const [isMobile, setIsMobile] = useState(false);
+  const debouncedSearch = useDebounceStr(searchTerm, 500);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -77,8 +88,8 @@ export default function StoresPage() {
       const res = await getStores({
         page: currentPage,
         limit: pageSize,
+        search: debouncedSearch,
         token,
-        // search: ... (if we add search later)
       });
 
       setStores(res.data);
@@ -90,7 +101,13 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, debouncedSearch]);
+
+  useEffect(() => {
+    if (debouncedSearch !== "") {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchStores();
@@ -265,23 +282,24 @@ export default function StoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Stores</h1>
           <p className="text-sm text-muted">Store list from service</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={drawerSide}
-            onChange={(e) => setDrawerSide(e.target.value as DrawerSide)}
-            className="hidden rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text outline-none md:block"
-          >
-            <option value="right">Drawer: Right</option>
-            <option value="left">Drawer: Left</option>
-            <option value="top">Drawer: Top</option>
-            <option value="bottom">Drawer: Bottom</option>
-          </select>
-
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+              <SearchIcon />
+            </div>
+            <input
+              type="text"
+              placeholder="Ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
           <Button
             label="New Store"
             onClick={onOpenDrawer}
@@ -314,12 +332,12 @@ export default function StoresPage() {
                     <th className="px-4 py-3">Address</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Slug</th>
-                    <th className="px-4 py-3">Action</th>
+                    <th className="px-4 py-3 text-right">Islemler</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stores.map((store) => (
-                    <tr key={store.id} className="border-b border-border last:border-b-0">
+                    <tr key={store.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
                       <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
                       <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
@@ -332,20 +350,28 @@ export default function StoresPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            label="Edit"
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
                             onClick={() => onEditStore(store.id)}
                             disabled={deletingStoreId === store.id}
-                            className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text hover:bg-surface2"
-                          />
-                          <Button
-                            label={deletingStoreId === store.id ? "Deleting..." : "Delete"}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                            aria-label="Edit store"
+                            title="Duzenle"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setDeleteTarget({ id: store.id, name: store.name })}
                             disabled={deletingStoreId === store.id}
-                            className="rounded-lg border border-error/40 bg-error/10 px-2 py-1 text-xs text-text hover:bg-error/20"
-                          />
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors disabled:opacity-50"
+                            aria-label={deletingStoreId === store.id ? "Deleting store" : "Delete store"}
+                            title={deletingStoreId === store.id ? "Siliniyor..." : "Sil"}
+                          >
+                            <TrashIcon />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -420,7 +446,7 @@ export default function StoresPage() {
       <Drawer
         open={drawerOpen}
         onClose={onCloseDrawer}
-        side={isMobile ? "right" : drawerSide}
+        side={"right"}
         title={editingStoreId ? "Update Store" : "Create Store"}
         description={editingStoreId ? "Update store information" : "Only name is required"}
         closeDisabled={submitting || loadingStoreDetail}
