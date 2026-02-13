@@ -35,6 +35,15 @@ export type GetStoresParams = {
   token: string;
 };
 
+export type CreateStoreRequest = {
+  name: string;
+  code?: string;
+  address?: string;
+  slug?: string;
+  logo?: string;
+  description?: string;
+};
+
 export async function getStores({
   offset = 0,
   limit = 50,
@@ -52,5 +61,28 @@ export async function getStores({
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+}
+
+export async function createStore(
+  payload: CreateStoreRequest,
+  token: string,
+): Promise<Store> {
+  const body = {
+    name: payload.name,
+    ...(payload.code ? { code: payload.code } : {}),
+    ...(payload.address ? { address: payload.address } : {}),
+    ...(payload.slug ? { slug: payload.slug } : {}),
+    ...(payload.logo ? { logo: payload.logo } : {}),
+    ...(payload.description ? { description: payload.description } : {}),
+  };
+
+  return apiFetch<Store>("/stores", {
+    method: "POST",
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
   });
 }

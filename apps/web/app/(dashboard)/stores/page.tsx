@@ -1,7 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { getStores, type Store, type StoresListMeta } from "@/lib/stores";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { createStore, getStores, type Store, type StoresListMeta } from "@/lib/stores";
+import Drawer, { type DrawerSide } from "@/components/ui/Drawer";
+import Button from "@/components/ui/Button";
+import InputField from "@/components/ui/InputField";
+import { cn } from "@/lib/cn";
+
+type StoreForm = {
+  name: string;
+  code: string;
+  address: string;
+  slug: string;
+  logo: string;
+  description: string;
+};
+
+const EMPTY_FORM: StoreForm = {
+  name: "",
+  code: "",
+  address: "",
+  slug: "",
+  logo: "",
+  description: "",
+};
 
 export default function StoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -11,6 +33,20 @@ export default function StoresPage() {
   const [cursor] = useState(() => new Date().toISOString());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSide, setDrawerSide] = useState<DrawerSide>("right");
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(!e.matches);
+    update(mq);
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const fetchStores = useCallback(async () => {
     setLoading(true);
@@ -90,6 +126,60 @@ export default function StoresPage() {
 
   const pageItems = getVisiblePages();
 
+  const onOpenDrawer = () => {
+    setFormError("");
+    setForm(EMPTY_FORM);
+    setDrawerOpen(true);
+  };
+
+  const onCloseDrawer = () => {
+    if (submitting) return;
+    setDrawerOpen(false);
+  };
+
+  const onFormChange = (field: keyof StoreForm, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const onCreateStore = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (!form.name.trim()) {
+      setFormError("Name field is required.");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setFormError("Session not found. Please sign in again.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await createStore(
+        {
+          name: form.name.trim(),
+          code: form.code.trim() || undefined,
+          address: form.address.trim() || undefined,
+          slug: form.slug.trim() || undefined,
+          logo: form.logo.trim() || undefined,
+          description: form.description.trim() || undefined,
+        },
+        token,
+      );
+
+      setDrawerOpen(false);
+      setForm(EMPTY_FORM);
+      await fetchStores();
+    } catch {
+      setFormError("Store could not be created. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -97,12 +187,30 @@ export default function StoresPage() {
           <h1 className="text-xl font-semibold text-text">Stores</h1>
           <p className="text-sm text-muted">Store list from service</p>
         </div>
-        <button
-          onClick={fetchStores}
-          className="rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={drawerSide}
+            onChange={(e) => setDrawerSide(e.target.value as DrawerSide)}
+            className="hidden rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text outline-none md:block"
+          >
+            <option value="right">Drawer: Right</option>
+            <option value="left">Drawer: Left</option>
+            <option value="top">Drawer: Top</option>
+            <option value="bottom">Drawer: Bottom</option>
+          </select>
+
+          <Button
+            label="New Store"
+            onClick={onOpenDrawer}
+            className="rounded-xl2 border border-primary/30 bg-primary/10 px-2.5 py-2 text-sm font-semibold text-primary hover:bg-primary/15 md:px-3"
+          />
+
+          <Button
+            label="Refresh"
+            onClick={fetchStores}
+            className="rounded-xl2 border border-border bg-surface px-2.5 py-2 text-sm text-text hover:bg-surface2 md:px-3"
+          />
+        </div>
       </div>
 
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -134,9 +242,7 @@ export default function StoresPage() {
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            store.isActive
-                              ? "bg-primary/15 text-primary"
-                              : "bg-error/15 text-error"
+                            store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                           }`}
                         >
                           {store.isActive ? "Active" : "Passive"}
@@ -173,13 +279,12 @@ export default function StoresPage() {
                     <option value={50}>50</option>
                   </select>
 
-                  <button
+                  <Button
+                    label="Previous"
                     onClick={goPrev}
                     disabled={!canGoPrev || loading}
                     className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
-                  >
-                    Previous
-                  </button>
+                  />
 
                   {pageItems.map((item, idx) =>
                     item === -1 ? (
@@ -187,8 +292,9 @@ export default function StoresPage() {
                         ...
                       </span>
                     ) : (
-                      <button
+                      <Button
                         key={`page-${item}`}
+                        label={String(item)}
                         onClick={() => goToPage(item)}
                         disabled={loading}
                         className={`rounded-lg border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -196,25 +302,104 @@ export default function StoresPage() {
                             ? "border-primary bg-primary/15 text-primary"
                             : "border-border bg-surface text-text hover:bg-surface2"
                         }`}
-                      >
-                        {item}
-                      </button>
-                    )
+                      />
+                    ),
                   )}
 
-                  <button
+                  <Button
+                    label="Next"
                     onClick={goNext}
                     disabled={!canGoNext || loading}
                     className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
-                  >
-                    Next
-                  </button>
+                  />
                 </div>
               </div>
             )}
           </>
         )}
       </section>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={onCloseDrawer}
+        side={isMobile ? "right" : drawerSide}
+        title="Create Store"
+        description="Only name is required"
+        closeDisabled={submitting}
+        className={cn(isMobile && "!max-w-none")}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              label="Cancel"
+              type="button"
+              onClick={onCloseDrawer}
+              disabled={submitting}
+              className="rounded-xl2 border border-border px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
+            />
+            <Button
+              label={submitting ? "Creating..." : "Create Store"}
+              type="submit"
+              form="create-store-form"
+              disabled={submitting}
+              className="rounded-xl2 border border-primary/20 bg-primary px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary/90"
+            />
+          </div>
+        }
+      >
+        <form id="create-store-form" onSubmit={onCreateStore} className="space-y-4 p-5">
+          <InputField
+            label="Name *"
+            type="text"
+            value={form.name}
+            onChange={(v) => onFormChange("name", v)}
+            placeholder="Store name"
+          />
+
+          <InputField
+            label="Code"
+            type="text"
+            value={form.code}
+            onChange={(v) => onFormChange("code", v)}
+            placeholder="BES-01"
+          />
+
+          <InputField
+            label="Address"
+            type="text"
+            value={form.address}
+            onChange={(v) => onFormChange("address", v)}
+            placeholder="Address"
+          />
+
+          <InputField
+            label="Slug"
+            type="text"
+            value={form.slug}
+            onChange={(v) => onFormChange("slug", v)}
+            placeholder="store-slug"
+          />
+
+          <InputField
+            label="Logo URL"
+            type="text"
+            value={form.logo}
+            onChange={(v) => onFormChange("logo", v)}
+            placeholder="https://example.com/logo.png"
+          />
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => onFormChange("description", e.target.value)}
+              className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
+              placeholder="Short store description"
+            />
+          </div>
+
+          {formError && <p className="text-sm text-error">{formError}</p>}
+        </form>
+      </Drawer>
     </div>
   );
 }
