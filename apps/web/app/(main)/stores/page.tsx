@@ -1,10 +1,20 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { createStore, getStores, type Store, type StoresListMeta } from "@/lib/stores";
-import Drawer, { type DrawerSide } from "@/components/ui/Drawer";
+import {
+  createStore,
+  deleteStore,
+  getStoreById,
+  getStores,
+  updateStore,
+  type Store,
+  type StoresListMeta,
+} from "@/lib/stores";
+import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import InputField from "@/components/ui/InputField";
+import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
 type StoreForm = {
@@ -25,19 +35,34 @@ const EMPTY_FORM: StoreForm = {
   description: "",
 };
 
+function useDebounceStr(value: string, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function StoresPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerSide, setDrawerSide] = useState<DrawerSide>("right");
   const [submitting, setSubmitting] = useState(false);
+  const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [editingStoreIsActive, setEditingStoreIsActive] = useState(true);
+  const [loadingStoreDetail, setLoadingStoreDetail] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const [isMobile, setIsMobile] = useState(false);
+  const debouncedSearch = useDebounceStr(searchTerm, 500);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -63,8 +88,8 @@ export default function StoresPage() {
       const res = await getStores({
         page: currentPage,
         limit: pageSize,
+        search: debouncedSearch,
         token,
-        // search: ... (if we add search later)
       });
 
       setStores(res.data);
@@ -76,7 +101,13 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize]);
+  }, [currentPage, pageSize, debouncedSearch]);
+
+  useEffect(() => {
+    if (debouncedSearch !== "") {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchStores();
@@ -127,11 +158,13 @@ export default function StoresPage() {
   const onOpenDrawer = () => {
     setFormError("");
     setForm(EMPTY_FORM);
+    setEditingStoreId(null);
+    setEditingStoreIsActive(true);
     setDrawerOpen(true);
   };
 
   const onCloseDrawer = () => {
-    if (submitting) return;
+    if (submitting || loadingStoreDetail) return;
     setDrawerOpen(false);
   };
 
@@ -139,7 +172,37 @@ export default function StoresPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const onCreateStore = async (e: FormEvent<HTMLFormElement>) => {
+  const onEditStore = async (id: string) => {
+    setFormError("");
+    setLoadingStoreDetail(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setFormError("Session not found. Please sign in again.");
+        return;
+      }
+
+      const detail = await getStoreById(id, token);
+      setForm({
+        name: detail.name ?? "",
+        code: detail.code ?? "",
+        address: detail.address ?? "",
+        slug: detail.slug ?? "",
+        logo: detail.logo ?? "",
+        description: detail.description ?? "",
+      });
+      setEditingStoreId(detail.id);
+      setEditingStoreIsActive(detail.isActive);
+      setDrawerOpen(true);
+    } catch {
+      setFormError("Store detail could not be loaded. Please try again.");
+    } finally {
+      setLoadingStoreDetail(false);
+    }
+  };
+
+  const onSubmitStore = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
 
@@ -156,47 +219,87 @@ export default function StoresPage() {
 
     setSubmitting(true);
     try {
-      await createStore(
-        {
-          name: form.name.trim(),
-          code: form.code.trim() || undefined,
-          address: form.address.trim() || undefined,
-          slug: form.slug.trim() || undefined,
-          logo: form.logo.trim() || undefined,
-          description: form.description.trim() || undefined,
-        },
-        token,
-      );
+      if (editingStoreId) {
+        await updateStore(
+          editingStoreId,
+          {
+            name: form.name.trim(),
+            code: form.code.trim() || undefined,
+            address: form.address.trim() || undefined,
+            slug: form.slug.trim() || undefined,
+            logo: form.logo.trim() || undefined,
+            description: form.description.trim() || undefined,
+            isActive: editingStoreIsActive,
+          },
+          token,
+        );
+      } else {
+        await createStore(
+          {
+            name: form.name.trim(),
+            code: form.code.trim() || undefined,
+            address: form.address.trim() || undefined,
+            slug: form.slug.trim() || undefined,
+            logo: form.logo.trim() || undefined,
+            description: form.description.trim() || undefined,
+          },
+          token,
+        );
+      }
 
       setDrawerOpen(false);
       setForm(EMPTY_FORM);
+      setEditingStoreId(null);
+      setEditingStoreIsActive(true);
       await fetchStores();
     } catch {
-      setFormError("Store could not be created. Please try again.");
+      setFormError(editingStoreId ? "Store could not be updated. Please try again." : "Store could not be created. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  const onDeleteStore = async () => {
+    if (!deleteTarget) return;
+    setError("");
+    setDeletingStoreId(deleteTarget.id);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Session not found. Please sign in again.");
+        return;
+      }
+
+      await deleteStore(deleteTarget.id, token);
+      await fetchStores();
+      setDeleteTarget(null);
+    } catch {
+      setError("Store could not be deleted. Please try again.");
+    } finally {
+      setDeletingStoreId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Stores</h1>
           <p className="text-sm text-muted">Store list from service</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={drawerSide}
-            onChange={(e) => setDrawerSide(e.target.value as DrawerSide)}
-            className="hidden rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text outline-none md:block"
-          >
-            <option value="right">Drawer: Right</option>
-            <option value="left">Drawer: Left</option>
-            <option value="top">Drawer: Top</option>
-            <option value="bottom">Drawer: Bottom</option>
-          </select>
-
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+              <SearchIcon />
+            </div>
+            <input
+              type="text"
+              placeholder="Ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
           <Button
             label="New Store"
             onClick={onOpenDrawer}
@@ -229,11 +332,12 @@ export default function StoresPage() {
                     <th className="px-4 py-3">Address</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Slug</th>
+                    <th className="px-4 py-3 text-right">Islemler</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stores.map((store) => (
-                    <tr key={store.id} className="border-b border-border last:border-b-0">
+                    <tr key={store.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
                       <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
                       <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
@@ -246,6 +350,30 @@ export default function StoresPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onEditStore(store.id)}
+                            disabled={deletingStoreId === store.id}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                            aria-label="Edit store"
+                            title="Duzenle"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteTarget({ id: store.id, name: store.name })}
+                            disabled={deletingStoreId === store.id}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors disabled:opacity-50"
+                            aria-label={deletingStoreId === store.id ? "Deleting store" : "Delete store"}
+                            title={deletingStoreId === store.id ? "Siliniyor..." : "Sil"}
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,10 +446,10 @@ export default function StoresPage() {
       <Drawer
         open={drawerOpen}
         onClose={onCloseDrawer}
-        side={isMobile ? "right" : drawerSide}
-        title="Create Store"
-        description="Only name is required"
-        closeDisabled={submitting}
+        side={"right"}
+        title={editingStoreId ? "Update Store" : "Create Store"}
+        description={editingStoreId ? "Update store information" : "Only name is required"}
+        closeDisabled={submitting || loadingStoreDetail}
         className={cn(isMobile && "!max-w-none")}
         footer={
           <div className="flex items-center justify-end gap-2">
@@ -329,20 +457,24 @@ export default function StoresPage() {
               label="Cancel"
               type="button"
               onClick={onCloseDrawer}
-              disabled={submitting}
+              disabled={submitting || loadingStoreDetail}
               className="rounded-xl2 border border-border px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
             />
             <Button
-              label={submitting ? "Creating..." : "Create Store"}
+              label={submitting ? (editingStoreId ? "Updating..." : "Creating...") : editingStoreId ? "Update Store" : "Create Store"}
               type="submit"
               form="create-store-form"
-              disabled={submitting}
+              disabled={submitting || loadingStoreDetail}
               className="rounded-xl2 border border-primary/20 bg-primary px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary/90"
             />
           </div>
         }
       >
-        <form id="create-store-form" onSubmit={onCreateStore} className="space-y-4 p-5">
+        <form id="create-store-form" onSubmit={onSubmitStore} className="space-y-4 p-5">
+          {loadingStoreDetail ? (
+            <div className="text-sm text-muted">Loading store detail...</div>
+          ) : (
+            <>
           <InputField
             label="Name *"
             type="text"
@@ -394,8 +526,24 @@ export default function StoresPage() {
           </div>
 
           {formError && <p className="text-sm text-error">{formError}</p>}
+            </>
+          )}
         </form>
       </Drawer>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Silme Onayı"
+        description={deleteTarget ? `"${deleteTarget.name}" mağazasını silmek istediğinize emin misiniz?` : "Silmek istediğinize emin misiniz?"}
+        confirmLabel="Evet"
+        cancelLabel="Hayır"
+        loading={Boolean(deleteTarget && deletingStoreId === deleteTarget.id)}
+        onConfirm={onDeleteStore}
+        onClose={() => {
+          if (deletingStoreId) return;
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

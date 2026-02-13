@@ -21,7 +21,7 @@ export function AiAssistant() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="h-10 w-10 rounded-xl2 border border-border bg-surface text-sm font-medium text-text hover:bg-surface2 md:w-auto md:px-3"
+        className="h-10 w-10 rounded-xl2 border cursor-pointer border-border bg-surface text-sm font-medium text-text hover:bg-surface2 md:w-auto md:px-3"
         aria-label="Open AI Assistant"
       >
         <span className="md:hidden">✨</span>
