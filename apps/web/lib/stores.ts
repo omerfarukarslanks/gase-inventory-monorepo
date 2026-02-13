@@ -44,6 +44,16 @@ export type CreateStoreRequest = {
   description?: string;
 };
 
+export type UpdateStoreRequest = {
+  name: string;
+  code?: string;
+  address?: string;
+  slug?: string;
+  logo?: string;
+  description?: string;
+  isActive: boolean;
+};
+
 export async function getStores({
   offset = 0,
   limit = 50,
@@ -80,9 +90,52 @@ export async function createStore(
   return apiFetch<Store>("/stores", {
     method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
+  });
+}
+
+export async function getStoreById(id: string, token: string): Promise<Store> {
+  return apiFetch<Store>(`/stores/${id}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function updateStore(
+  id: string,
+  payload: UpdateStoreRequest,
+  token: string,
+): Promise<Store> {
+  const body = {
+    name: payload.name,
+    ...(payload.code ? { code: payload.code } : {}),
+    ...(payload.address ? { address: payload.address } : {}),
+    ...(payload.slug ? { slug: payload.slug } : {}),
+    ...(payload.logo ? { logo: payload.logo } : {}),
+    ...(payload.description ? { description: payload.description } : {}),
+    isActive: payload.isActive,
+  };
+
+  return apiFetch<Store>(`/stores/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteStore(id: string, token: string): Promise<void> {
+  await apiFetch<unknown>(`/stores/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 }

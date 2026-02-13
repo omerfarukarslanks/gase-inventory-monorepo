@@ -1,9 +1,18 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { createStore, getStores, type Store, type StoresListMeta } from "@/lib/stores";
+import {
+  createStore,
+  deleteStore,
+  getStoreById,
+  getStores,
+  updateStore,
+  type Store,
+  type StoresListMeta,
+} from "@/lib/stores";
 import Drawer, { type DrawerSide } from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import InputField from "@/components/ui/InputField";
 import { cn } from "@/lib/cn";
 
@@ -36,6 +45,11 @@ export default function StoresPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerSide, setDrawerSide] = useState<DrawerSide>("right");
   const [submitting, setSubmitting] = useState(false);
+  const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [editingStoreIsActive, setEditingStoreIsActive] = useState(true);
+  const [loadingStoreDetail, setLoadingStoreDetail] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const [isMobile, setIsMobile] = useState(false);
@@ -129,11 +143,13 @@ export default function StoresPage() {
   const onOpenDrawer = () => {
     setFormError("");
     setForm(EMPTY_FORM);
+    setEditingStoreId(null);
+    setEditingStoreIsActive(true);
     setDrawerOpen(true);
   };
 
   const onCloseDrawer = () => {
-    if (submitting) return;
+    if (submitting || loadingStoreDetail) return;
     setDrawerOpen(false);
   };
 
@@ -141,7 +157,37 @@ export default function StoresPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const onCreateStore = async (e: FormEvent<HTMLFormElement>) => {
+  const onEditStore = async (id: string) => {
+    setFormError("");
+    setLoadingStoreDetail(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setFormError("Session not found. Please sign in again.");
+        return;
+      }
+
+      const detail = await getStoreById(id, token);
+      setForm({
+        name: detail.name ?? "",
+        code: detail.code ?? "",
+        address: detail.address ?? "",
+        slug: detail.slug ?? "",
+        logo: detail.logo ?? "",
+        description: detail.description ?? "",
+      });
+      setEditingStoreId(detail.id);
+      setEditingStoreIsActive(detail.isActive);
+      setDrawerOpen(true);
+    } catch {
+      setFormError("Store detail could not be loaded. Please try again.");
+    } finally {
+      setLoadingStoreDetail(false);
+    }
+  };
+
+  const onSubmitStore = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
 
@@ -158,25 +204,64 @@ export default function StoresPage() {
 
     setSubmitting(true);
     try {
-      await createStore(
-        {
-          name: form.name.trim(),
-          code: form.code.trim() || undefined,
-          address: form.address.trim() || undefined,
-          slug: form.slug.trim() || undefined,
-          logo: form.logo.trim() || undefined,
-          description: form.description.trim() || undefined,
-        },
-        token,
-      );
+      if (editingStoreId) {
+        await updateStore(
+          editingStoreId,
+          {
+            name: form.name.trim(),
+            code: form.code.trim() || undefined,
+            address: form.address.trim() || undefined,
+            slug: form.slug.trim() || undefined,
+            logo: form.logo.trim() || undefined,
+            description: form.description.trim() || undefined,
+            isActive: editingStoreIsActive,
+          },
+          token,
+        );
+      } else {
+        await createStore(
+          {
+            name: form.name.trim(),
+            code: form.code.trim() || undefined,
+            address: form.address.trim() || undefined,
+            slug: form.slug.trim() || undefined,
+            logo: form.logo.trim() || undefined,
+            description: form.description.trim() || undefined,
+          },
+          token,
+        );
+      }
 
       setDrawerOpen(false);
       setForm(EMPTY_FORM);
+      setEditingStoreId(null);
+      setEditingStoreIsActive(true);
       await fetchStores();
     } catch {
-      setFormError("Store could not be created. Please try again.");
+      setFormError(editingStoreId ? "Store could not be updated. Please try again." : "Store could not be created. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onDeleteStore = async () => {
+    if (!deleteTarget) return;
+    setError("");
+    setDeletingStoreId(deleteTarget.id);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Session not found. Please sign in again.");
+        return;
+      }
+
+      await deleteStore(deleteTarget.id, token);
+      await fetchStores();
+      setDeleteTarget(null);
+    } catch {
+      setError("Store could not be deleted. Please try again.");
+    } finally {
+      setDeletingStoreId(null);
     }
   };
 
@@ -231,6 +316,7 @@ export default function StoresPage() {
                     <th className="px-4 py-3">Address</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Slug</th>
+                    <th className="px-4 py-3">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,6 +335,22 @@ export default function StoresPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            label="Edit"
+                            onClick={() => onEditStore(store.id)}
+                            disabled={deletingStoreId === store.id}
+                            className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text hover:bg-surface2"
+                          />
+                          <Button
+                            label={deletingStoreId === store.id ? "Deleting..." : "Delete"}
+                            onClick={() => setDeleteTarget({ id: store.id, name: store.name })}
+                            disabled={deletingStoreId === store.id}
+                            className="rounded-lg border border-error/40 bg-error/10 px-2 py-1 text-xs text-text hover:bg-error/20"
+                          />
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -323,9 +425,9 @@ export default function StoresPage() {
         open={drawerOpen}
         onClose={onCloseDrawer}
         side={isMobile ? "right" : drawerSide}
-        title="Create Store"
-        description="Only name is required"
-        closeDisabled={submitting}
+        title={editingStoreId ? "Update Store" : "Create Store"}
+        description={editingStoreId ? "Update store information" : "Only name is required"}
+        closeDisabled={submitting || loadingStoreDetail}
         className={cn(isMobile && "!max-w-none")}
         footer={
           <div className="flex items-center justify-end gap-2">
@@ -333,20 +435,24 @@ export default function StoresPage() {
               label="Cancel"
               type="button"
               onClick={onCloseDrawer}
-              disabled={submitting}
+              disabled={submitting || loadingStoreDetail}
               className="rounded-xl2 border border-border px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
             />
             <Button
-              label={submitting ? "Creating..." : "Create Store"}
+              label={submitting ? (editingStoreId ? "Updating..." : "Creating...") : editingStoreId ? "Update Store" : "Create Store"}
               type="submit"
               form="create-store-form"
-              disabled={submitting}
+              disabled={submitting || loadingStoreDetail}
               className="rounded-xl2 border border-primary/20 bg-primary px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary/90"
             />
           </div>
         }
       >
-        <form id="create-store-form" onSubmit={onCreateStore} className="space-y-4 p-5">
+        <form id="create-store-form" onSubmit={onSubmitStore} className="space-y-4 p-5">
+          {loadingStoreDetail ? (
+            <div className="text-sm text-muted">Loading store detail...</div>
+          ) : (
+            <>
           <InputField
             label="Name *"
             type="text"
@@ -398,8 +504,24 @@ export default function StoresPage() {
           </div>
 
           {formError && <p className="text-sm text-error">{formError}</p>}
+            </>
+          )}
         </form>
       </Drawer>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Silme Onayı"
+        description={deleteTarget ? `"${deleteTarget.name}" mağazasını silmek istediğinize emin misiniz?` : "Silmek istediğinize emin misiniz?"}
+        confirmLabel="Evet"
+        cancelLabel="Hayır"
+        loading={Boolean(deleteTarget && deletingStoreId === deleteTarget.id)}
+        onConfirm={onDeleteStore}
+        onClose={() => {
+          if (deletingStoreId) return;
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

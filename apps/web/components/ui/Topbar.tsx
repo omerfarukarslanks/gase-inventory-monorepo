@@ -30,7 +30,7 @@ export default function Topbar() {
 
           <AiAssistant />
 
-          <button className="h-10 w-10 rounded-xl2 border border-border bg-surface text-text hover:bg-surface2">
+          <button className="h-10 w-10 rounded-xl2 border cursor-pointer border-border bg-surface text-text hover:bg-surface2">
             ??
           </button>
 

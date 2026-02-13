@@ -70,3 +70,13 @@ export async function getMe(token: string): Promise<LoginUserResponse> {
   });
   return data;
 }
+
+export async function logout(token: string): Promise<{ success: boolean }> {
+  const data = await apiFetch<{ success: boolean }>("/auth/logout", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return data;
+}
