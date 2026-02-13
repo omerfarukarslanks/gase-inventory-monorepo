@@ -8,14 +8,25 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   onClick?: () => void;
-}
+  form?: string;
+};
 
-export default function Button({ label, type = "button", className = "font-semibold  hover:opacity-90", buttonType = "primary", disabled = false, loading = false, onClick }: Props) {
+export default function Button({
+  label,
+  type = "button",
+  className = "font-semibold  hover:opacity-90",
+  buttonType = "primary",
+  disabled = false,
+  loading = false,
+  onClick,
+  form,
+}: Props) {
 
   return (
     <button
       type={type}
       onClick={onClick}
+      form={form}
       disabled={disabled || loading}
       className={`${className} text-${buttonType}  ${disabled || loading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >

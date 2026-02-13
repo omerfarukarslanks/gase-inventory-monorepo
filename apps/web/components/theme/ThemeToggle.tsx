@@ -1,21 +1,25 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { cn } from "@/lib/cn";
 
-export default function ThemeToggle() {
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+type Props = {
+  fixed?: boolean;
+  className?: string;
+};
 
-  // Avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export default function ThemeToggle({ fixed = true, className }: Props) {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const currentTheme = theme === "system" ? resolvedTheme : theme;
 
-  if (!mounted) {
+  if (!resolvedTheme) {
     return (
       <button
-        className="fixed right-4 top-4 z-50 h-10 w-10 cursor-pointer rounded-xl border border-border bg-surface text-text2 shadow-sm"
+        className={cn(
+          "h-10 w-10 cursor-pointer rounded-xl border border-border bg-surface text-text2 shadow-sm",
+          fixed && "fixed right-4 top-4 z-50",
+          className,
+        )}
         aria-label="Toggle theme"
       >
         <span className="flex items-center justify-center opacity-0">
@@ -29,12 +33,16 @@ export default function ThemeToggle() {
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="fixed right-4 top-4 z-50 h-10 w-10 rounded-xl cursor-pointer border border-border bg-surface text-text2 shadow-sm transition-all duration-200 hover:border-borderHover hover:text-text"
+      onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
+      className={cn(
+        "h-10 w-10 rounded-xl cursor-pointer border border-border bg-surface text-text2 shadow-sm transition-all duration-200 hover:border-borderHover hover:text-text",
+        fixed && "fixed right-4 top-4 z-50",
+        className,
+      )}
       aria-label="Toggle theme"
     >
       <span className="flex items-center justify-center">
-        {theme === "dark" ? (
+        {currentTheme === "dark" ? (
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="12" cy="12" r="5" />
             <line x1="12" y1="1" x2="12" y2="3" />
