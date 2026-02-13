@@ -1,4 +1,4 @@
-import { apiFetch } from "../../lib/api";
+import { apiFetch, BASE_URL } from "../../lib/api";
 
 interface LoginResponse {
   access_token: string;
@@ -50,6 +50,23 @@ export async function resetPassword(token: string, newPassword: string): Promise
   const data = await apiFetch<{success: boolean}>("/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, newPassword }),
+  });
+  return data;
+}
+
+export function getGoogleAuthUrl(): string {
+  return `${BASE_URL}/auth/google`;
+}
+
+export function getMicrosoftAuthUrl(): string {
+  return `${BASE_URL}/auth/microsoft`;
+}
+
+export async function getMe(token: string): Promise<LoginUserResponse> {
+  const data = await apiFetch<LoginUserResponse>("/auth/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
   return data;
 }
