@@ -18,21 +18,14 @@ export type Store = {
 export type StoresListMeta = {
   total: number;
   limit: number;
-  offset: number;
-  hasMore: boolean;
-  cursor: string | null;
+  page: number;
+  totalPages: number;
+  hasMore?: boolean;
 };
 
 export type StoresListResponse = {
   data: Store[];
   meta: StoresListMeta;
-};
-
-export type GetStoresParams = {
-  offset?: number;
-  limit?: number;
-  cursor?: string;
-  token: string;
 };
 
 export type CreateStoreRequest = {
@@ -44,17 +37,31 @@ export type CreateStoreRequest = {
   description?: string;
 };
 
+export type GetStoresParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  token: string;
+};
+
 export async function getStores({
-  offset = 0,
-  limit = 50,
-  cursor,
+  page = 1,
+  limit = 10,
+  search,
+  sortBy,
+  sortOrder,
   token,
 }: GetStoresParams): Promise<StoresListResponse> {
   const query = new URLSearchParams({
-    offset: String(offset),
+    page: String(page),
     limit: String(limit),
-    cursor: cursor ?? new Date().toISOString(),
   });
+
+  if (search) query.append("search", search);
+  if (sortBy) query.append("sortBy", sortBy);
+  if (sortOrder) query.append("sortOrder", sortOrder);
 
   return apiFetch<StoresListResponse>(`/stores?${query.toString()}`, {
     method: "GET",

@@ -30,7 +30,6 @@ export default function StoresPage() {
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [cursor] = useState(() => new Date().toISOString());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -61,12 +60,11 @@ export default function StoresPage() {
         return;
       }
 
-      const offset = (currentPage - 1) * pageSize;
       const res = await getStores({
-        offset,
+        page: currentPage,
         limit: pageSize,
-        cursor,
         token,
+        // search: ... (if we add search later)
       });
 
       setStores(res.data);
@@ -78,13 +76,13 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, cursor, pageSize]);
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
     fetchStores();
   }, [fetchStores]);
 
-  const totalPages = meta ? Math.max(1, Math.ceil(meta.total / pageSize)) : 1;
+  const totalPages = meta?.totalPages ?? 1;
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
 
@@ -241,9 +239,8 @@ export default function StoresPage() {
                       <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                            store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                          }`}
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
+                            }`}
                         >
                           {store.isActive ? "Active" : "Passive"}
                         </span>
@@ -297,11 +294,10 @@ export default function StoresPage() {
                         label={String(item)}
                         onClick={() => goToPage(item)}
                         disabled={loading}
-                        className={`rounded-lg border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 ${
-                          item === currentPage
+                        className={`rounded-lg border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 ${item === currentPage
                             ? "border-primary bg-primary/15 text-primary"
                             : "border-border bg-surface text-text hover:bg-surface2"
-                        }`}
+                          }`}
                       />
                     ),
                   )}
