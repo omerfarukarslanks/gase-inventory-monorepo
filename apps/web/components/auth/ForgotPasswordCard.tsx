@@ -7,6 +7,7 @@ import PasswordStrength from "@/components/auth/PasswordStrength";
 import Logo from "@/components/ui/Logo";
 import { CheckIcon, EmailIcon, LockIcon } from "@/components/auth/icon";
 import Button from "../ui/Button";
+import { forgotPassword } from "@/app/auth/auth";
 
 type Step = "forgot" | "email-sent" | "reset" | "success";
 
@@ -46,9 +47,20 @@ export default function ForgotPasswordCard() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
-    await sleep(1200);
-    setLoading(false);
-    setStep("email-sent");
+    try {
+      const response = await forgotPassword(email);
+      await sleep(1200);
+      if (response && response.success) {
+        setStep("email-sent");
+      } else {
+        setErrors({ email: "E-posta adresi bulunamadi" });
+      }
+    } catch {
+      setErrors({ email: "Bir hata olustu. Lutfen tekrar deneyin." });
+    } finally {
+      setLoading(false);
+    }
+
   };
 
   const submitReset = async () => {
@@ -160,6 +172,12 @@ export default function ForgotPasswordCard() {
                 label="Tekrar Gonder"
                 onClick={submitForgot}
                 className="w-full rounded-[10px] border-[1.5px] border-border py-[12px] text-[13.5px] font-semibold text-text2 hover:border-borderHover"
+              />
+
+              <Button
+                label="Giris Sayfasina Don"
+                onClick={() => router.push("/auth/login")}
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-primary to-accent py-[14px] text-[14.5px] font-bold text-white shadow-glow hover:opacity-[0.98]"
               />
             </div>
           </div>
