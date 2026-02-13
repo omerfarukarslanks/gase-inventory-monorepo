@@ -8,7 +8,7 @@ import { BuildIcon, CheckIcon, EmailIcon, LockIcon, UserIcon } from "../auth/ico
 import InputField from "../ui/InputField";
 import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
-import { login, signup } from "@/app/auth/auth";
+import { login, signup, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
 import Button from "../ui/Button";
 
@@ -355,8 +355,8 @@ export default function AuthCard({ initialMode }: Props) {
 
       {/* Social */}
       <div className="flex gap-3">
-        <SocialButton provider="google" />
-        <SocialButton provider="microsoft" />
+        <SocialButton provider="google" onClick={() => { window.location.href = getGoogleAuthUrl(); }} />
+        <SocialButton provider="microsoft" onClick={() => { window.location.href = getMicrosoftAuthUrl(); }} />
       </div>
 
       {/* Bottom link */}
