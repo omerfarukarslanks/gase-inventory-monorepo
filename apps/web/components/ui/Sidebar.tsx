@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
+import { canAccessTenantPages, getSessionUserRole } from "@/lib/authz";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
@@ -40,18 +41,25 @@ export default function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
   const [displayName, setDisplayName] = useState("Kullanici");
   const [displayRole, setDisplayRole] = useState("Admin");
+  const [canSeeTenantManagement, setCanSeeTenantManagement] = useState(true);
 
   useEffect(() => {
     try {
+      setCanSeeTenantManagement(canAccessTenantPages(getSessionUserRole()));
       const rawUser = localStorage.getItem("user");
-      if (!rawUser) return;
+      if (!rawUser) {
+        setDisplayName("Kullanici");
+        setDisplayRole("User");
+        return;
+      }
       const parsed = JSON.parse(rawUser) as LocalUser;
       const fullName = [parsed.name, parsed.surname].filter(Boolean).join(" ").trim();
       setDisplayName(fullName || "Kullanici");
       setDisplayRole(parsed.role || "Admin");
     } catch {
       setDisplayName("Kullanici");
-      setDisplayRole("Admin");
+      setDisplayRole("User");
+      setCanSeeTenantManagement(false);
     }
   }, []);
 
@@ -176,7 +184,9 @@ export default function Sidebar({
         </div>
 
         <div className="space-y-1">
-          {adminItems.map((it) => (
+          {adminItems
+            .filter((it) => canSeeTenantManagement || (it.href !== "/stores" && it.href !== "/users"))
+            .map((it) => (
             <Link
               key={it.href}
               href={it.href}
@@ -199,7 +209,7 @@ export default function Sidebar({
               </span>
               {!collapsed && <span className="flex-1">{it.label}</span>}
             </Link>
-          ))}
+            ))}
         </div>
       </div>
 

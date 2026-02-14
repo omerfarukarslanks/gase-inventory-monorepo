@@ -72,15 +72,12 @@ export default function SearchableDropdown({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value),
     [options, value],
   );
-
-  useEffect(() => {
-    setQuery(selectedOption?.label ?? "");
-  }, [selectedOption]);
 
   useEffect(() => {
     const onOutsideClick = (event: MouseEvent) => {
@@ -93,6 +90,16 @@ export default function SearchableDropdown({
     return () => document.removeEventListener("mousedown", onOutsideClick);
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, [open]);
+
   const filteredOptions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return options;
@@ -101,35 +108,31 @@ export default function SearchableDropdown({
     );
   }, [options, query]);
 
-  const selectOption = (nextValue: string, nextLabel?: string) => {
+  const selectOption = (nextValue: string) => {
     onChange(nextValue);
-    setQuery(nextLabel ?? "");
+    setQuery("");
     setOpen(false);
   };
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
       <div className="relative">
-        <input
-          type="text"
-          value={query}
-          placeholder={placeholder}
-          onFocus={() => setOpen(true)}
-          onClick={() => setOpen(true)}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
           onKeyDown={(e) => {
             if (e.key === "Escape") setOpen(false);
             if (e.key === "ArrowDown") setOpen(true);
           }}
-          className="h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+          className="h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
           aria-label={inputAriaLabel}
-          role="combobox"
           aria-expanded={open}
-          aria-autocomplete="list"
-        />
+          aria-haspopup="listbox"
+        >
+          <span className={selectedOption ? "text-text" : "text-muted"}>
+            {selectedOption?.label ?? placeholder}
+          </span>
+        </button>
 
         {allowClear && value && (
           <button
@@ -154,6 +157,21 @@ export default function SearchableDropdown({
 
       {open && (
         <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10">
+          <div className="px-1 pb-1">
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              placeholder="Ara..."
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setOpen(false);
+              }}
+              className="h-9 w-full rounded-lg border border-border bg-surface2 px-2.5 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+              aria-label={inputAriaLabel}
+            />
+          </div>
+
           {showEmptyOption && (
             <button
               type="button"
@@ -171,7 +189,7 @@ export default function SearchableDropdown({
               <button
                 key={option.value}
                 type="button"
-                onClick={() => selectOption(option.value, option.label)}
+                onClick={() => selectOption(option.value)}
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   value === option.value
                     ? "bg-primary/10 text-primary"

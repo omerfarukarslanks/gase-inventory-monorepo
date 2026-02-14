@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { getUsers, updateUser, createUser, type User, type Meta, type CreateUserDto } from "@/lib/users";
 import { getStores, type Store } from "@/lib/stores";
 import InputField from "@/components/ui/InputField";
@@ -9,6 +10,7 @@ import Drawer from "@/components/ui/Drawer";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
+import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
 
 // Basit ikonlar
 const SortAscIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h10" /><path d="M11 16h10" /><path d="M11 20h10" /></svg>;
@@ -25,6 +27,7 @@ function useDebounceStr(value: string, delay: number) {
 }
 
 export default function UsersPage() {
+    const router = useRouter();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
@@ -78,6 +81,16 @@ export default function UsersPage() {
 
     const [saving, setSaving] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [accessChecked, setAccessChecked] = useState(false);
+
+    useEffect(() => {
+        const role = getSessionUserRole();
+        if (isStoreScopedRole(role)) {
+            router.replace("/dashboard");
+            return;
+        }
+        setAccessChecked(true);
+    }, [router]);
 
     // Stores for selection
     const [stores, setStores] = useState<Store[]>([]);
@@ -104,6 +117,7 @@ export default function UsersPage() {
 
     // Fetch Stores for selection
     const fetchStoreList = useCallback(async () => {
+        if (!accessChecked) return;
         if (stores.length > 0) return;
 
         const token = localStorage.getItem("token");
@@ -114,7 +128,7 @@ export default function UsersPage() {
         } catch (e) {
             console.error("Mağazalar çekilemedi", e);
         }
-    }, [stores.length]);
+    }, [stores.length, accessChecked]);
 
     useEffect(() => {
         fetchStoreList();
@@ -122,6 +136,7 @@ export default function UsersPage() {
 
     // Fetch Users
     const fetchUsers = useCallback(async () => {
+        if (!accessChecked) return;
         setLoading(true);
         try {
             const res = await getUsers({
@@ -142,7 +157,7 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, limit, debouncedSearch, storeFilter, statusFilter, sortBy, sortOrder]);
+    }, [currentPage, limit, debouncedSearch, storeFilter, statusFilter, sortBy, sortOrder, accessChecked]);
 
     // Initial Fetch & Update when deps change
     useEffect(() => {

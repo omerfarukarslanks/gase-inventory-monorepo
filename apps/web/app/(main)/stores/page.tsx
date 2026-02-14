@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   createStore,
   getStoreById,
@@ -16,6 +17,7 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
+import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
 
 type StoreForm = {
   name: string;
@@ -45,6 +47,7 @@ function useDebounceStr(value: string, delay: number) {
 }
 
 export default function StoresPage() {
+  const router = useRouter();
   const STATUS_FILTER_OPTIONS = [
     { value: "all", label: "Tum Durumlar" },
     { value: "true", label: "Aktif" },
@@ -74,7 +77,17 @@ export default function StoresPage() {
   const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const [isMobile, setIsMobile] = useState(false);
+  const [accessChecked, setAccessChecked] = useState(false);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
+
+  useEffect(() => {
+    const role = getSessionUserRole();
+    if (isStoreScopedRole(role)) {
+      router.replace("/dashboard");
+      return;
+    }
+    setAccessChecked(true);
+  }, [router]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -85,6 +98,7 @@ export default function StoresPage() {
   }, []);
 
   const fetchStores = useCallback(async () => {
+    if (!accessChecked) return;
     setLoading(true);
     setError("");
 
@@ -114,7 +128,7 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearch, statusFilter]);
+  }, [currentPage, pageSize, debouncedSearch, statusFilter, accessChecked]);
 
   useEffect(() => {
     if (debouncedSearch !== "") {
