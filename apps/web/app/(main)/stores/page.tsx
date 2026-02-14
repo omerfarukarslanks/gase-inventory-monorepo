@@ -3,7 +3,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import {
   createStore,
-  deleteStore,
   getStoreById,
   getStores,
   updateStore,
@@ -12,9 +11,10 @@ import {
 } from "@/lib/stores";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import InputField from "@/components/ui/InputField";
-import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
+import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
 type StoreForm = {
@@ -45,17 +45,28 @@ function useDebounceStr(value: string, delay: number) {
 }
 
 export default function StoresPage() {
+  const STATUS_FILTER_OPTIONS = [
+    { value: "all", label: "Tum Durumlar" },
+    { value: "true", label: "Aktif" },
+    { value: "false", label: "Pasif" },
+  ];
+  const parseStatusFilter = (value: string): boolean | "all" => {
+    if (value === "all") return "all";
+    return value === "true";
+  };
+
   const [stores, setStores] = useState<Store[]>([]);
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [deletingStoreId, setDeletingStoreId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [togglingStoreIds, setTogglingStoreIds] = useState<string[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [editingStoreIsActive, setEditingStoreIsActive] = useState(true);
   const [loadingStoreDetail, setLoadingStoreDetail] = useState(false);
@@ -90,6 +101,7 @@ export default function StoresPage() {
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch,
+        isActive: statusFilter,
         token,
       });
 
@@ -102,13 +114,17 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearch]);
+  }, [currentPage, pageSize, debouncedSearch, statusFilter]);
 
   useEffect(() => {
     if (debouncedSearch !== "") {
       setCurrentPage(1);
     }
   }, [debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchStores();
@@ -273,10 +289,12 @@ export default function StoresPage() {
     }
   };
 
-  const onDeleteStore = async () => {
-    if (!deleteTarget) return;
-    setError("");
-    setDeletingStoreId(deleteTarget.id);
+  const clearAdvancedFilters = () => {
+    setStatusFilter("all");
+  };
+
+  const onToggleStoreActive = async (store: Store, next: boolean) => {
+    setTogglingStoreIds((prev) => [...prev, store.id]);
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -284,13 +302,24 @@ export default function StoresPage() {
         return;
       }
 
-      await deleteStore(deleteTarget.id, token);
+      await updateStore(
+        store.id,
+        {
+          name: store.name,
+          code: store.code || undefined,
+          address: store.address || undefined,
+          slug: store.slug || undefined,
+          logo: store.logo || undefined,
+          description: store.description || undefined,
+          isActive: next,
+        },
+        token,
+      );
       await fetchStores();
-      setDeleteTarget(null);
     } catch {
-      setError("Store could not be deleted. Please try again.");
+      setError("Store status could not be updated. Please try again.");
     } finally {
-      setDeletingStoreId(null);
+      setTogglingStoreIds((prev) => prev.filter((id) => id !== store.id));
     }
   };
 
@@ -315,20 +344,45 @@ export default function StoresPage() {
             />
           </div>
           <Button
+            label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            variant="secondary"
+            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+          />
+          <Button
             label="New Store"
             onClick={onOpenDrawer}
             variant="primarySoft"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-
-          <Button
-            label="Refresh"
-            onClick={fetchStores}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
         </div>
       </div>
+
+      {showAdvancedFilters && (
+        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Durum</label>
+            <SearchableDropdown
+              options={STATUS_FILTER_OPTIONS}
+              value={statusFilter === "all" ? "all" : String(statusFilter)}
+              onChange={(value) => setStatusFilter(parseStatusFilter(value))}
+              placeholder="Tum Durumlar"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Magaza durum filtresi"
+              toggleAriaLabel="Magaza durum listesini ac"
+            />
+          </div>
+          <div className="md:col-span-2 lg:col-span-3">
+            <Button
+              label="Filtreleri Temizle"
+              onClick={clearAdvancedFilters}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            />
+          </div>
+        </div>
+      )}
 
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {loading ? (
@@ -371,23 +425,18 @@ export default function StoresPage() {
                           <button
                             type="button"
                             onClick={() => onEditStore(store.id)}
-                            disabled={deletingStoreId === store.id}
+                            disabled={togglingStoreIds.includes(store.id)}
                             className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
                             aria-label="Edit store"
                             title="Duzenle"
                           >
                             <EditIcon />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteTarget({ id: store.id, name: store.name })}
-                            disabled={deletingStoreId === store.id}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors disabled:opacity-50"
-                            aria-label={deletingStoreId === store.id ? "Deleting store" : "Delete store"}
-                            title={deletingStoreId === store.id ? "Siliniyor..." : "Sil"}
-                          >
-                            <TrashIcon />
-                          </button>
+                          <ToggleSwitch
+                            checked={store.isActive}
+                            onChange={(next) => onToggleStoreActive(store, next)}
+                            disabled={togglingStoreIds.includes(store.id)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -544,20 +593,6 @@ export default function StoresPage() {
           )}
         </form>
       </Drawer>
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Silme Onayı"
-        description={deleteTarget ? `"${deleteTarget.name}" mağazasını silmek istediğinize emin misiniz?` : "Silmek istediğinize emin misiniz?"}
-        confirmLabel="Evet"
-        cancelLabel="Hayır"
-        loading={Boolean(deleteTarget && deletingStoreId === deleteTarget.id)}
-        onConfirm={onDeleteStore}
-        onClose={() => {
-          if (deletingStoreId) return;
-          setDeleteTarget(null);
-        }}
-      />
     </div>
   );
 }

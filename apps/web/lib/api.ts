@@ -1,4 +1,5 @@
 export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+let unauthorizedRedirectInProgress = false;
 
 export class ApiError extends Error {
   status: number;
@@ -31,6 +32,17 @@ export async function apiFetch<T>(
     const body = await res.json().catch(() => null);
     const message =
       body?.message ?? body?.error ?? `İstek başarısız (${res.status})`;
+
+    if (res.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      if (!unauthorizedRedirectInProgress && !window.location.pathname.startsWith("/auth")) {
+        unauthorizedRedirectInProgress = true;
+        window.location.href = "/auth/login";
+      }
+    }
+
     throw new ApiError(message, res.status);
   }
 

@@ -51,6 +51,7 @@ export type GetStoresParams = {
   page?: number;
   limit?: number;
   search?: string;
+  isActive?: boolean | "all";
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
   token: string;
@@ -60,6 +61,7 @@ export async function getStores({
   page = 1,
   limit = 10,
   search,
+  isActive,
   sortBy,
   sortOrder,
   token,
@@ -70,6 +72,7 @@ export async function getStores({
   });
 
   if (search) query.append("search", search);
+  if (isActive != null) query.append("isActive", String(isActive));
   if (sortBy) query.append("sortBy", sortBy);
   if (sortOrder) query.append("sortOrder", sortOrder);
 

@@ -53,6 +53,7 @@ export interface GetUsersParams {
   limit?: number;
   search?: string;
   storeId?: string;
+  isActive?: boolean | "all";
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
 }
@@ -63,6 +64,7 @@ export interface UpdateUserDto {
   email?: string; 
   role?: string;
   storeIds?: string[];
+  isActive?: boolean;
 }
 
 export interface CreateUserDto {
@@ -80,6 +82,7 @@ export async function getUsers(params: GetUsersParams): Promise<UsersResponse> {
   if (params.limit) searchParams.append("limit", params.limit.toString());
   if (params.search) searchParams.append("search", params.search);
   if (params.storeId) searchParams.append("storeId", params.storeId);
+  if (params.isActive != null) searchParams.append("isActive", String(params.isActive));
   if (params.sortBy) searchParams.append("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
