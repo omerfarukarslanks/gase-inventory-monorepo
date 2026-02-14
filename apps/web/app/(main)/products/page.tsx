@@ -19,6 +19,7 @@ import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
@@ -92,6 +93,7 @@ type ProductForm = {
 };
 
 type VariantForm = {
+  clientKey: string;
   id?: string;
   isActive?: boolean;
   name: string;
@@ -122,15 +124,6 @@ const EMPTY_PRODUCT_FORM: ProductForm = {
   defaultTaxPercent: "",
 };
 
-const EMPTY_VARIANT: VariantForm = {
-  id: undefined,
-  isActive: true,
-  name: "",
-  code: "",
-  barcode: "",
-  attributes: [{ key: "", value: "", unit: "" }],
-};
-
 /* ── Helpers ── */
 
 function useDebounceStr(value: string, delay: number) {
@@ -140,6 +133,25 @@ function useDebounceStr(value: string, delay: number) {
     return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
+}
+
+function createVariantClientKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `variant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createEmptyVariant(): VariantForm {
+  return {
+    clientKey: createVariantClientKey(),
+    id: undefined,
+    isActive: true,
+    name: "",
+    code: "",
+    barcode: "",
+    attributes: [{ key: "", value: "", unit: "" }],
+  };
 }
 
 function formatPrice(val: number | string | null | undefined): string {
@@ -290,6 +302,7 @@ export default function ProductsPage() {
 
   /* Variants */
   const [variants, setVariants] = useState<VariantForm[]>([]);
+  const [expandedVariantKeys, setExpandedVariantKeys] = useState<string[]>([]);
   const [originalVariantMap, setOriginalVariantMap] = useState<Record<string, VariantSnapshot>>({});
   const [variantErrors, setVariantErrors] = useState<Record<number, VariantErrors>>({});
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -507,6 +520,7 @@ export default function ProductsPage() {
     setFormError("");
     setEditingProductId(null);
     setCreatedProductId(null);
+    setExpandedVariantKeys([]);
     setOriginalVariantMap({});
     setStep(1);
     setDrawerOpen(true);
@@ -638,6 +652,7 @@ export default function ProductsPage() {
       );
       setVariants(
         data.map((v) => ({
+          clientKey: v.id,
           id: v.id,
           isActive: v.isActive ?? true,
           name: v.name,
@@ -649,7 +664,9 @@ export default function ProductsPage() {
           }),
         })),
       );
+      setExpandedVariantKeys(data.length > 0 ? [data[0].id] : []);
     } catch {
+      setExpandedVariantKeys([]);
       setOriginalVariantMap({});
       setVariants([]);
     }
@@ -748,6 +765,7 @@ export default function ProductsPage() {
       setVariants([]);
       setEditingProductId(null);
       setCreatedProductId(null);
+      setExpandedVariantKeys([]);
       setStep(1);
       await fetchProducts();
       return;
@@ -802,6 +820,7 @@ export default function ProductsPage() {
       setVariants([]);
       setEditingProductId(null);
       setCreatedProductId(null);
+      setExpandedVariantKeys([]);
       setOriginalVariantMap({});
       setStep(1);
       await fetchProducts();
@@ -815,16 +834,28 @@ export default function ProductsPage() {
   /* ── Variant helpers ── */
 
   const addVariant = () => {
-    setVariants((prev) => [...prev, { ...EMPTY_VARIANT, attributes: [{ key: "", value: "", unit: "" }] }]);
+    const newVariant = createEmptyVariant();
+    setVariants((prev) => [...prev, newVariant]);
+    setExpandedVariantKeys((prev) => [...prev, newVariant.clientKey]);
   };
 
   const removeVariant = (index: number) => {
+    const removedKey = variants[index]?.clientKey;
     setVariants((prev) => prev.filter((_, i) => i !== index));
+    if (removedKey) {
+      setExpandedVariantKeys((prev) => prev.filter((key) => key !== removedKey));
+    }
     setVariantErrors((prev) => {
       const next = { ...prev };
       delete next[index];
       return next;
     });
+  };
+
+  const toggleVariantPanel = (clientKey: string) => {
+    setExpandedVariantKeys((prev) =>
+      prev.includes(clientKey) ? prev.filter((key) => key !== clientKey) : [...prev, clientKey],
+    );
   };
 
   const updateVariantField = (index: number, field: keyof Omit<VariantForm, "attributes">, value: string) => {
@@ -1372,10 +1403,13 @@ export default function ProductsPage() {
               ) : (
                 <div className="space-y-4">
                   {variants.map((variant, vi) => (
-                    <div key={vi} className="rounded-xl2 border border-border bg-surface2/30 p-4 space-y-3">
-                      {/* Variant header */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted">Varyant #{vi + 1}</span>
+                    <CollapsiblePanel
+                      key={variant.clientKey}
+                      title={`Varyant #${vi + 1}${variant.name ? ` - ${variant.name}` : ""}`}
+                      open={expandedVariantKeys.includes(variant.clientKey)}
+                      onToggle={() => toggleVariantPanel(variant.clientKey)}
+                      toggleAriaLabel={expandedVariantKeys.includes(variant.clientKey) ? "Varyanti daralt" : "Varyanti genislet"}
+                      rightSlot={(
                         <button
                           type="button"
                           onClick={() => removeVariant(vi)}
@@ -1384,8 +1418,8 @@ export default function ProductsPage() {
                         >
                           <TrashIcon />
                         </button>
-                      </div>
-
+                      )}
+                    >
                       {/* Variant base fields */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
@@ -1533,11 +1567,11 @@ export default function ProductsPage() {
                           </div>
                         ))}
 
-                        {variantErrors[vi]?.attributes && (
-                          <p className="text-xs text-error">{variantErrors[vi].attributes}</p>
-                        )}
+                      {variantErrors[vi]?.attributes && (
+                        <p className="text-xs text-error">{variantErrors[vi].attributes}</p>
+                      )}
                       </div>
-                    </div>
+                    </CollapsiblePanel>
                   ))}
                 </div>
               )}
