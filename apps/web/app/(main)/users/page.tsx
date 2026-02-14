@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { getUsers, updateUser, createUser, type User, type Meta, type CreateUserDto } from "@/lib/users";
 import { getStores, type Store } from "@/lib/stores";
 import InputField from "@/components/ui/InputField";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 
 // Basit ikonlar
@@ -24,12 +24,11 @@ function useDebounceStr(value: string, delay: number) {
 }
 
 export default function UsersPage() {
-    const router = useRouter();
-
     // Local State
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchTerm, setSearchTerm] = useState("");
+    const [storeFilter, setStoreFilter] = useState("");
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);
     const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | undefined>(undefined);
 
@@ -59,6 +58,10 @@ export default function UsersPage() {
 
     // Stores for selection
     const [stores, setStores] = useState<Store[]>([]);
+    const storeFilterOptions = useMemo(
+        () => stores.map((store) => ({ value: store.id, label: store.name })),
+        [stores],
+    );
 
     useEffect(() => {
         const mq = window.matchMedia("(min-width: 768px)");
@@ -83,10 +86,8 @@ export default function UsersPage() {
     }, [stores.length]);
 
     useEffect(() => {
-        if (isDrawerOpen) {
-            fetchStoreList();
-        }
-    }, [isDrawerOpen, fetchStoreList]);
+        fetchStoreList();
+    }, [fetchStoreList]);
 
     // Fetch Users
     const fetchUsers = useCallback(async () => {
@@ -96,6 +97,7 @@ export default function UsersPage() {
                 page: currentPage,
                 limit,
                 search: debouncedSearch,
+                storeId: storeFilter || undefined,
                 sortBy,
                 sortOrder,
             });
@@ -108,7 +110,7 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, limit, debouncedSearch, sortBy, sortOrder]);
+    }, [currentPage, limit, debouncedSearch, storeFilter, sortBy, sortOrder]);
 
     // Initial Fetch & Update when deps change
     useEffect(() => {
@@ -121,6 +123,10 @@ export default function UsersPage() {
             setCurrentPage(1);
         }
     }, [debouncedSearch]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [storeFilter]);
 
 
     const handleSort = (key: string) => {
@@ -235,13 +241,13 @@ export default function UsersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-text">Kullanıcılar</h1>
                     <p className="text-sm text-muted">Sisteme kayıtlı kullanıcıları yönetin.</p>
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64">
+                <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+                    <div className="relative w-full lg:w-64">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
                             <SearchIcon />
                         </div>
@@ -253,10 +259,21 @@ export default function UsersPage() {
                             className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                     </div>
+                    <SearchableDropdown
+                        options={storeFilterOptions}
+                        value={storeFilter}
+                        onChange={setStoreFilter}
+                        placeholder="Tüm Mağazalar"
+                        emptyOptionLabel="Tüm Mağazalar"
+                        inputAriaLabel="Mağaza filtresi"
+                        clearAriaLabel="Mağaza filtresini temizle"
+                        toggleAriaLabel="Mağaza listesini aç"
+                        className="w-full lg:w-52"
+                    />
                     <Button
                         label="Yeni Kullanıcı"
                         onClick={openCreate}
-                        className="rounded-xl2 border border-primary/30 bg-primary/10 px-2.5 py-2 text-sm font-semibold text-primary hover:bg-primary/15 md:px-3"
+                        className="w-full rounded-xl2 border border-primary/30 bg-primary/10 px-2.5 py-2 text-sm font-semibold text-primary hover:bg-primary/15 lg:w-auto lg:px-3"
                     />
                 </div>
             </div>

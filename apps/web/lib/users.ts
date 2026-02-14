@@ -28,6 +28,7 @@ export interface GetUsersParams {
   page?: number;
   limit?: number;
   search?: string;
+  storeId?: string;
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
 }
@@ -53,6 +54,7 @@ export async function getUsers(params: GetUsersParams): Promise<UsersResponse> {
   if (params.page) searchParams.append("page", params.page.toString());
   if (params.limit) searchParams.append("limit", params.limit.toString());
   if (params.search) searchParams.append("search", params.search);
+  if (params.storeId) searchParams.append("storeId", params.storeId);
   if (params.sortBy) searchParams.append("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.append("sortOrder", params.sortOrder);
 
