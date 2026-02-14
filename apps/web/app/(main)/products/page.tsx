@@ -1,22 +1,25 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   createProduct,
-  deleteProduct,
+  createProductVariants,
   getProductById,
+  getProductVariants,
   getProducts,
   updateProduct,
+  updateProductVariant,
   type Product,
+  type ProductVariant,
   type ProductsListMeta,
   type Currency,
   type CreateVariantDto,
 } from "@/lib/products";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
@@ -27,6 +30,18 @@ const CURRENCY_OPTIONS = [
   { value: "USD", label: "USD - Amerikan Dolari" },
   { value: "EUR", label: "EUR - Euro" },
 ];
+const CURRENCY_FILTER_OPTIONS = [
+  { value: "TRY", label: "TRY" },
+  { value: "USD", label: "USD" },
+  { value: "EUR", label: "EUR" },
+];
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "Tum Durumlar" },
+  { value: "true", label: "Aktif" },
+  { value: "false", label: "Pasif" },
+];
+
+type IsActiveFilter = boolean | "all";
 
 const COMMON_ATTRIBUTE_KEYS = [
   { value: "color", label: "Renk" },
@@ -101,9 +116,77 @@ function useDebounceStr(value: string, delay: number) {
   return debouncedValue;
 }
 
-function formatPrice(val: number | null | undefined): string {
+function formatPrice(val: number | string | null | undefined): string {
   if (val == null) return "-";
-  return val.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const numeric = Number(val);
+  if (Number.isNaN(numeric)) return "-";
+  return numeric.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function VirtualVariantList({
+  variants,
+  togglingVariantIds,
+  onToggleVariantActive,
+}: {
+  variants: ProductVariant[];
+  togglingVariantIds: string[];
+  onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
+}) {
+  const rowHeight = 56;
+  const containerHeight = 240;
+  const overscan = 4;
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const totalHeight = variants.length * rowHeight;
+  const visibleCount = Math.ceil(containerHeight / rowHeight);
+
+  const { startIndex, endIndex } = useMemo(() => {
+    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+    const end = Math.min(variants.length, start + visibleCount + overscan * 2);
+    return { startIndex: start, endIndex: end };
+  }, [scrollTop, rowHeight, overscan, visibleCount, variants.length]);
+
+  const visibleItems = variants.slice(startIndex, endIndex);
+
+  return (
+    <div
+      className="h-[240px] overflow-y-auto rounded-xl border border-border bg-surface2/40"
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div className="relative" style={{ height: totalHeight }}>
+        <div
+          className="absolute left-0 right-0"
+          style={{ transform: `translateY(${startIndex * rowHeight}px)` }}
+        >
+          {visibleItems.map((variant) => (
+            <div
+              key={variant.id}
+              className="flex h-14 items-center justify-between border-b border-border px-3 text-sm last:border-b-0"
+            >
+              <div className="min-w-0">
+                <div className="truncate font-medium text-text">{variant.name}</div>
+                <div className="truncate text-xs text-muted">
+                  Kod: {variant.code || "-"}{variant.barcode ? ` | Barkod: ${variant.barcode}` : ""}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="max-w-[320px] truncate text-xs text-text2">
+                  {Object.keys(variant.attributes || {}).length > 0
+                    ? Object.entries(variant.attributes).map(([k, v]) => `${k}: ${v}`).join(", ")
+                    : "-"}
+                </div>
+                <ToggleSwitch
+                  checked={Boolean(variant.isActive)}
+                  onChange={(next) => onToggleVariantActive(variant, next)}
+                  disabled={togglingVariantIds.includes(variant.id)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Component ── */
@@ -115,6 +198,14 @@ export default function ProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState<Currency | "">("");
+  const [defaultPurchasePriceMinFilter, setDefaultPurchasePriceMinFilter] = useState("");
+  const [defaultPurchasePriceMaxFilter, setDefaultPurchasePriceMaxFilter] = useState("");
+  const [defaultSalePriceMinFilter, setDefaultSalePriceMinFilter] = useState("");
+  const [defaultSalePriceMaxFilter, setDefaultSalePriceMaxFilter] = useState("");
+  const [productStatusFilter, setProductStatusFilter] = useState<IsActiveFilter>("all");
+  const [variantStatusFilter, setVariantStatusFilter] = useState<IsActiveFilter>("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const debouncedSearch = useDebounceStr(searchTerm, 500);
@@ -129,15 +220,21 @@ export default function ProductsPage() {
 
   /* Product form */
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
+  const [originalForm, setOriginalForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
 
   /* Variants */
   const [variants, setVariants] = useState<VariantForm[]>([]);
   const [variantErrors, setVariantErrors] = useState<Record<number, VariantErrors>>({});
+  const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
+  const [productVariantsById, setProductVariantsById] = useState<Record<string, ProductVariant[]>>({});
+  const [productVariantsLoadingById, setProductVariantsLoadingById] = useState<Record<string, boolean>>({});
+  const [productVariantsErrorById, setProductVariantsErrorById] = useState<Record<string, string>>({});
+  const [togglingProductIds, setTogglingProductIds] = useState<string[]>([]);
+  const [togglingVariantIds, setTogglingVariantIds] = useState<string[]>([]);
 
-  /* Delete */
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  /* Created product id (for variant step) */
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
 
   /* Responsive */
   const [isMobile, setIsMobile] = useState(false);
@@ -160,6 +257,12 @@ export default function ProductsPage() {
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch,
+        defaultCurrency: currencyFilter || undefined,
+        defaultPurchasePriceMin: defaultPurchasePriceMinFilter ? Number(defaultPurchasePriceMinFilter) : undefined,
+        defaultPurchasePriceMax: defaultPurchasePriceMaxFilter ? Number(defaultPurchasePriceMaxFilter) : undefined,
+        defaultSalePriceMin: defaultSalePriceMinFilter ? Number(defaultSalePriceMinFilter) : undefined,
+        defaultSalePriceMax: defaultSalePriceMaxFilter ? Number(defaultSalePriceMaxFilter) : undefined,
+        isActive: productStatusFilter,
       });
       setProducts(res.data);
       setMeta(res.meta);
@@ -170,11 +273,32 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearch]);
+  }, [
+    currentPage,
+    pageSize,
+    debouncedSearch,
+    currencyFilter,
+    defaultPurchasePriceMinFilter,
+    defaultPurchasePriceMaxFilter,
+    defaultSalePriceMinFilter,
+    defaultSalePriceMaxFilter,
+    productStatusFilter,
+  ]);
 
   useEffect(() => {
     if (debouncedSearch !== "") setCurrentPage(1);
   }, [debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    currencyFilter,
+    defaultPurchasePriceMinFilter,
+    defaultPurchasePriceMaxFilter,
+    defaultSalePriceMinFilter,
+    defaultSalePriceMaxFilter,
+    productStatusFilter,
+  ]);
 
   useEffect(() => {
     fetchProducts();
@@ -203,6 +327,110 @@ export default function ProductsPage() {
 
   const pageItems = getVisiblePages();
 
+  const clearAdvancedFilters = () => {
+    setDefaultPurchasePriceMinFilter("");
+    setDefaultPurchasePriceMaxFilter("");
+    setDefaultSalePriceMinFilter("");
+    setDefaultSalePriceMaxFilter("");
+  };
+
+  const parseIsActiveFilter = (value: string): IsActiveFilter => {
+    if (value === "all") return "all";
+    return value === "true";
+  };
+
+  const onToggleProductActive = async (product: Product, next: boolean) => {
+    setTogglingProductIds((prev) => [...prev, product.id]);
+    try {
+      await updateProduct(product.id, {
+        name: product.name,
+        sku: product.sku,
+        description: product.description ?? undefined,
+        defaultBarcode: product.defaultBarcode ?? undefined,
+        image: product.image ?? undefined,
+        defaultCurrency: product.defaultCurrency,
+        defaultSalePrice: Number(product.defaultSalePrice) || 0,
+        defaultPurchasePrice: Number(product.defaultPurchasePrice) || 0,
+        defaultTaxPercent: Number(product.defaultTaxPercent) || 0,
+        isActive: next,
+      });
+      await fetchProducts();
+    } catch {
+      setError("Urun durumu guncellenemedi. Lutfen tekrar deneyin.");
+    } finally {
+      setTogglingProductIds((prev) => prev.filter((id) => id !== product.id));
+    }
+  };
+
+  const fetchTableVariants = async (
+    productId: string,
+    status: IsActiveFilter = variantStatusFilter,
+  ) => {
+    if (productVariantsLoadingById[productId]) return;
+
+    setProductVariantsLoadingById((prev) => ({ ...prev, [productId]: true }));
+    setProductVariantsErrorById((prev) => ({ ...prev, [productId]: "" }));
+
+    try {
+      const data = await getProductVariants(productId, {
+        isActive: status,
+      });
+      setProductVariantsById((prev) => ({ ...prev, [productId]: data }));
+    } catch {
+      setProductVariantsErrorById((prev) => ({
+        ...prev,
+        [productId]: "Varyantlar yüklenemedi. Lütfen tekrar deneyin.",
+      }));
+    } finally {
+      setProductVariantsLoadingById((prev) => ({ ...prev, [productId]: false }));
+    }
+  };
+
+  const toggleExpandedProduct = (productId: string) => {
+    const isExpanded = expandedProductIds.includes(productId);
+    if (isExpanded) {
+      setExpandedProductIds((prev) => prev.filter((id) => id !== productId));
+      return;
+    }
+
+    setExpandedProductIds((prev) => [...prev, productId]);
+    if (!productVariantsById[productId]) {
+      fetchTableVariants(productId, variantStatusFilter);
+    }
+  };
+
+  const onToggleVariantActive = async (
+    productId: string,
+    variant: ProductVariant,
+    next: boolean,
+  ) => {
+    setTogglingVariantIds((prev) => [...prev, variant.id]);
+    try {
+      await updateProductVariant(productId, variant.id, {
+        name: variant.name,
+        code: variant.code,
+        barcode: variant.barcode,
+        attributes: variant.attributes || {},
+        isActive: next,
+      });
+      await fetchTableVariants(productId, variantStatusFilter);
+    } catch {
+      setProductVariantsErrorById((prev) => ({
+        ...prev,
+        [productId]: "Varyant durumu guncellenemedi. Lutfen tekrar deneyin.",
+      }));
+    } finally {
+      setTogglingVariantIds((prev) => prev.filter((id) => id !== variant.id));
+    }
+  };
+
+  useEffect(() => {
+    if (expandedProductIds.length === 0) return;
+    expandedProductIds.forEach((productId) => {
+      fetchTableVariants(productId, variantStatusFilter);
+    });
+  }, [variantStatusFilter]);
+
   /* ── Drawer handlers ── */
 
   const onOpenDrawer = () => {
@@ -212,6 +440,7 @@ export default function ProductsPage() {
     setVariantErrors({});
     setFormError("");
     setEditingProductId(null);
+    setCreatedProductId(null);
     setStep(1);
     setDrawerOpen(true);
   };
@@ -237,7 +466,7 @@ export default function ProductsPage() {
 
     try {
       const detail = await getProductById(id);
-      setForm({
+      const formData: ProductForm = {
         name: detail.name ?? "",
         sku: detail.sku ?? "",
         description: detail.description ?? "",
@@ -247,20 +476,10 @@ export default function ProductsPage() {
         defaultSalePrice: detail.defaultSalePrice != null ? String(detail.defaultSalePrice) : "",
         defaultPurchasePrice: detail.defaultPurchasePrice != null ? String(detail.defaultPurchasePrice) : "",
         defaultTaxPercent: detail.defaultTaxPercent != null ? String(detail.defaultTaxPercent) : "",
-      });
-
-      if (detail.variants && detail.variants.length > 0) {
-        setVariants(
-          detail.variants.map((v) => ({
-            name: v.name,
-            code: v.code,
-            barcode: v.barcode,
-            attributes: Object.entries(v.attributes).map(([key, value]) => ({ key, value })),
-          })),
-        );
-      } else {
-        setVariants([]);
-      }
+      };
+      setForm(formData);
+      setOriginalForm(formData);
+      setVariants([]);
 
       setEditingProductId(detail.id);
       setDrawerOpen(true);
@@ -317,9 +536,79 @@ export default function ProductsPage() {
 
   /* ── Step navigation ── */
 
-  const goToStep2 = () => {
+  const isFormChanged = (): boolean => {
+    return (Object.keys(originalForm) as (keyof ProductForm)[]).some(
+      (key) => form[key] !== originalForm[key],
+    );
+  };
+
+  const fetchVariants = async (productId: string) => {
+    try {
+      const data = await getProductVariants(productId);
+      setVariants(
+        data.map((v) => ({
+          name: v.name,
+          code: v.code,
+          barcode: v.barcode,
+          attributes: Object.entries(v.attributes).map(([key, value]) => ({ key, value })),
+        })),
+      );
+    } catch {
+      setVariants([]);
+    }
+  };
+
+  const goToStep2 = async () => {
     if (!validateStep1()) return;
-    setStep(2);
+
+    setSubmitting(true);
+    setFormError("");
+
+    try {
+      if (editingProductId) {
+        /* Degisiklik varsa guncelle, yoksa API'ye gitme */
+        if (isFormChanged()) {
+          const productPayload = {
+            name: form.name.trim(),
+            sku: form.sku.trim(),
+            description: form.description.trim() || undefined,
+            defaultBarcode: form.defaultBarcode.trim() || undefined,
+            image: form.image.trim() || undefined,
+            defaultCurrency: form.defaultCurrency,
+            defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
+            defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
+            defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
+          };
+          await updateProduct(editingProductId, productPayload);
+        }
+        await fetchVariants(editingProductId);
+        setStep(2);
+      } else {
+        const productPayload = {
+          name: form.name.trim(),
+          sku: form.sku.trim(),
+          description: form.description.trim() || undefined,
+          defaultBarcode: form.defaultBarcode.trim() || undefined,
+          image: form.image.trim() || undefined,
+          defaultCurrency: form.defaultCurrency,
+          defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
+          defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
+          defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
+        };
+        const created = await createProduct(productPayload);
+        setCreatedProductId(created.id);
+        await fetchVariants(created.id);
+        setStep(2);
+      }
+    } catch {
+      setFormError(
+        editingProductId
+          ? "Urun guncellenemedi. Lutfen tekrar deneyin."
+          : "Urun olusturulamadi. Lutfen tekrar deneyin.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const goToStep1 = () => setStep(1);
@@ -334,10 +623,7 @@ export default function ProductsPage() {
       return;
     }
 
-    if (!validateStep1() || !validateVariants()) return;
-
-    setSubmitting(true);
-    setFormError("");
+    if (!validateVariants()) return;
 
     const variantDtos: CreateVariantDto[] = variants
       .filter((v) => v.name.trim() || v.code.trim())
@@ -350,62 +636,37 @@ export default function ProductsPage() {
         ),
       }));
 
+    const targetProductId = editingProductId ?? createdProductId;
+
+    /* Variant yoksa dogrudan kapat */
+    if (variantDtos.length === 0) {
+      setDrawerOpen(false);
+      setForm(EMPTY_PRODUCT_FORM);
+      setVariants([]);
+      setEditingProductId(null);
+      setCreatedProductId(null);
+      setStep(1);
+      await fetchProducts();
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError("");
+
     try {
-      if (editingProductId) {
-        await updateProduct(editingProductId, {
-          name: form.name.trim(),
-          sku: form.sku.trim(),
-          description: form.description.trim() || undefined,
-          defaultBarcode: form.defaultBarcode.trim() || undefined,
-          image: form.image.trim() || undefined,
-          defaultCurrency: form.defaultCurrency,
-          defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : undefined,
-          defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : undefined,
-          defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : undefined,
-          variants: variantDtos.length > 0 ? variantDtos : undefined,
-        });
-      } else {
-        await createProduct({
-          name: form.name.trim(),
-          sku: form.sku.trim(),
-          description: form.description.trim() || undefined,
-          defaultBarcode: form.defaultBarcode.trim() || undefined,
-          image: form.image.trim() || undefined,
-          defaultCurrency: form.defaultCurrency,
-          defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
-          defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
-          defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
-          variants: variantDtos.length > 0 ? variantDtos : undefined,
-        });
-      }
+      await createProductVariants(targetProductId!, variantDtos);
 
       setDrawerOpen(false);
       setForm(EMPTY_PRODUCT_FORM);
       setVariants([]);
       setEditingProductId(null);
+      setCreatedProductId(null);
       setStep(1);
       await fetchProducts();
     } catch {
-      setFormError(editingProductId ? "Urun guncellenemedi. Lutfen tekrar deneyin." : "Urun olusturulamadi. Lutfen tekrar deneyin.");
+      setFormError("Varyantlar olusturulamadi. Lutfen tekrar deneyin.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  /* ── Delete ── */
-
-  const onDeleteProduct = async () => {
-    if (!deleteTarget) return;
-    setError("");
-    setDeletingProductId(deleteTarget.id);
-    try {
-      await deleteProduct(deleteTarget.id);
-      await fetchProducts();
-      setDeleteTarget(null);
-    } catch {
-      setError("Urun silinemedi. Lutfen tekrar deneyin.");
-    } finally {
-      setDeletingProductId(null);
     }
   };
 
@@ -491,10 +752,107 @@ export default function ProductsPage() {
               className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
+          <Button
+            label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            variant="secondary"
+            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+          />
           <Button label="Yeni Urun" onClick={onOpenDrawer} variant="primarySoft" className="w-full px-2.5 py-2 lg:w-auto lg:px-3" />
-          <Button label="Yenile" onClick={fetchProducts} variant="secondary" className="w-full px-2.5 py-2 lg:w-auto lg:px-3" />
         </div>
       </div>
+
+      {showAdvancedFilters && (
+        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Para Birimi</label>
+            <SearchableDropdown
+              options={CURRENCY_FILTER_OPTIONS}
+              value={currencyFilter}
+              onChange={(value) => setCurrencyFilter(value as Currency | "")}
+              placeholder="Tüm Para Birimleri"
+              emptyOptionLabel="Tüm Para Birimleri"
+              inputAriaLabel="Para birimi filtresi"
+              clearAriaLabel="Para birimi filtresini temizle"
+              toggleAriaLabel="Para birimi listesini aç"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Ürün Durumu</label>
+            <SearchableDropdown
+              options={STATUS_FILTER_OPTIONS}
+              value={productStatusFilter === "all" ? "all" : String(productStatusFilter)}
+              onChange={(value) => setProductStatusFilter(parseIsActiveFilter(value))}
+              placeholder="Ürün Durumu"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Ürün durum filtresi"
+              toggleAriaLabel="Ürün durum listesini aç"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Varyant Durumu</label>
+            <SearchableDropdown
+              options={STATUS_FILTER_OPTIONS}
+              value={variantStatusFilter === "all" ? "all" : String(variantStatusFilter)}
+              onChange={(value) => setVariantStatusFilter(parseIsActiveFilter(value))}
+              placeholder="Varyant Durumu"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Varyant durum filtresi"
+              toggleAriaLabel="Varyant durum listesini aç"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Satış Fiyatı Min</label>
+            <input
+              type="number"
+              value={defaultSalePriceMinFilter}
+              onChange={(e) => setDefaultSalePriceMinFilter(e.target.value)}
+              placeholder="0"
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Satış Fiyatı Max</label>
+            <input
+              type="number"
+              value={defaultSalePriceMaxFilter}
+              onChange={(e) => setDefaultSalePriceMaxFilter(e.target.value)}
+              placeholder="1000"
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Alış Fiyatı Min</label>
+            <input
+              type="number"
+              value={defaultPurchasePriceMinFilter}
+              onChange={(e) => setDefaultPurchasePriceMinFilter(e.target.value)}
+              placeholder="0"
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Alış Fiyatı Max</label>
+            <input
+              type="number"
+              value={defaultPurchasePriceMaxFilter}
+              onChange={(e) => setDefaultPurchasePriceMaxFilter(e.target.value)}
+              placeholder="1000"
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="md:col-span-2 lg:col-span-4">
+            <Button
+              label="Detaylı Filtreleri Temizle"
+              onClick={clearAdvancedFilters}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -510,6 +868,7 @@ export default function ProductsPage() {
               <table className="w-full min-w-[1000px]">
                 <thead className="border-b border-border bg-surface2/70">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                    <th className="w-10 px-2 py-3 text-center"></th>
                     <th className="px-4 py-3">Urun Adi</th>
                     <th className="px-4 py-3">SKU</th>
                     <th className="px-4 py-3">Barkod</th>
@@ -524,72 +883,125 @@ export default function ProductsPage() {
                 <tbody>
                   {products.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted">
+                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-muted">
                         Henuz urun bulunmuyor.
                       </td>
                     </tr>
                   ) : (
-                    products.map((product) => (
-                      <tr key={product.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {product.image ? (
-                              <img
-                                src={product.image}
-                                alt={product.name}
-                                className="h-9 w-9 rounded-lg object-cover border border-border"
-                              />
-                            ) : (
-                              <div className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface2 text-xs text-muted">
-                                {product.name.charAt(0).toUpperCase()}
+                    products.map((product) => {
+                      const isExpanded = expandedProductIds.includes(product.id);
+                      const tableVariants = productVariantsById[product.id] || [];
+                      const loadingVariants = productVariantsLoadingById[product.id];
+                      const variantsError = productVariantsErrorById[product.id];
+                      return (
+                        [
+                          <tr key={`${product.id}-row`} className="group border-b border-border hover:bg-surface2/50 transition-colors">
+                            <td className="px-2 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandedProduct(product.id)}
+                                className="inline-flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-muted transition-colors hover:bg-surface2 hover:text-text"
+                                aria-label={isExpanded ? "Varyantları gizle" : "Varyantları göster"}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className={cn("transition-transform", isExpanded && "rotate-90")}
+                                >
+                                  <path d="m9 18 6-6-6-6" />
+                                </svg>
+                              </button>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                {product.image ? (
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="h-9 w-9 rounded-lg object-cover border border-border"
+                                  />
+                                ) : (
+                                  <div className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface2 text-xs text-muted">
+                                    {product.name.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="text-sm font-medium text-text">{product.name}</span>
                               </div>
-                            )}
-                            <span className="text-sm font-medium text-text">{product.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-text2">{product.sku}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{product.defaultBarcode ?? "-"}</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                            {product.defaultCurrency}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultSalePrice)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultPurchasePrice)}</td>
-                        <td className="px-4 py-3 text-right text-sm text-text2">
-                          {product.defaultTaxPercent != null ? `%${product.defaultTaxPercent}` : "-"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="inline-flex rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-text2">
-                            {product.variants?.length ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => onEditProduct(product.id)}
-                              disabled={deletingProductId === product.id}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-                              aria-label="Urunu duzenle"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteTarget({ id: product.id, name: product.name })}
-                              disabled={deletingProductId === product.id}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors disabled:opacity-50"
-                              aria-label="Urunu sil"
-                              title="Sil"
-                            >
-                              <TrashIcon />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                            </td>
+                            <td className="px-4 py-3 text-sm text-text2">{product.sku}</td>
+                            <td className="px-4 py-3 text-sm text-text2">{product.defaultBarcode ?? "-"}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                                {product.defaultCurrency}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultSalePrice)}</td>
+                            <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultPurchasePrice)}</td>
+                            <td className="px-4 py-3 text-right text-sm text-text2">
+                              {product.defaultTaxPercent != null ? `%${product.defaultTaxPercent}` : "-"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-text2">
+                                {product.variantCount ?? product.variants?.length ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => onEditProduct(product.id)}
+                                  disabled={togglingProductIds.includes(product.id)}
+                                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                                  aria-label="Urunu duzenle"
+                                  title="Duzenle"
+                                >
+                                  <EditIcon />
+                                </button>
+                                <ToggleSwitch
+                                  checked={Boolean(product.isActive)}
+                                  onChange={(next) => onToggleProductActive(product, next)}
+                                  disabled={togglingProductIds.includes(product.id)}
+                                />
+                              </div>
+                            </td>
+                          </tr>,
+                          isExpanded ? (
+                            <tr key={`${product.id}-expanded`} className="border-b border-border bg-surface/60">
+                              <td colSpan={10} className="px-4 py-3">
+                                {loadingVariants ? (
+                                  <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
+                                    Varyantlar yükleniyor...
+                                  </div>
+                                ) : variantsError ? (
+                                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">
+                                    {variantsError}
+                                  </div>
+                                ) : tableVariants.length === 0 ? (
+                                  <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
+                                    Secilen filtrede varyant bulunmuyor.
+                                  </div>
+                                ) : (
+                                  <VirtualVariantList
+                                    variants={tableVariants}
+                                    togglingVariantIds={togglingVariantIds}
+                                    onToggleVariantActive={(variant, next) =>
+                                      onToggleVariantActive(product.id, variant, next)
+                                    }
+                                  />
+                                )}
+                              </td>
+                            </tr>
+                          ) : null,
+                        ]
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -970,20 +1382,6 @@ export default function ProductsPage() {
         </form>
       </Drawer>
 
-      {/* Delete confirm */}
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Silme Onayi"
-        description={deleteTarget ? `"${deleteTarget.name}" urununu silmek istediginize emin misiniz?` : "Silmek istediginize emin misiniz?"}
-        confirmLabel="Evet"
-        cancelLabel="Hayir"
-        loading={Boolean(deleteTarget && deletingProductId === deleteTarget.id)}
-        onConfirm={onDeleteProduct}
-        onClose={() => {
-          if (deletingProductId) return;
-          setDeleteTarget(null);
-        }}
-      />
     </div>
   );
 }

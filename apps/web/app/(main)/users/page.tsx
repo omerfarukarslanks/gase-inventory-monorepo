@@ -7,6 +7,7 @@ import InputField from "@/components/ui/InputField";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 
 // Basit ikonlar
@@ -27,11 +28,23 @@ export default function UsersPage() {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
+    const STATUS_FILTER_OPTIONS = [
+        { value: "all", label: "Tüm Durumlar" },
+        { value: "true", label: "Aktif" },
+        { value: "false", label: "Pasif" },
+    ];
+    const parseStatusFilter = (value: string): boolean | "all" => {
+        if (value === "all") return "all";
+        return value === "true";
+    };
+
     // Local State
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchTerm, setSearchTerm] = useState("");
     const [storeFilter, setStoreFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);
     const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | undefined>(undefined);
 
@@ -40,6 +53,7 @@ export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [meta, setMeta] = useState<Meta | null>(null);
     const [loading, setLoading] = useState(false);
+    const [togglingUserIds, setTogglingUserIds] = useState<string[]>([]);
 
     // Edit/Create Drawer State
     const [mode, setMode] = useState<"edit" | "create">("create");
@@ -115,6 +129,7 @@ export default function UsersPage() {
                 limit,
                 search: debouncedSearch,
                 storeId: storeFilter || undefined,
+                isActive: statusFilter,
                 sortBy,
                 sortOrder,
             });
@@ -127,7 +142,7 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, limit, debouncedSearch, storeFilter, sortBy, sortOrder]);
+    }, [currentPage, limit, debouncedSearch, storeFilter, statusFilter, sortBy, sortOrder]);
 
     // Initial Fetch & Update when deps change
     useEffect(() => {
@@ -143,7 +158,31 @@ export default function UsersPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [storeFilter]);
+    }, [storeFilter, statusFilter]);
+
+    const onToggleUserActive = async (user: User, next: boolean) => {
+        setTogglingUserIds((prev) => [...prev, user.id]);
+        try {
+            await updateUser(user.id, {
+                name: user.name,
+                surname: user.surname,
+                role: user.role,
+                storeIds: user.userStores?.map((userStore) => userStore.store.id) || [],
+                isActive: next,
+            });
+            await fetchUsers();
+        } catch (error) {
+            console.error("Kullanıcı durumu güncellenemedi:", error);
+            alert("Kullanıcı durumu güncellenemedi.");
+        } finally {
+            setTogglingUserIds((prev) => prev.filter((id) => id !== user.id));
+        }
+    };
+
+    const clearAdvancedFilters = () => {
+        setStoreFilter("");
+        setStatusFilter("all");
+    };
 
 
     const handleSort = (key: string) => {
@@ -302,16 +341,11 @@ export default function UsersPage() {
                             className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                     </div>
-                    <SearchableDropdown
-                        options={storeFilterOptions}
-                        value={storeFilter}
-                        onChange={setStoreFilter}
-                        placeholder="Tüm Mağazalar"
-                        emptyOptionLabel="Tüm Mağazalar"
-                        inputAriaLabel="Mağaza filtresi"
-                        clearAriaLabel="Mağaza filtresini temizle"
-                        toggleAriaLabel="Mağaza listesini aç"
-                        className="w-full lg:w-52"
+                    <Button
+                        label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
+                        onClick={() => setShowAdvancedFilters((prev) => !prev)}
+                        variant="secondary"
+                        className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
                     />
                     <Button
                         label="Yeni Kullanıcı"
@@ -321,6 +355,45 @@ export default function UsersPage() {
                     />
                 </div>
             </div>
+
+            {showAdvancedFilters && (
+                <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">Mağaza</label>
+                        <SearchableDropdown
+                            options={storeFilterOptions}
+                            value={storeFilter}
+                            onChange={setStoreFilter}
+                            placeholder="Tüm Mağazalar"
+                            emptyOptionLabel="Tüm Mağazalar"
+                            inputAriaLabel="Mağaza filtresi"
+                            clearAriaLabel="Mağaza filtresini temizle"
+                            toggleAriaLabel="Mağaza listesini aç"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">Durum</label>
+                        <SearchableDropdown
+                            options={STATUS_FILTER_OPTIONS}
+                            value={statusFilter === "all" ? "all" : String(statusFilter)}
+                            onChange={(value) => setStatusFilter(parseStatusFilter(value))}
+                            placeholder="Tüm Durumlar"
+                            showEmptyOption={false}
+                            allowClear={false}
+                            inputAriaLabel="Kullanıcı durum filtresi"
+                            toggleAriaLabel="Kullanıcı durum listesini aç"
+                        />
+                    </div>
+                    <div className="md:col-span-2 lg:col-span-3">
+                        <Button
+                            label="Filtreleri Temizle"
+                            onClick={clearAdvancedFilters}
+                            variant="secondary"
+                            className="w-full sm:w-auto"
+                        />
+                    </div>
+                </div>
+            )}
 
             <div className="overflow-hidden rounded-xl2 border border-border bg-surface shadow-sm">
                 <div className="overflow-x-auto">
@@ -373,12 +446,20 @@ export default function UsersPage() {
                                                 : "-"}
                                         </td>
                                         <td className="px-6 py-3 text-right">
-                                            <button
-                                                onClick={() => openEdit(user)}
-                                                className="inline-flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
-                                            >
-                                                <EditIcon />
-                                            </button>
+                                            <div className="inline-flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEdit(user)}
+                                                    disabled={togglingUserIds.includes(user.id)}
+                                                    className="inline-flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                                                >
+                                                    <EditIcon />
+                                                </button>
+                                                <ToggleSwitch
+                                                    checked={Boolean(user.isActive)}
+                                                    onChange={(next) => onToggleUserActive(user, next)}
+                                                    disabled={togglingUserIds.includes(user.id)}
+                                                />
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
