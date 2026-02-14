@@ -60,6 +60,23 @@ const COLOR_SUGGESTIONS = [
   "Turuncu", "Mor", "Pembe", "Gri", "Kahverengi", "Lacivert",
 ];
 
+const ATTRIBUTE_UNIT_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  length: [
+    { value: "mm", label: "mm" },
+    { value: "cm", label: "cm" },
+    { value: "m", label: "m" },
+  ],
+  width: [
+    { value: "mm", label: "mm" },
+    { value: "cm", label: "cm" },
+    { value: "m", label: "m" },
+  ],
+  weight: [
+    { value: "g", label: "g" },
+    { value: "kg", label: "kg" },
+  ],
+};
+
 /* ── Types ── */
 
 type ProductForm = {
@@ -75,15 +92,22 @@ type ProductForm = {
 };
 
 type VariantForm = {
+  id?: string;
+  isActive?: boolean;
   name: string;
   code: string;
   barcode: string;
-  attributes: { key: string; value: string }[];
+  attributes: { key: string; value: string; unit?: string }[];
 };
 
 type FormErrors = Partial<Record<keyof ProductForm, string>>;
 type VariantErrors = Partial<Record<keyof Omit<VariantForm, "attributes">, string>> & {
   attributes?: string;
+};
+
+type VariantSnapshot = {
+  payload: CreateVariantDto;
+  isActive: boolean;
 };
 
 const EMPTY_PRODUCT_FORM: ProductForm = {
@@ -99,10 +123,12 @@ const EMPTY_PRODUCT_FORM: ProductForm = {
 };
 
 const EMPTY_VARIANT: VariantForm = {
+  id: undefined,
+  isActive: true,
   name: "",
   code: "",
   barcode: "",
-  attributes: [{ key: "", value: "" }],
+  attributes: [{ key: "", value: "", unit: "" }],
 };
 
 /* ── Helpers ── */
@@ -121,6 +147,45 @@ function formatPrice(val: number | string | null | undefined): string {
   const numeric = Number(val);
   if (Number.isNaN(numeric)) return "-";
   return numeric.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function areAttributesEqual(a: Record<string, string>, b: Record<string, string>) {
+  const aKeys = Object.keys(a).sort();
+  const bKeys = Object.keys(b).sort();
+  if (aKeys.length !== bKeys.length) return false;
+  for (let i = 0; i < aKeys.length; i++) {
+    if (aKeys[i] !== bKeys[i]) return false;
+    if (a[aKeys[i]] !== b[bKeys[i]]) return false;
+  }
+  return true;
+}
+
+function getAttributeUnitOptions(key: string) {
+  return ATTRIBUTE_UNIT_OPTIONS[key] ?? [];
+}
+
+function parseAttributeValue(key: string, rawValue: string) {
+  const value = rawValue ?? "";
+  const unitOptions = getAttributeUnitOptions(key);
+  if (unitOptions.length === 0) return { value, unit: "" };
+
+  const matchedUnit = unitOptions.find((opt) => value.endsWith(` ${opt.value}`));
+  if (!matchedUnit) return { value, unit: "" };
+
+  return {
+    value: value.slice(0, -(` ${matchedUnit.value}`.length)).trim(),
+    unit: matchedUnit.value,
+  };
+}
+
+function serializeAttributeValue(attr: { key: string; value: string; unit?: string }) {
+  const trimmedValue = attr.value.trim();
+  if (!trimmedValue) return "";
+
+  const unitOptions = getAttributeUnitOptions(attr.key);
+  if (unitOptions.length === 0) return trimmedValue;
+  if (!attr.unit) return trimmedValue;
+  return `${trimmedValue} ${attr.unit}`;
 }
 
 function VirtualVariantList({
@@ -225,6 +290,7 @@ export default function ProductsPage() {
 
   /* Variants */
   const [variants, setVariants] = useState<VariantForm[]>([]);
+  const [originalVariantMap, setOriginalVariantMap] = useState<Record<string, VariantSnapshot>>({});
   const [variantErrors, setVariantErrors] = useState<Record<number, VariantErrors>>({});
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
   const [productVariantsById, setProductVariantsById] = useState<Record<string, ProductVariant[]>>({});
@@ -441,6 +507,7 @@ export default function ProductsPage() {
     setFormError("");
     setEditingProductId(null);
     setCreatedProductId(null);
+    setOriginalVariantMap({});
     setStep(1);
     setDrawerOpen(true);
   };
@@ -461,6 +528,7 @@ export default function ProductsPage() {
     setFormError("");
     setErrors({});
     setVariantErrors({});
+    setOriginalVariantMap({});
     setLoadingDetail(true);
     setStep(1);
 
@@ -525,7 +593,14 @@ export default function ProductsPage() {
 
       const hasEmptyAttr = v.attributes.some((a) => a.key && !a.value.trim());
       const hasEmptyKey = v.attributes.some((a) => !a.key && a.value.trim());
-      if (hasEmptyAttr || hasEmptyKey) e.attributes = "Tum ozellik alanlari doldurulmalidir.";
+      const hasMissingUnit = v.attributes.some((a) => {
+        const unitOptions = getAttributeUnitOptions(a.key);
+        return Boolean(a.key && a.value.trim() && unitOptions.length > 0 && !a.unit);
+      });
+
+      if (hasEmptyAttr || hasEmptyKey || hasMissingUnit) {
+        e.attributes = "Tum ozellik alanlari doldurulmalidir.";
+      }
 
       if (Object.keys(e).length > 0) newErrors[i] = e;
     });
@@ -545,15 +620,37 @@ export default function ProductsPage() {
   const fetchVariants = async (productId: string) => {
     try {
       const data = await getProductVariants(productId);
+      setOriginalVariantMap(
+        Object.fromEntries(
+          data.map((v) => [
+            v.id,
+            {
+              payload: {
+                name: v.name ?? "",
+                code: v.code ?? "",
+                barcode: v.barcode ?? "",
+                attributes: v.attributes ?? {},
+              },
+              isActive: v.isActive ?? true,
+            },
+          ]),
+        ),
+      );
       setVariants(
         data.map((v) => ({
+          id: v.id,
+          isActive: v.isActive ?? true,
           name: v.name,
           code: v.code,
           barcode: v.barcode,
-          attributes: Object.entries(v.attributes).map(([key, value]) => ({ key, value })),
+          attributes: Object.entries(v.attributes).map(([key, value]) => {
+            const parsed = parseAttributeValue(key, value);
+            return { key, value: parsed.value, unit: parsed.unit };
+          }),
         })),
       );
     } catch {
+      setOriginalVariantMap({});
       setVariants([]);
     }
   };
@@ -625,21 +722,27 @@ export default function ProductsPage() {
 
     if (!validateVariants()) return;
 
-    const variantDtos: CreateVariantDto[] = variants
+    const preparedVariants = variants
       .filter((v) => v.name.trim() || v.code.trim())
       .map((v) => ({
-        name: v.name.trim(),
-        code: v.code.trim(),
-        barcode: v.barcode.trim(),
-        attributes: Object.fromEntries(
-          v.attributes.filter((a) => a.key && a.value.trim()).map((a) => [a.key, a.value.trim()]),
-        ),
+        id: v.id,
+        isActive: v.isActive ?? true,
+        payload: {
+          name: v.name.trim(),
+          code: v.code.trim(),
+          barcode: v.barcode.trim(),
+          attributes: Object.fromEntries(
+            v.attributes
+              .filter((a) => a.key && a.value.trim())
+              .map((a) => [a.key, serializeAttributeValue(a)]),
+          ),
+        },
       }));
 
     const targetProductId = editingProductId ?? createdProductId;
 
     /* Variant yoksa dogrudan kapat */
-    if (variantDtos.length === 0) {
+    if (preparedVariants.length === 0) {
       setDrawerOpen(false);
       setForm(EMPTY_PRODUCT_FORM);
       setVariants([]);
@@ -654,13 +757,52 @@ export default function ProductsPage() {
     setFormError("");
 
     try {
-      await createProductVariants(targetProductId!, variantDtos);
+      if (editingProductId) {
+        const variantsToUpdate = preparedVariants.filter((v) => {
+          if (!v.id) return false;
+          const original = originalVariantMap[v.id];
+          if (!original) return true;
+          return (
+            original.isActive !== v.isActive ||
+            original.payload.name !== v.payload.name ||
+            original.payload.code !== v.payload.code ||
+            original.payload.barcode !== v.payload.barcode ||
+            !areAttributesEqual(original.payload.attributes, v.payload.attributes)
+          );
+        });
+        const variantsToCreate = preparedVariants
+          .filter((v) => !v.id)
+          .map((v) => v.payload);
+
+        if (variantsToUpdate.length > 0) {
+          await Promise.all(
+            variantsToUpdate.map((v) =>
+              updateProductVariant(editingProductId, v.id!, {
+                ...v.payload,
+                isActive: v.isActive,
+              }),
+            ),
+          );
+        }
+
+        if (variantsToCreate.length > 0) {
+          await createProductVariants(editingProductId, variantsToCreate);
+        }
+
+        await fetchTableVariants(editingProductId, variantStatusFilter);
+      } else {
+        await createProductVariants(
+          targetProductId!,
+          preparedVariants.map((v) => v.payload),
+        );
+      }
 
       setDrawerOpen(false);
       setForm(EMPTY_PRODUCT_FORM);
       setVariants([]);
       setEditingProductId(null);
       setCreatedProductId(null);
+      setOriginalVariantMap({});
       setStep(1);
       await fetchProducts();
     } catch {
@@ -673,7 +815,7 @@ export default function ProductsPage() {
   /* ── Variant helpers ── */
 
   const addVariant = () => {
-    setVariants((prev) => [...prev, { ...EMPTY_VARIANT, attributes: [{ key: "", value: "" }] }]);
+    setVariants((prev) => [...prev, { ...EMPTY_VARIANT, attributes: [{ key: "", value: "", unit: "" }] }]);
   };
 
   const removeVariant = (index: number) => {
@@ -702,7 +844,9 @@ export default function ProductsPage() {
 
   const addAttribute = (variantIndex: number) => {
     setVariants((prev) =>
-      prev.map((v, i) => (i === variantIndex ? { ...v, attributes: [...v.attributes, { key: "", value: "" }] } : v)),
+      prev.map((v, i) =>
+        i === variantIndex ? { ...v, attributes: [...v.attributes, { key: "", value: "", unit: "" }] } : v,
+      ),
     );
   };
 
@@ -712,13 +856,24 @@ export default function ProductsPage() {
     );
   };
 
-  const updateAttribute = (variantIndex: number, attrIndex: number, field: "key" | "value", value: string) => {
+  const updateAttribute = (variantIndex: number, attrIndex: number, field: "key" | "value" | "unit", value: string) => {
     setVariants((prev) =>
       prev.map((v, i) =>
         i === variantIndex
           ? {
               ...v,
-              attributes: v.attributes.map((a, ai) => (ai === attrIndex ? { ...a, [field]: value } : a)),
+              attributes: v.attributes.map((a, ai) => {
+                if (ai !== attrIndex) return a;
+                if (field === "key") {
+                  const unitOptions = getAttributeUnitOptions(value);
+                  return {
+                    ...a,
+                    key: value,
+                    unit: unitOptions.length > 0 ? (a.unit && unitOptions.some((opt) => opt.value === a.unit) ? a.unit : unitOptions[0].value) : "",
+                  };
+                }
+                return { ...a, [field]: value };
+              }),
             }
           : v,
       ),
@@ -1310,6 +1465,17 @@ export default function ProductsPage() {
                                 placeholder="Deger girin"
                                 className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                               />
+                              {getAttributeUnitOptions(attr.key).length > 0 && (
+                                <SearchableDropdown
+                                  options={getAttributeUnitOptions(attr.key)}
+                                  value={attr.unit || ""}
+                                  onChange={(v) => updateAttribute(vi, ai, "unit", v)}
+                                  placeholder="Birim"
+                                  showEmptyOption={false}
+                                  allowClear={false}
+                                  className="w-28"
+                                />
+                              )}
                               {variant.attributes.length > 1 && (
                                 <button
                                   type="button"
