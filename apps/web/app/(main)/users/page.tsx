@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { getUsers, updateUser, createUser, type User, type Meta, type CreateUserDto } from "@/lib/users";
 import { getStores, type Store } from "@/lib/stores";
 import InputField from "@/components/ui/InputField";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 
 // Basit ikonlar
@@ -24,12 +24,14 @@ function useDebounceStr(value: string, delay: number) {
 }
 
 export default function UsersPage() {
-    const router = useRouter();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     // Local State
     const [currentPage, setCurrentPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [searchTerm, setSearchTerm] = useState("");
+    const [storeFilter, setStoreFilter] = useState("");
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);
     const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | undefined>(undefined);
 
@@ -51,7 +53,13 @@ export default function UsersPage() {
         role: "STAFF",
         email: "",
         password: "",
-        storeIds: [] as string[]
+        storeId: "",
+    });
+    const [createErrors, setCreateErrors] = useState({
+        name: "",
+        surname: "",
+        email: "",
+        password: "",
     });
 
     const [saving, setSaving] = useState(false);
@@ -59,6 +67,18 @@ export default function UsersPage() {
 
     // Stores for selection
     const [stores, setStores] = useState<Store[]>([]);
+    const storeFilterOptions = useMemo(
+        () => stores.map((store) => ({ value: store.id, label: store.name })),
+        [stores],
+    );
+    const roleOptions = useMemo(
+        () => [
+            { value: "STAFF", label: "STAFF" },
+            { value: "MANAGER", label: "MANAGER" },
+            { value: "ADMIN", label: "ADMIN" },
+        ],
+        [],
+    );
 
     useEffect(() => {
         const mq = window.matchMedia("(min-width: 768px)");
@@ -83,10 +103,8 @@ export default function UsersPage() {
     }, [stores.length]);
 
     useEffect(() => {
-        if (isDrawerOpen) {
-            fetchStoreList();
-        }
-    }, [isDrawerOpen, fetchStoreList]);
+        fetchStoreList();
+    }, [fetchStoreList]);
 
     // Fetch Users
     const fetchUsers = useCallback(async () => {
@@ -96,6 +114,7 @@ export default function UsersPage() {
                 page: currentPage,
                 limit,
                 search: debouncedSearch,
+                storeId: storeFilter || undefined,
                 sortBy,
                 sortOrder,
             });
@@ -108,7 +127,7 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    }, [currentPage, limit, debouncedSearch, sortBy, sortOrder]);
+    }, [currentPage, limit, debouncedSearch, storeFilter, sortBy, sortOrder]);
 
     // Initial Fetch & Update when deps change
     useEffect(() => {
@@ -121,6 +140,10 @@ export default function UsersPage() {
             setCurrentPage(1);
         }
     }, [debouncedSearch]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [storeFilter]);
 
 
     const handleSort = (key: string) => {
@@ -167,18 +190,15 @@ export default function UsersPage() {
     const openCreate = () => {
         setMode("create");
         setSelectedUser(null);
-        setForm({ name: "", surname: "", role: "STAFF", email: "", password: "", storeIds: [] });
+        setForm({ name: "", surname: "", role: "STAFF", email: "", password: "", storeId: "" });
+        setCreateErrors({ name: "", surname: "", email: "", password: "" });
         setIsDrawerOpen(true);
     };
 
     const openEdit = (user: User) => {
         setMode("edit");
         setSelectedUser(user);
-        // Edit modunda mevcut şifre gösterilmez, storeIds ise eğer API'den geliyorsa doldurulur
-        // User nesnesinde storeIds var mı? lib/users.ts'e ekledik ama API dönüyor mu emin değiliz.
-        // Şimdilik boş varsayıyoruz veya user nesnesine storeIds eklemeliyiz.
-        // User interface'e stores?: {id, name}[] ekledik.
-        const userStoreIds = user.stores?.map(s => s.id) || [];
+        const firstStoreId = user.userStores?.[0]?.store.id ?? "";
 
         setForm({
             name: user.name,
@@ -186,22 +206,61 @@ export default function UsersPage() {
             role: user.role,
             email: user.email,
             password: "", // Edit modunda şifre boş gelir, backendde opsiyonel olmalı update için
-            storeIds: userStoreIds
+            storeId: firstStoreId,
         });
+        setCreateErrors({ name: "", surname: "", email: "", password: "" });
         setIsDrawerOpen(true);
     };
 
+    const validateCreateForm = () => {
+        const nextErrors = {
+            name: "",
+            surname: "",
+            email: "",
+            password: "",
+        };
+
+        if (!form.name.trim()) {
+            nextErrors.name = "Ad zorunludur.";
+        } else if (form.name.trim().length < 2) {
+            nextErrors.name = "Ad en az 2 karakter olmalıdır.";
+        }
+
+        if (!form.surname.trim()) {
+            nextErrors.surname = "Soyad zorunludur.";
+        } else if (form.surname.trim().length < 2) {
+            nextErrors.surname = "Soyad en az 2 karakter olmalıdır.";
+        }
+
+        if (!form.email.trim()) {
+            nextErrors.email = "E-posta zorunludur.";
+        } else if (!emailPattern.test(form.email.trim())) {
+            nextErrors.email = "Geçerli bir e-posta giriniz.";
+        }
+
+        if (!form.password) {
+            nextErrors.password = "Şifre zorunludur.";
+        } else if (!passwordPattern.test(form.password)) {
+            nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
+        }
+
+        setCreateErrors(nextErrors);
+        return Object.values(nextErrors).every((value) => !value);
+    };
+
     const handleSave = async () => {
+        if (mode === "create" && !validateCreateForm()) return;
+
         setSaving(true);
         try {
             if (mode === "create") {
                 await createUser({
-                    email: form.email,
+                    email: form.email.trim(),
                     password: form.password,
-                    name: form.name,
-                    surname: form.surname,
+                    name: form.name.trim(),
+                    surname: form.surname.trim(),
                     role: form.role,
-                    storeIds: form.storeIds
+                    storeIds: form.storeId ? [form.storeId] : [],
                 });
             } else {
                 if (!selectedUser) return;
@@ -209,10 +268,11 @@ export default function UsersPage() {
                     name: form.name,
                     surname: form.surname,
                     role: form.role,
-                    // email genelde değişmez, backend izin veriyorsa eklenir
+                    storeIds: form.storeId ? [form.storeId] : [],
                 });
             }
             setIsDrawerOpen(false);
+            setCreateErrors({ name: "", surname: "", email: "", password: "" });
             fetchUsers(); // Listeyi yenile
         } catch (error) {
             console.error("İşlem hatası", error);
@@ -222,26 +282,15 @@ export default function UsersPage() {
         }
     };
 
-    const toggleStoreSelection = (storeId: string) => {
-        setForm(prev => {
-            const exists = prev.storeIds.includes(storeId);
-            if (exists) {
-                return { ...prev, storeIds: prev.storeIds.filter(id => id !== storeId) };
-            } else {
-                return { ...prev, storeIds: [...prev.storeIds, storeId] };
-            }
-        });
-    };
-
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-text">Kullanıcılar</h1>
                     <p className="text-sm text-muted">Sisteme kayıtlı kullanıcıları yönetin.</p>
                 </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64">
+                <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+                    <div className="relative w-full lg:w-64">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
                             <SearchIcon />
                         </div>
@@ -253,10 +302,22 @@ export default function UsersPage() {
                             className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                         />
                     </div>
+                    <SearchableDropdown
+                        options={storeFilterOptions}
+                        value={storeFilter}
+                        onChange={setStoreFilter}
+                        placeholder="Tüm Mağazalar"
+                        emptyOptionLabel="Tüm Mağazalar"
+                        inputAriaLabel="Mağaza filtresi"
+                        clearAriaLabel="Mağaza filtresini temizle"
+                        toggleAriaLabel="Mağaza listesini aç"
+                        className="w-full lg:w-52"
+                    />
                     <Button
                         label="Yeni Kullanıcı"
                         onClick={openCreate}
-                        className="rounded-xl2 border border-primary/30 bg-primary/10 px-2.5 py-2 text-sm font-semibold text-primary hover:bg-primary/15 md:px-3"
+                        variant="primarySoft"
+                        className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
                     />
                 </div>
             </div>
@@ -281,17 +342,18 @@ export default function UsersPage() {
                                         Rol {sortBy === "role" && (sortOrder === "ASC" ? <SortAscIcon /> : <SortDescIcon />)}
                                     </div>
                                 </th>
+                                <th className="px-6 py-4 font-semibold text-muted">Mağaza</th>
                                 <th className="px-6 py-4 font-semibold text-right">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-muted">Yükleniyor...</td>
+                                    <td colSpan={5} className="p-8 text-center text-muted">Yükleniyor...</td>
                                 </tr>
                             ) : users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-muted">Kayıt bulunamadı.</td>
+                                    <td colSpan={5} className="p-8 text-center text-muted">Kayıt bulunamadı.</td>
                                 </tr>
                             ) : (
                                 users.map((user) => (
@@ -305,10 +367,15 @@ export default function UsersPage() {
                                                 {user.role}
                                             </span>
                                         </td>
+                                        <td className="px-6 py-3 text-text2">
+                                            {user.userStores && user.userStores.length > 0
+                                                ? user.userStores.map((userStore) => userStore.store.name).join(", ")
+                                                : "-"}
+                                        </td>
                                         <td className="px-6 py-3 text-right">
                                             <button
                                                 onClick={() => openEdit(user)}
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
+                                                className="inline-flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
                                             >
                                                 <EditIcon />
                                             </button>
@@ -349,7 +416,7 @@ export default function UsersPage() {
                                 label="Önceki"
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={!canGoPrev || loading}
-                                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
+                                variant="pagination"
                             />
 
                             {pageItems.map((item, idx) =>
@@ -363,10 +430,7 @@ export default function UsersPage() {
                                         label={String(item)}
                                         onClick={() => handlePageChange(item)}
                                         disabled={loading}
-                                        className={`rounded-lg border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 ${item === currentPage
-                                            ? "border-primary bg-primary/15 text-primary"
-                                            : "border-border bg-surface text-text hover:bg-surface2"
-                                            }`}
+                                        variant={item === currentPage ? "paginationActive" : "pagination"}
                                     />
                                 ),
                             )}
@@ -375,7 +439,7 @@ export default function UsersPage() {
                                 label="Sonraki"
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={!canGoNext || loading}
-                                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
+                                variant="pagination"
                             />
                         </div>
                     </div>
@@ -384,7 +448,10 @@ export default function UsersPage() {
 
             <Drawer
                 open={isDrawerOpen}
-                onClose={() => setIsDrawerOpen(false)}
+                onClose={() => {
+                    setIsDrawerOpen(false);
+                    setCreateErrors({ name: "", surname: "", email: "", password: "" });
+                }}
                 side={isMobile ? "right" : "right"}
                 title={mode === "create" ? "Yeni Kullanıcı" : "Kullanıcı Düzenle"}
                 description={mode === "create" ? "Yeni bir kullanıcı hesabı oluşturun." : "Kullanıcı bilgilerini güncelleyin."}
@@ -395,81 +462,93 @@ export default function UsersPage() {
                         <Button
                             label="İptal"
                             type="button"
-                            onClick={() => setIsDrawerOpen(false)}
+                            onClick={() => {
+                                setIsDrawerOpen(false);
+                                setCreateErrors({ name: "", surname: "", email: "", password: "" });
+                            }}
                             disabled={saving}
-                            className="rounded-xl2 border border-border px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
+                            variant="secondary"
                         />
                         <Button
                             label={saving ? "Kaydediliyor..." : "Kaydet"}
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
-                            className="rounded-xl2 border border-primary/20 bg-primary px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary/90"
+                            variant="primarySolid"
                         />
                     </div>
                 }
             >
                 <div className="space-y-4 p-5">
                     <InputField
-                        label="Ad"
+                        label="Ad *"
                         type="text"
                         value={form.name}
-                        onChange={(v) => setForm(p => ({ ...p, name: v }))}
+                        onChange={(v) => {
+                            setForm(p => ({ ...p, name: v }));
+                            if (mode === "create" && createErrors.name) {
+                                setCreateErrors((prev) => ({ ...prev, name: "" }));
+                            }
+                        }}
+                        error={mode === "create" ? createErrors.name : undefined}
                     />
                     <InputField
-                        label="Soyad"
+                        label="Soyad *"
                         type="text"
                         value={form.surname}
-                        onChange={(v) => setForm(p => ({ ...p, surname: v }))}
+                        onChange={(v) => {
+                            setForm(p => ({ ...p, surname: v }));
+                            if (mode === "create" && createErrors.surname) {
+                                setCreateErrors((prev) => ({ ...prev, surname: "" }));
+                            }
+                        }}
+                        error={mode === "create" ? createErrors.surname : undefined}
                     />
 
                     <div className="space-y-1">
                         <label className="text-xs font-semibold text-muted">Rol</label>
-                        <select
-                            className="w-full rounded-xl2 border border-border bg-surface px-4 py-2.5 text-sm text-text outline-none focus:border-primary/60"
+                        <SearchableDropdown
+                            options={roleOptions}
                             value={form.role}
-                            onChange={(e) => setForm(p => ({ ...p, role: e.target.value }))}
-                        >
-                            <option value="STAFF">STAFF</option>
-                            <option value="MANAGER">MANAGER</option>
-                            <option value="ADMIN">ADMIN</option>
-                        </select>
+                            onChange={(role) => setForm((p) => ({ ...p, role }))}
+                            placeholder="Rol seçin"
+                            inputAriaLabel="Rol seçimi"
+                            toggleAriaLabel="Rol listesini aç"
+                            allowClear={false}
+                            showEmptyOption={false}
+                        />
                     </div>
 
-                    {mode === "create" ? (
+                    {mode === "create" && (
                         <>
                             <InputField
-                                label="E-Posta"
+                                label="E-Posta *"
                                 type="email"
                                 value={form.email}
-                                onChange={(v) => setForm(p => ({ ...p, email: v }))}
+                                onChange={(v) => {
+                                    setForm(p => ({ ...p, email: v }));
+                                    if (createErrors.email) {
+                                        setCreateErrors((prev) => ({ ...prev, email: "" }));
+                                    }
+                                }}
+                                error={createErrors.email}
                             />
                             <InputField
                                 label="Şifre"
                                 type="password"
                                 value={form.password}
-                                onChange={(v) => setForm(p => ({ ...p, password: v }))}
+                                onChange={(v) => {
+                                    setForm(p => ({ ...p, password: v }));
+                                    if (createErrors.password) {
+                                        setCreateErrors((prev) => ({ ...prev, password: "" }));
+                                    }
+                                }}
+                                error={createErrors.password}
                             />
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-semibold text-muted">Mağaza Yetkileri</label>
-                                <div className="max-h-40 overflow-y-auto rounded-xl2 border border-border bg-surface2 p-2 space-y-1">
-                                    {stores.map(store => (
-                                        <label key={store.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-surface cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={form.storeIds.includes(store.id)}
-                                                onChange={() => toggleStoreSelection(store.id)}
-                                                className="rounded border-border text-primary focus:ring-primary"
-                                            />
-                                            <span className="text-sm text-text">{store.name}</span>
-                                        </label>
-                                    ))}
-                                    {stores.length === 0 && <div className="text-xs text-muted px-2">Mağaza bulunamadı.</div>}
-                                </div>
-                            </div>
                         </>
-                    ) : (
+                    )}
+
+                    {mode === "edit" && (
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-muted">Email (Değiştirilemez)</label>
                             <div className="w-full rounded-xl2 border border-border bg-surface2 px-4 py-2.5 text-sm text-text2">
@@ -477,6 +556,21 @@ export default function UsersPage() {
                             </div>
                         </div>
                     )}
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">Mağaza Yetkisi</label>
+                        <SearchableDropdown
+                            options={storeFilterOptions}
+                            value={form.storeId}
+                            onChange={(storeId) => setForm((p) => ({ ...p, storeId }))}
+                            placeholder="Mağaza seçin"
+                            emptyOptionLabel="Mağaza seçin"
+                            inputAriaLabel="Mağaza seçimi"
+                            clearAriaLabel="Mağaza seçimini temizle"
+                            toggleAriaLabel="Mağaza listesini aç"
+                        />
+                        {stores.length === 0 && <div className="text-xs text-muted px-1">Mağaza bulunamadı.</div>}
+                    </div>
                 </div>
             </Drawer>
         </div>

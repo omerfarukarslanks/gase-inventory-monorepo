@@ -329,7 +329,7 @@ export default function AuthCard({ initialMode }: Props) {
             label="← Geri"
             type="button"
             onClick={() => setStep(1)}
-            className="rounded-[10px] border-[1.5px] border-border cursor-pointer px-5 py-[14px] text-[14px] font-semibold text-text2 hover:border-borderHover transition-all duration-200"
+            variant="authSecondary"
           />
         )}
 
@@ -337,12 +337,8 @@ export default function AuthCard({ initialMode }: Props) {
           label={loading ? "İşleniyor..." : mode === "login" ? "Giriş Yap" : step === 1 ? "Devam Et →" : "Hesap Oluştur"}
           onClick={submit}
           disabled={loading}
-          className={[
-            "flex-1 rounded-[10px] py-[14px] text-[15px] font-bold cursor-pointer tracking-[0.2px] text-white transition-all duration-250 flex items-center justify-center gap-2",
-            loading
-              ? "bg-surface2 cursor-wait"
-              : "bg-gradient-to-br from-primary to-accent shadow-glow hover:opacity-[0.98]",
-          ].join(" ")}
+          variant="authPrimary"
+          className="flex-1 text-[15px] tracking-[0.2px] transition-all duration-250"
         />
       </div>
 
@@ -362,9 +358,12 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Bottom link */}
       <p className="mt-8 text-center text-[13px] text-muted">
         {mode === "login" ? "Hesabınız yok mu? " : "Zaten hesabınız var mı? "}
-        <Button label={mode === "login" ? "Kayıt olun" : "Giriş yapın"} onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")} />
+        <Button
+          label={mode === "login" ? "Kayıt olun" : "Giriş yapın"}
+          onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")}
+          variant="link"
+        />
       </p>
     </div>
   );
 }
-
