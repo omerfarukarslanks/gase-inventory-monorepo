@@ -15,12 +15,15 @@ import {
   type Currency,
   type CreateVariantDto,
 } from "@/lib/products";
+import { getStores, type Store } from "@/lib/stores";
+import { receiveInventoryBulk, type InventoryReceiveItem } from "@/lib/inventory";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
+import StockEntryForm from "@/components/inventory/StockEntryForm";
 import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
@@ -289,11 +292,18 @@ export default function ProductsPage() {
 
   /* Drawer state */
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [formError, setFormError] = useState("");
+
+  /* Stores (for stock entry) */
+  const [storesList, setStoresList] = useState<Store[]>([]);
+  const [stockSubmitting, setStockSubmitting] = useState(false);
+
+  /* Saved variants for step 3 (ProductVariant[] from API) */
+  const [savedVariants, setSavedVariants] = useState<ProductVariant[]>([]);
 
   /* Product form */
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
@@ -382,6 +392,13 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  /* ── Fetch stores for stock entry ── */
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+    if (!token) return;
+    getStores({ token }).then((res) => setStoresList(res.data)).catch(() => {});
+  }, []);
 
   /* ── Pagination ── */
 
@@ -726,6 +743,21 @@ export default function ProductsPage() {
   };
 
   const goToStep1 = () => setStep(1);
+  const goToStep2FromStep3 = () => setStep(2);
+
+  /* ── Close & reset helper ── */
+  const closeAndReset = async () => {
+    setDrawerOpen(false);
+    setForm(EMPTY_PRODUCT_FORM);
+    setVariants([]);
+    setEditingProductId(null);
+    setCreatedProductId(null);
+    setExpandedVariantKeys([]);
+    setOriginalVariantMap({});
+    setSavedVariants([]);
+    setStep(1);
+    await fetchProducts();
+  };
 
   /* ── Submit ── */
 
@@ -734,6 +766,11 @@ export default function ProductsPage() {
 
     if (step === 1) {
       goToStep2();
+      return;
+    }
+
+    if (step === 3) {
+      // Step 3 is handled by StockEntryForm's own submit
       return;
     }
 
@@ -760,14 +797,7 @@ export default function ProductsPage() {
 
     /* Variant yoksa dogrudan kapat */
     if (preparedVariants.length === 0) {
-      setDrawerOpen(false);
-      setForm(EMPTY_PRODUCT_FORM);
-      setVariants([]);
-      setEditingProductId(null);
-      setCreatedProductId(null);
-      setExpandedVariantKeys([]);
-      setStep(1);
-      await fetchProducts();
+      await closeAndReset();
       return;
     }
 
@@ -792,22 +822,26 @@ export default function ProductsPage() {
           .filter((v) => !v.id)
           .map((v) => v.payload);
 
-        if (variantsToUpdate.length > 0) {
-          await Promise.all(
-            variantsToUpdate.map((v) =>
-              updateProductVariant(editingProductId, v.id!, {
-                ...v.payload,
-                isActive: v.isActive,
-              }),
-            ),
-          );
-        }
+        const hasChanges = variantsToUpdate.length > 0 || variantsToCreate.length > 0;
 
-        if (variantsToCreate.length > 0) {
-          await createProductVariants(editingProductId, variantsToCreate);
-        }
+        if (hasChanges) {
+          if (variantsToUpdate.length > 0) {
+            await Promise.all(
+              variantsToUpdate.map((v) =>
+                updateProductVariant(editingProductId, v.id!, {
+                  ...v.payload,
+                  isActive: v.isActive,
+                }),
+              ),
+            );
+          }
 
-        await fetchTableVariants(editingProductId, variantStatusFilter);
+          if (variantsToCreate.length > 0) {
+            await createProductVariants(editingProductId, variantsToCreate);
+          }
+
+          await fetchTableVariants(editingProductId, variantStatusFilter);
+        }
       } else {
         await createProductVariants(
           targetProductId!,
@@ -815,20 +849,45 @@ export default function ProductsPage() {
         );
       }
 
-      setDrawerOpen(false);
-      setForm(EMPTY_PRODUCT_FORM);
-      setVariants([]);
-      setEditingProductId(null);
-      setCreatedProductId(null);
-      setExpandedVariantKeys([]);
-      setOriginalVariantMap({});
-      setStep(1);
-      await fetchProducts();
+      /* After saving variants, fetch saved variants and go to step 3 */
+      const allVariants = await getProductVariants(targetProductId!);
+      setSavedVariants(allVariants);
+      setStep(3);
     } catch {
       setFormError("Varyantlar olusturulamadi. Lutfen tekrar deneyin.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /* ── Stock entry submit ── */
+  const onStockEntrySubmit = async (items: InventoryReceiveItem[]) => {
+    // No stock data filled — just close without calling API
+    if (items.length === 0) {
+      await closeAndReset();
+      return;
+    }
+
+    setStockSubmitting(true);
+    setFormError("");
+    try {
+      if (items.length === 1) {
+        const { receiveInventory } = await import("@/lib/inventory");
+        await receiveInventory(items[0]);
+      } else {
+        await receiveInventoryBulk(items);
+      }
+      await closeAndReset();
+    } catch {
+      setFormError("Stok girisi yapilamadi. Lutfen tekrar deneyin.");
+    } finally {
+      setStockSubmitting(false);
+    }
+  };
+
+  /* ── Skip stock entry ── */
+  const skipStockEntry = async () => {
+    await closeAndReset();
   };
 
   /* ── Variant helpers ── */
@@ -1240,7 +1299,7 @@ export default function ProductsPage() {
         onClose={onCloseDrawer}
         side="right"
         title={editingProductId ? "Urunu Guncelle" : "Yeni Urun Olustur"}
-        description={step === 1 ? "Adim 1/2 - Urun Bilgileri" : "Adim 2/2 - Varyantlar"}
+        description={step === 1 ? "Adim 1/3 - Urun Bilgileri" : step === 2 ? "Adim 2/3 - Varyantlar" : "Adim 3/3 - Stok Girisi"}
         closeDisabled={submitting || loadingDetail}
         className={cn(isMobile ? "!max-w-none" : "!max-w-[540px]")}
         footer={
@@ -1249,15 +1308,28 @@ export default function ProductsPage() {
               {step === 2 && (
                 <Button label="Geri" type="button" onClick={goToStep1} disabled={submitting} variant="secondary" />
               )}
+              {step === 3 && (
+                <Button label="Geri" type="button" onClick={goToStep2FromStep3} disabled={stockSubmitting} variant="secondary" />
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                label="Iptal"
-                type="button"
-                onClick={onCloseDrawer}
-                disabled={submitting || loadingDetail}
-                variant="secondary"
-              />
+              {step === 3 ? (
+                <Button
+                  label="Atla"
+                  type="button"
+                  onClick={skipStockEntry}
+                  disabled={stockSubmitting}
+                  variant="secondary"
+                />
+              ) : (
+                <Button
+                  label="Iptal"
+                  type="button"
+                  onClick={onCloseDrawer}
+                  disabled={submitting || loadingDetail}
+                  variant="secondary"
+                />
+              )}
               {step === 1 ? (
                 <Button
                   label="Devam Et"
@@ -1266,16 +1338,16 @@ export default function ProductsPage() {
                   disabled={submitting || loadingDetail}
                   variant="primarySolid"
                 />
-              ) : (
+              ) : step === 2 ? (
                 <Button
-                  label={submitting ? (editingProductId ? "Guncelleniyor..." : "Olusturuluyor...") : editingProductId ? "Guncelle" : "Olustur"}
+                  label={submitting ? (editingProductId ? "Guncelleniyor..." : "Olusturuluyor...") : "Devam Et"}
                   type="submit"
                   form="product-form"
                   disabled={submitting || loadingDetail}
                   loading={submitting}
                   variant="primarySolid"
                 />
-              )}
+              ) : null}
             </div>
           </div>
         }
@@ -1289,6 +1361,7 @@ export default function ProductsPage() {
               {/* Step indicator */}
               <div className="flex gap-2 mb-2">
                 <div className="h-1 flex-1 rounded-full bg-primary" />
+                <div className="h-1 flex-1 rounded-full bg-border" />
                 <div className="h-1 flex-1 rounded-full bg-border" />
               </div>
 
@@ -1378,13 +1451,14 @@ export default function ProductsPage() {
 
               {formError && <p className="text-sm text-error">{formError}</p>}
             </>
-          ) : (
+          ) : step === 2 ? (
             /* ── Step 2: Variants ── */
             <>
               {/* Step indicator */}
               <div className="flex gap-2 mb-2">
                 <div className="h-1 flex-1 rounded-full bg-primary" />
                 <div className="h-1 flex-1 rounded-full bg-primary" />
+                <div className="h-1 flex-1 rounded-full bg-border" />
               </div>
 
               <div className="flex items-center justify-between">
@@ -1575,6 +1649,31 @@ export default function ProductsPage() {
                   ))}
                 </div>
               )}
+
+              {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
+            </>
+          ) : (
+            /* ── Step 3: Stock Entry ── */
+            <>
+              {/* Step indicator */}
+              <div className="flex gap-2 mb-2">
+                <div className="h-1 flex-1 rounded-full bg-primary" />
+                <div className="h-1 flex-1 rounded-full bg-primary" />
+                <div className="h-1 flex-1 rounded-full bg-primary" />
+              </div>
+
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-text">Stok Girisi</h3>
+                <p className="text-xs text-muted">Varyantlar icin stok miktari ve fiyat bilgilerini girin. Bu adimi atlayabilirsiniz.</p>
+              </div>
+
+              <StockEntryForm
+                variants={savedVariants}
+                productCurrency={form.defaultCurrency}
+                stores={storesList}
+                onSubmit={onStockEntrySubmit}
+                submitting={stockSubmitting}
+              />
 
               {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
             </>
