@@ -22,6 +22,13 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import StockEntryForm from "@/components/inventory/StockEntryForm";
 import { SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
+import {
+  getSessionUser,
+  getSessionUserRole,
+  getSessionUserStoreIds,
+  isStoreScopedRole,
+  type UserRole,
+} from "@/lib/authz";
 
 type Scope = "tenant" | "store";
 type DrawerMode = "receive" | "adjust" | "transfer" | "sell" | null;
@@ -156,39 +163,52 @@ function normalizeInventoryRows(payload: unknown): InventoryRow[] {
       variantId: node.variantId ?? inherited.variantId,
       variantName: node.variantName ?? inherited.variantName,
     };
+    const context: Record<string, unknown> = {
+      store: merged.store,
+      storeId: merged.storeId,
+      storeName: merged.storeName,
+      product: merged.product,
+      productName: merged.productName,
+      productVariant: merged.productVariant,
+      productVariantId: merged.productVariantId,
+      productVariantName: merged.productVariantName,
+      variant: merged.variant,
+      variantId: merged.variantId,
+      variantName: merged.variantName,
+    };
 
     let traversed = false;
 
     for (const key of storeGroupKeys) {
-      const group = merged[key];
+      const group = node[key];
       if (!Array.isArray(group)) continue;
       traversed = true;
       for (const item of group) {
         const itemObj = asObject(item);
         if (!itemObj) continue;
-        collectRows(itemObj, merged);
+        collectRows(itemObj, context);
       }
     }
 
     for (const key of productGroupKeys) {
-      const group = merged[key];
+      const group = node[key];
       if (!Array.isArray(group)) continue;
       traversed = true;
       for (const item of group) {
         const itemObj = asObject(item);
         if (!itemObj) continue;
-        collectRows(itemObj, merged);
+        collectRows(itemObj, context);
       }
     }
 
     for (const key of variantGroupKeys) {
-      const group = merged[key];
+      const group = node[key];
       if (!Array.isArray(group)) continue;
       traversed = true;
       for (const item of group) {
         const itemObj = asObject(item);
         if (!itemObj) continue;
-        collectRows(itemObj, merged);
+        collectRows(itemObj, context);
       }
     }
 
@@ -230,6 +250,9 @@ export default function StockPage() {
 
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState("");
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userStoreIds, setUserStoreIds] = useState<string[]>([]);
+  const [roleReady, setRoleReady] = useState(false);
 
   const [rows, setRows] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -250,6 +273,21 @@ export default function StockPage() {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
+
+  useEffect(() => {
+    const user = getSessionUser();
+    setUserRole(getSessionUserRole());
+    setUserStoreIds(getSessionUserStoreIds(user));
+    setRoleReady(true);
+  }, []);
+
+  const storeScopedAccess = isStoreScopedRole(userRole);
+
+  useEffect(() => {
+    if (storeScopedAccess && scope !== "store") {
+      setScope("store");
+    }
+  }, [storeScopedAccess, scope]);
 
   const [adjustForm, setAdjustForm] = useState({
     storeId: "",
@@ -284,10 +322,12 @@ export default function StockPage() {
     saleLineId: "",
   });
 
-  const scopeOptions = [
-    { value: "tenant", label: "Tenant Stok Ozeti" },
-    { value: "store", label: "Magaza Bazli Ozet" },
-  ];
+  const scopeOptions = storeScopedAccess
+    ? [{ value: "store", label: "Magaza Bazli Ozet" }]
+    : [
+        { value: "tenant", label: "Tenant Stok Ozeti" },
+        { value: "store", label: "Magaza Bazli Ozet" },
+      ];
 
   const storeOptions = useMemo(
     () => stores.map((s) => ({ value: s.id, label: s.name })),
@@ -303,28 +343,56 @@ export default function StockPage() {
     });
   }, [rows, debouncedSearch]);
 
+  const receiveVariants = useMemo(() => {
+    const map = new Map<string, ProductVariant>();
+    for (const row of rows) {
+      if (!map.has(row.productVariantId)) {
+        map.set(row.productVariantId, toProductVariant(row));
+      }
+    }
+    return [...map.values()];
+  }, [rows]);
+
   const fetchStores = useCallback(async () => {
+    if (!roleReady) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
       const res = await getStores({ token, page: 1, limit: 100 });
-      setStores(res.data);
+      const nextStores = storeScopedAccess
+        ? res.data.filter((store) => userStoreIds.includes(store.id))
+        : res.data;
+      setStores(nextStores);
+      if (storeScopedAccess) {
+        setSelectedStoreId((prev) => {
+          if (prev && nextStores.some((store) => store.id === prev)) return prev;
+          return nextStores[0]?.id ?? "";
+        });
+      }
     } catch {
       setStores([]);
     }
-  }, []);
+  }, [storeScopedAccess, userStoreIds, roleReady]);
 
   const fetchSummary = useCallback(async () => {
+    if (!roleReady) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       let payload: unknown;
-      if (scope === "store") {
-        if (!selectedStoreId) {
+      if (storeScopedAccess || scope === "store") {
+        const targetStoreId = selectedStoreId || userStoreIds[0] || "";
+        if (!targetStoreId) {
           setRows([]);
+          if (storeScopedAccess) {
+            setError("Bu kullanici icin magaza erisimi bulunamadi.");
+          }
           return;
         }
-        payload = await getStoreStockSummary(selectedStoreId);
+        payload = await getStoreStockSummary(targetStoreId);
       } else {
         payload = await getTenantStockSummary();
       }
@@ -335,7 +403,7 @@ export default function StockPage() {
     } finally {
       setLoading(false);
     }
-  }, [scope, selectedStoreId]);
+  }, [scope, selectedStoreId, storeScopedAccess, userStoreIds, roleReady]);
 
   useEffect(() => {
     fetchStores();
@@ -345,12 +413,13 @@ export default function StockPage() {
     fetchSummary();
   }, [fetchSummary]);
 
-  const openDrawer = (mode: Exclude<DrawerMode, null>, row: InventoryRow) => {
+  const openDrawer = (mode: Exclude<DrawerMode, null>, row?: InventoryRow) => {
+    if (mode !== "receive" && !row) return;
     setFormError("");
-    setSelectedRow(row);
+    setSelectedRow(row ?? null);
     setDrawerMode(mode);
 
-    if (mode === "adjust") {
+    if (mode === "adjust" && row) {
       setAdjustForm({
         storeId: row.storeId !== "-" ? row.storeId : "",
         newQuantity: String(Math.max(0, row.quantity)),
@@ -360,7 +429,7 @@ export default function StockPage() {
       });
     }
 
-    if (mode === "transfer") {
+    if (mode === "transfer" && row) {
       setTransferForm({
         fromStoreId: row.storeId !== "-" ? row.storeId : "",
         toStoreId: "",
@@ -370,7 +439,7 @@ export default function StockPage() {
       });
     }
 
-    if (mode === "sell") {
+    if (mode === "sell" && row) {
       setSellType("sale");
       setSellForm({
         storeId: row.storeId !== "-" ? row.storeId : "",
@@ -594,11 +663,12 @@ export default function StockPage() {
             />
           </div>
           <Button
-            label="Yenile"
-            onClick={fetchSummary}
-            variant="secondary"
+            label="Yeni Stok Girisi"
+            onClick={() => openDrawer("receive")}
+            variant="primarySolid"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
+          
         </div>
       </div>
 
@@ -677,13 +747,6 @@ export default function StockPage() {
                       <div className="inline-flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => openDrawer("receive", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
-                        >
-                          Giris
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => openDrawer("adjust", row)}
                           className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
                         >
@@ -695,13 +758,6 @@ export default function StockPage() {
                           className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
                         >
                           Transfer
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDrawer("sell", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
-                        >
-                          Satis/Iade
                         </button>
                       </div>
                     </td>
@@ -718,7 +774,13 @@ export default function StockPage() {
         onClose={closeDrawer}
         side="right"
         title={drawerTitle}
-        description={selectedRow ? `${selectedRow.productName} / ${selectedRow.productVariantName}` : ""}
+        description={
+          drawerMode === "receive"
+            ? "Yeni stok girisi"
+            : selectedRow
+              ? `${selectedRow.productName} / ${selectedRow.productVariantName}`
+              : ""
+        }
         closeDisabled={submitting}
         className={cn(isMobile ? "!max-w-none" : "!max-w-[720px]")}
         footer={
@@ -743,9 +805,9 @@ export default function StockPage() {
         }
       >
         <div className="space-y-4 p-5">
-          {drawerMode === "receive" && selectedRow && (
+          {drawerMode === "receive" && (
             <StockEntryForm
-              variants={[toProductVariant(selectedRow)]}
+              variants={receiveVariants}
               productCurrency="TRY"
               stores={stores}
               onSubmit={onReceiveSubmit}
