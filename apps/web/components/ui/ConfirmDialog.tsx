@@ -45,13 +45,13 @@ export default function ConfirmDialog({
             label={cancelLabel}
             onClick={onClose}
             disabled={loading}
-            className="rounded-xl2 border border-border px-3 py-2 text-sm text-text hover:bg-surface2"
+            variant="secondary"
           />
           <Button
             label={loading ? "Deleting..." : confirmLabel}
             onClick={onConfirm}
             disabled={loading}
-            className="rounded-xl2 border border-error/40 bg-error/10 px-3 py-2 text-sm font-semibold text-text hover:bg-error/20"
+            variant="dangerSoft"
           />
         </div>
       </div>

@@ -17,6 +17,8 @@ type SearchableDropdownProps = {
   clearAriaLabel?: string;
   toggleAriaLabel?: string;
   inputAriaLabel?: string;
+  allowClear?: boolean;
+  showEmptyOption?: boolean;
   className?: string;
 };
 
@@ -63,6 +65,8 @@ export default function SearchableDropdown({
   clearAriaLabel = "Seçimi temizle",
   toggleAriaLabel = "Listeyi aç",
   inputAriaLabel = "Seçim filtresi",
+  allowClear = true,
+  showEmptyOption = true,
   className = "",
 }: SearchableDropdownProps) {
   const [open, setOpen] = useState(false);
@@ -127,7 +131,7 @@ export default function SearchableDropdown({
           aria-autocomplete="list"
         />
 
-        {value && (
+        {allowClear && value && (
           <button
             type="button"
             onClick={() => selectOption("")}
@@ -150,13 +154,15 @@ export default function SearchableDropdown({
 
       {open && (
         <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10">
-          <button
-            type="button"
-            onClick={() => selectOption("")}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm text-text2 transition-colors hover:bg-surface2 hover:text-text"
-          >
-            {emptyOptionLabel}
-          </button>
+          {showEmptyOption && (
+            <button
+              type="button"
+              onClick={() => selectOption("")}
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-text2 transition-colors hover:bg-surface2 hover:text-text"
+            >
+              {emptyOptionLabel}
+            </button>
+          )}
 
           {filteredOptions.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted">{noResultsText}</div>

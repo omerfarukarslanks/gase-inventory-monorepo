@@ -3,13 +3,37 @@ import { apiFetch } from "./api";
 
 export interface User {
   id: string;
+  createdAt?: string;
+  createdById?: string | null;
+  updatedAt?: string;
+  updatedById?: string | null;
   email: string;
+  passwordHash?: string;
   name: string;
   surname: string;
+  authProvider?: string;
+  authProviderId?: string | null;
+  birthDate?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  avatar?: string | null;
   role: string;
-  tenantId: string;
-  createdAt?: string;
-  stores?: { id: string; name: string }[];
+  isActive?: boolean;
+  tenantId?: string;
+  userStores?: {
+    id: string;
+    role?: string;
+    store: {
+      id: string;
+      name: string;
+      code?: string;
+      address?: string | null;
+      isActive?: boolean;
+      slug?: string;
+      logo?: string | null;
+      description?: string | null;
+    };
+  }[];
 }
 
 export interface Meta {
@@ -38,6 +62,7 @@ export interface UpdateUserDto {
   surname?: string;
   email?: string; 
   role?: string;
+  storeIds?: string[];
 }
 
 export interface CreateUserDto {

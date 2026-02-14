@@ -60,6 +60,7 @@ export default function StoresPage() {
   const [editingStoreIsActive, setEditingStoreIsActive] = useState(true);
   const [loadingStoreDetail, setLoadingStoreDetail] = useState(false);
   const [formError, setFormError] = useState("");
+  const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const [isMobile, setIsMobile] = useState(false);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
@@ -157,6 +158,7 @@ export default function StoresPage() {
 
   const onOpenDrawer = () => {
     setFormError("");
+    setNameError("");
     setForm(EMPTY_FORM);
     setEditingStoreId(null);
     setEditingStoreIsActive(true);
@@ -165,15 +167,20 @@ export default function StoresPage() {
 
   const onCloseDrawer = () => {
     if (submitting || loadingStoreDetail) return;
+    setNameError("");
     setDrawerOpen(false);
   };
 
   const onFormChange = (field: keyof StoreForm, value: string) => {
+    if (field === "name" && nameError) {
+      setNameError("");
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const onEditStore = async (id: string) => {
     setFormError("");
+    setNameError("");
     setLoadingStoreDetail(true);
 
     try {
@@ -205,9 +212,15 @@ export default function StoresPage() {
   const onSubmitStore = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
+    setNameError("");
 
     if (!form.name.trim()) {
-      setFormError("Name field is required.");
+      setNameError("Name field is required.");
+      return;
+    }
+
+    if (form.name.trim().length < 2) {
+      setNameError("Name must be at least 2 characters.");
       return;
     }
 
@@ -249,6 +262,7 @@ export default function StoresPage() {
 
       setDrawerOpen(false);
       setForm(EMPTY_FORM);
+      setNameError("");
       setEditingStoreId(null);
       setEditingStoreIsActive(true);
       await fetchStores();
@@ -282,13 +296,13 @@ export default function StoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Stores</h1>
           <p className="text-sm text-muted">Store list from service</p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
+        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+          <div className="relative w-full lg:w-64">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
               <SearchIcon />
             </div>
@@ -303,13 +317,15 @@ export default function StoresPage() {
           <Button
             label="New Store"
             onClick={onOpenDrawer}
-            className="rounded-xl2 border border-primary/30 bg-primary/10 px-2.5 py-2 text-sm font-semibold text-primary hover:bg-primary/15 md:px-3"
+            variant="primarySoft"
+            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
 
           <Button
             label="Refresh"
             onClick={fetchStores}
-            className="rounded-xl2 border border-border bg-surface px-2.5 py-2 text-sm text-text hover:bg-surface2 md:px-3"
+            variant="secondary"
+            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
         </div>
       </div>
@@ -408,7 +424,7 @@ export default function StoresPage() {
                     label="Previous"
                     onClick={goPrev}
                     disabled={!canGoPrev || loading}
-                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
+                    variant="pagination"
                   />
 
                   {pageItems.map((item, idx) =>
@@ -422,10 +438,7 @@ export default function StoresPage() {
                         label={String(item)}
                         onClick={() => goToPage(item)}
                         disabled={loading}
-                        className={`rounded-lg border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 ${item === currentPage
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-surface text-text hover:bg-surface2"
-                          }`}
+                        variant={item === currentPage ? "paginationActive" : "pagination"}
                       />
                     ),
                   )}
@@ -434,7 +447,7 @@ export default function StoresPage() {
                     label="Next"
                     onClick={goNext}
                     disabled={!canGoNext || loading}
-                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-50 hover:bg-surface2"
+                    variant="pagination"
                   />
                 </div>
               </div>
@@ -458,14 +471,14 @@ export default function StoresPage() {
               type="button"
               onClick={onCloseDrawer}
               disabled={submitting || loadingStoreDetail}
-              className="rounded-xl2 border border-border px-3 py-2 text-sm text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
+              variant="secondary"
             />
             <Button
               label={submitting ? (editingStoreId ? "Updating..." : "Creating...") : editingStoreId ? "Update Store" : "Create Store"}
               type="submit"
               form="create-store-form"
               disabled={submitting || loadingStoreDetail}
-              className="rounded-xl2 border border-primary/20 bg-primary px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-primary/90"
+              variant="primarySolid"
             />
           </div>
         }
@@ -481,6 +494,7 @@ export default function StoresPage() {
             value={form.name}
             onChange={(v) => onFormChange("name", v)}
             placeholder="Store name"
+            error={nameError}
           />
 
           <InputField

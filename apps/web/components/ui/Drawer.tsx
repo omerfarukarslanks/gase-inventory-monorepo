@@ -92,7 +92,7 @@ export default function Drawer({
               <button
                 onClick={onClose}
                 disabled={closeDisabled}
-                className="rounded-lg border border-border px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
+                className="rounded-lg border border-border cursor-pointer px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
               >
                 {closeLabel}
               </button>

@@ -89,7 +89,8 @@ export default function ResetPasswordCard() {
             <Button
               label="Sifremi Unuttum Sayfasina Don"
               onClick={() => router.push("/auth/forgot-password")}
-              className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-primary to-accent py-[14px] text-[14.5px] font-bold text-white shadow-glow hover:opacity-[0.98]"
+              variant="authPrimary"
+              fullWidth
             />
           </div>
         </div>
@@ -170,10 +171,9 @@ export default function ResetPasswordCard() {
               loading={loading}
               onClick={submitReset}
               disabled={loading}
-              className={[
-                "flex w-full items-center justify-center gap-2 rounded-[10px] py-[14px] text-[14.5px] font-bold text-white transition-all",
-                loading ? "cursor-wait bg-surface2" : "bg-gradient-to-br from-primary to-accent shadow-glow hover:opacity-[0.98]",
-              ].join(" ")}
+              variant="authPrimary"
+              fullWidth
+              className="transition-all"
             />
           </div>
         )}
@@ -195,7 +195,8 @@ export default function ResetPasswordCard() {
             <Button
               label="Giris Sayfasina Don"
               onClick={() => router.push("/auth/login")}
-              className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-primary to-accent py-[14px] text-[14.5px] font-bold text-white shadow-glow hover:opacity-[0.98]"
+              variant="authPrimary"
+              fullWidth
             />
           </div>
         )}

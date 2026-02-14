@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
@@ -34,6 +34,7 @@ export default function Sidebar({
   setCollapsed: (v: boolean) => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -93,6 +94,9 @@ export default function Sidebar({
     }
   };
 
+  const isActiveItem = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
   return (
     <aside
       className={cn(
@@ -138,9 +142,21 @@ export default function Sidebar({
             <Link
               key={it.href}
               href={it.href}
-              className="flex items-center gap-3 rounded-xl2 border border-transparent px-3 py-2.5 text-sm text-text2 hover:border-border hover:bg-surface2"
+              className={cn(
+                "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
+                isActiveItem(it.href)
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-transparent text-text2 hover:border-border hover:bg-surface2",
+              )}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl2 border border-border bg-surface2">
+              <span
+                className={cn(
+                  "grid h-9 w-9 place-items-center rounded-xl2 border",
+                  isActiveItem(it.href)
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-surface2",
+                )}
+              >
                 {it.icon}
               </span>
               {!collapsed && (
@@ -164,9 +180,21 @@ export default function Sidebar({
             <Link
               key={it.href}
               href={it.href}
-              className="flex items-center gap-3 rounded-xl2 border border-transparent px-3 py-2.5 text-sm text-text2 hover:border-border hover:bg-surface2"
+              className={cn(
+                "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
+                isActiveItem(it.href)
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-transparent text-text2 hover:border-border hover:bg-surface2",
+              )}
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl2 border border-border bg-surface2">
+              <span
+                className={cn(
+                  "grid h-9 w-9 place-items-center rounded-xl2 border",
+                  isActiveItem(it.href)
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border bg-surface2",
+                )}
+              >
                 {it.icon}
               </span>
               {!collapsed && <span className="flex-1">{it.label}</span>}
