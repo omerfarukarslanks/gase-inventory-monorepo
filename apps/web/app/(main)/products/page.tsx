@@ -22,6 +22,7 @@ import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import StockEntryForm from "@/components/inventory/StockEntryForm";
@@ -69,7 +70,7 @@ type VariantForm = {
   name: string;
   code: string;
   barcode: string;
-  attributes: { key: string; value: string; unit?: string }[];
+  attributes: { key: string; values: string[] }[];
 };
 
 type FormErrors = Partial<Record<keyof ProductForm, string>>;
@@ -120,7 +121,7 @@ function createEmptyVariant(): VariantForm {
     name: "",
     code: "",
     barcode: "",
-    attributes: [{ key: "", value: "", unit: "" }],
+    attributes: [{ key: "", values: [] }],
   };
 }
 
@@ -142,9 +143,15 @@ function areAttributesEqual(a: Record<string, string>, b: Record<string, string>
   return true;
 }
 
-function serializeAttributeValue(attr: { key: string; value: string; unit?: string }) {
-  const trimmedValue = attr.value.trim();
-  return trimmedValue;
+function parseAttributeValues(raw: string) {
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function serializeAttributeValue(attr: { key: string; values: string[] }) {
+  return attr.values.map((item) => item.trim()).filter(Boolean).join(", ");
 }
 
 function VirtualVariantList({
@@ -573,8 +580,8 @@ export default function ProductsPage() {
       if (!v.name.trim()) e.name = "Varyant adi zorunludur.";
       if (!v.code.trim()) e.code = "Varyant kodu zorunludur.";
 
-      const hasEmptyAttr = v.attributes.some((a) => a.key && !a.value.trim());
-      const hasEmptyKey = v.attributes.some((a) => !a.key && a.value.trim());
+      const hasEmptyAttr = v.attributes.some((a) => a.key && a.values.length === 0);
+      const hasEmptyKey = v.attributes.some((a) => !a.key && a.values.length > 0);
 
       if (hasEmptyAttr || hasEmptyKey) {
         e.attributes = "Tum ozellik alanlari doldurulmalidir.";
@@ -622,7 +629,10 @@ export default function ProductsPage() {
           name: v.name,
           code: v.code,
           barcode: v.barcode,
-          attributes: Object.entries(v.attributes).map(([key, value]) => ({ key, value, unit: "" })),
+          attributes: Object.entries(v.attributes).map(([key, value]) => ({
+            key,
+            values: parseAttributeValues(String(value ?? "")),
+          })),
         })),
       );
       setExpandedVariantKeys(data.length > 0 ? [data[0].id] : []);
@@ -731,7 +741,7 @@ export default function ProductsPage() {
           barcode: v.barcode.trim(),
           attributes: Object.fromEntries(
             v.attributes
-              .filter((a) => a.key && a.value.trim())
+              .filter((a) => a.key && a.values.length > 0)
               .map((a) => [a.key, serializeAttributeValue(a)]),
           ),
         },
@@ -879,7 +889,7 @@ export default function ProductsPage() {
   const addAttribute = (variantIndex: number) => {
     setVariants((prev) =>
       prev.map((v, i) =>
-        i === variantIndex ? { ...v, attributes: [...v.attributes, { key: "", value: "", unit: "" }] } : v,
+        i === variantIndex ? { ...v, attributes: [...v.attributes, { key: "", values: [] }] } : v,
       ),
     );
   };
@@ -893,24 +903,33 @@ export default function ProductsPage() {
   const getAttributeKeyOptions = (variantIndex: number, attrIndex: number) => {
     const base = attributeDefinitions
       .filter((item) => item.isActive)
-      .map((item) => ({ value: item.value, label: item.name }));
+      .map((item) => ({ value: item.name, label: item.name }));
 
     const selectedKey = variants[variantIndex]?.attributes[attrIndex]?.key ?? "";
     if (!selectedKey || base.some((item) => item.value === selectedKey)) return base;
     return [{ value: selectedKey, label: selectedKey }, ...base];
   };
 
-  const getAttributeValueOptions = (key: string, currentValue: string) => {
-    const definition = attributeDefinitions.find((item) => item.value === key);
+  const getAttributeValueOptions = (key: string, currentValues: string[]) => {
+    const definition = attributeDefinitions.find((item) => item.name === key);
     const base = (definition?.values ?? [])
       .filter((item) => item.isActive)
-      .map((item) => ({ value: item.value, label: item.name }));
+      .map((item) => ({ value: item.name, label: item.name }));
 
-    if (!currentValue || base.some((item) => item.value === currentValue)) return base;
-    return [{ value: currentValue, label: currentValue }, ...base];
+    const selectedSet = new Set(currentValues.filter(Boolean));
+    const extraSelected = [...selectedSet]
+      .filter((value) => !base.some((item) => item.value === value))
+      .map((value) => ({ value, label: value }));
+
+    return [...extraSelected, ...base];
   };
 
-  const updateAttribute = (variantIndex: number, attrIndex: number, field: "key" | "value" | "unit", value: string) => {
+  const updateAttribute = (
+    variantIndex: number,
+    attrIndex: number,
+    field: "key" | "values",
+    value: string | string[],
+  ) => {
     setVariants((prev) =>
       prev.map((v, i) =>
         i === variantIndex
@@ -921,12 +940,11 @@ export default function ProductsPage() {
                 if (field === "key") {
                   return {
                     ...a,
-                    key: value,
-                    value: "",
-                    unit: "",
+                    key: String(value),
+                    values: [],
                   };
                 }
-                return { ...a, [field]: value };
+                return { ...a, values: Array.isArray(value) ? value : [] };
               }),
             }
           : v,
@@ -1526,13 +1544,11 @@ export default function ProductsPage() {
                                 allowClear={false}
                                 className="flex-1"
                               />
-                              <SearchableDropdown
-                                options={getAttributeValueOptions(attr.key, attr.value)}
-                                value={attr.value}
-                                onChange={(v) => updateAttribute(vi, ai, "value", v)}
-                                placeholder={attr.key ? "Deger secin" : "Once ozellik secin"}
-                                showEmptyOption={false}
-                                allowClear={false}
+                              <SearchableMultiSelectDropdown
+                                options={getAttributeValueOptions(attr.key, attr.values)}
+                                values={attr.values}
+                                onChange={(values) => updateAttribute(vi, ai, "values", values)}
+                                placeholder={attr.key ? "Deger(ler) secin" : "Once ozellik secin"}
                                 className="flex-1"
                               />
                               {variant.attributes.length > 1 && (

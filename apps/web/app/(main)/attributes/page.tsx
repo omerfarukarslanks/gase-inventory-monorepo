@@ -25,17 +25,9 @@ type DrawerStep = 1 | 2;
 type EditableValue = {
   id: string;
   name: string;
-  value: string;
   isActive: boolean;
   originalName: string;
-  originalValue: string;
   originalIsActive: boolean;
-};
-
-type NewValueDraft = {
-  key: string;
-  name: string;
-  value: string;
 };
 
 function useDebounceStr(value: string, delay: number) {
@@ -54,12 +46,11 @@ function formatDate(value?: string) {
   return d.toLocaleString("tr-TR");
 }
 
-function createNewValueDraft(): NewValueDraft {
-  return {
-    key: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    name: "",
-    value: "",
-  };
+function parseCommaSeparated(input: string): string[] {
+  return input
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export default function AttributesPage() {
@@ -83,13 +74,11 @@ export default function AttributesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerStep, setDrawerStep] = useState<DrawerStep>(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [workingAttributeId, setWorkingAttributeId] = useState<string | null>(null);
+  const [workingAttribute, setWorkingAttribute] = useState<Attribute | null>(null);
   const [formName, setFormName] = useState("");
-  const [formValue, setFormValue] = useState("");
   const [originalName, setOriginalName] = useState("");
-  const [originalValue, setOriginalValue] = useState("");
   const [existingValues, setExistingValues] = useState<EditableValue[]>([]);
-  const [newValueDrafts, setNewValueDrafts] = useState<NewValueDraft[]>([createNewValueDraft()]);
+  const [newValuesInput, setNewValuesInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
@@ -138,6 +127,20 @@ export default function AttributesPage() {
     setCurrentPage(1);
   }, [debouncedSearch, statusFilter, pageSize]);
 
+  useEffect(() => {
+    if (success) {
+      const t = setTimeout(() => setSuccess(""), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [success]);
+
+  useEffect(() => {
+    if (error) {
+      const t = setTimeout(() => setError(""), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [error]);
+
   const toggleExpand = (id: string) => {
     setExpandedAttributeIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -146,28 +149,24 @@ export default function AttributesPage() {
 
   const openCreateDrawer = () => {
     setEditingId(null);
-    setWorkingAttributeId(null);
+    setWorkingAttribute(null);
     setDrawerStep(1);
     setFormName("");
-    setFormValue("");
     setOriginalName("");
-    setOriginalValue("");
     setExistingValues([]);
-    setNewValueDrafts([createNewValueDraft()]);
+    setNewValuesInput("");
     setFormError("");
     setDrawerOpen(true);
   };
 
   const openEditDrawer = async (attribute: Attribute) => {
     setEditingId(attribute.id);
-    setWorkingAttributeId(attribute.id);
+    setWorkingAttribute(attribute);
     setDrawerStep(1);
     setFormName(attribute.name);
-    setFormValue(attribute.value ?? "");
     setOriginalName(attribute.name);
-    setOriginalValue(attribute.value ?? "");
     setExistingValues([]);
-    setNewValueDrafts([createNewValueDraft()]);
+    setNewValuesInput("");
     setFormError("");
     setDrawerOpen(true);
     setDetailLoading(true);
@@ -175,14 +174,12 @@ export default function AttributesPage() {
     try {
       const detail = await getAttributeById(attribute.id);
       const values = [...detail.values]
-        .sort((a, b) => a.value.localeCompare(b.value, "tr"))
+        .sort((a, b) => Number(a.value) - Number(b.value))
         .map((v) => ({
           id: v.id,
           name: v.name ?? "",
-          value: v.value,
           isActive: v.isActive,
           originalName: v.name ?? "",
-          originalValue: v.value,
           originalIsActive: v.isActive,
         }));
       setExistingValues(values);
@@ -200,8 +197,8 @@ export default function AttributesPage() {
 
   const goNextStep = async () => {
     setFormError("");
-    if (!formName.trim() || !formValue.trim()) {
-      setFormError("Ozellik adi ve teknik degeri zorunludur.");
+    if (!formName.trim()) {
+      setFormError("Ozellik adi zorunludur.");
       return;
     }
     if (submitting) return;
@@ -209,31 +206,23 @@ export default function AttributesPage() {
     setSubmitting(true);
     try {
       const nextName = formName.trim();
-      const nextValue = formValue.trim();
-      let shouldRefreshList = false;
 
-      if (editingId) {
-        if (nextName !== originalName.trim() || nextValue !== originalValue.trim()) {
-          await updateAttribute(editingId, { name: nextName, value: nextValue });
+      if (editingId && workingAttribute) {
+        if (nextName !== originalName.trim()) {
+          await updateAttribute(editingId, { name: nextName });
           setOriginalName(nextName);
-          setOriginalValue(nextValue);
-          shouldRefreshList = true;
           setSuccess("Ozellik bilgisi guncellendi.");
+          await fetchAttributes();
         }
-        setWorkingAttributeId(editingId);
       } else {
-        const created = await createAttribute({ name: nextName, value: nextValue });
+        const created = await createAttribute({ name: nextName });
         setEditingId(created.id);
-        setWorkingAttributeId(created.id);
+        setWorkingAttribute(created);
         setOriginalName(created.name ?? nextName);
-        setOriginalValue(created.value ?? nextValue);
-        shouldRefreshList = true;
         setSuccess("Ozellik olusturuldu. Deger girisine devam edin.");
-      }
-
-      if (shouldRefreshList) {
         await fetchAttributes();
       }
+
       setDrawerStep(2);
     } catch {
       setFormError("Ozellik kaydedilemedi.");
@@ -271,41 +260,16 @@ export default function AttributesPage() {
   };
 
   const toggleAttributeValueStatus = async (
-    attributeId: string,
     value: AttributeValue,
     next: boolean,
   ) => {
     setTogglingValueIds((prev) => [...prev, value.id]);
-    setAttributes((prev) =>
-      prev.map((item) =>
-        item.id !== attributeId
-          ? item
-          : {
-              ...item,
-              values: item.values.map((v) =>
-                v.id === value.id ? { ...v, isActive: next } : v,
-              ),
-            },
-      ),
-    );
     try {
       await updateAttributeValue(value.id, { isActive: next });
-      setSuccess("Ozellik degeri durumu guncellendi.");
+      setSuccess("Deger durumu guncellendi.");
       await fetchAttributes();
     } catch {
-      setError("Ozellik degeri durumu guncellenemedi.");
-      setAttributes((prev) =>
-        prev.map((item) =>
-          item.id !== attributeId
-            ? item
-            : {
-                ...item,
-                values: item.values.map((v) =>
-                  v.id === value.id ? { ...v, isActive: value.isActive } : v,
-                ),
-              },
-        ),
-      );
+      setError("Deger durumu guncellenemedi.");
     } finally {
       setTogglingValueIds((prev) => prev.filter((id) => id !== value.id));
     }
@@ -313,42 +277,25 @@ export default function AttributesPage() {
 
   const handleSave = async () => {
     setFormError("");
-    const targetId = workingAttributeId ?? editingId;
-    if (!targetId) {
+    const attr = workingAttribute;
+    if (!attr) {
       setFormError("Ozellik kimligi bulunamadi. Lutfen tekrar deneyin.");
       return;
     }
-    const preparedNewValues = newValueDrafts
-      .map((item) => ({ name: item.name.trim(), value: item.value.trim() }))
-      .filter((item) => item.name || item.value);
 
-    const hasInvalidNewRow = preparedNewValues.some((item) => !item.name || !item.value);
-    if (hasInvalidNewRow) {
-      setFormError("Yeni deger satirlarinda Name ve Value birlikte zorunludur.");
-      return;
-    }
-
-    const dedupNewMap = new Map<string, { name: string; value: string }>();
-    for (const item of preparedNewValues) {
-      dedupNewMap.set(`${item.name}::${item.value}`, item);
-    }
-    const newValuesPayload = [...dedupNewMap.values()];
+    const preparedNewValues = parseCommaSeparated(newValuesInput)
+      .map((name) => ({ name }));
 
     const existingValueUpdates = existingValues
-      .map((item) => ({
-        id: item.id,
-        name: item.name.trim(),
-        value: item.value.trim(),
-        changed: item.name.trim() !== item.originalName || item.value.trim() !== item.originalValue,
-      }))
-      .filter((item) => item.changed);
+      .filter((item) => item.name.trim() !== item.originalName)
+      .map((item) => ({ id: item.id, name: item.name.trim() }));
 
-    if (existingValueUpdates.some((item) => !item.name || !item.value)) {
-      setFormError("Guncellenen degerlerde Name ve Value zorunludur.");
+    if (existingValueUpdates.some((item) => !item.name)) {
+      setFormError("Deger adi bos birakilamaz.");
       return;
     }
 
-    if (newValuesPayload.length === 0 && existingValueUpdates.length === 0) {
+    if (preparedNewValues.length === 0 && existingValueUpdates.length === 0) {
       setSuccess("Degisiklik yok.");
       setDrawerOpen(false);
       return;
@@ -359,14 +306,14 @@ export default function AttributesPage() {
     try {
       if (existingValueUpdates.length > 0) {
         await Promise.all(
-          existingValueUpdates.map((value) =>
-            updateAttributeValue(value.id, { name: value.name, value: value.value }),
+          existingValueUpdates.map((v) =>
+            updateAttributeValue(v.id, { name: v.name }),
           ),
         );
       }
 
-      if (newValuesPayload.length > 0) {
-        await createAttributeValues(targetId, newValuesPayload);
+      if (preparedNewValues.length > 0) {
+        await createAttributeValues(attr.value, preparedNewValues);
       }
 
       setDrawerOpen(false);
@@ -385,25 +332,9 @@ export default function AttributesPage() {
     );
   };
 
-  const addNewValueDraft = () => {
-    setNewValueDrafts((prev) => [...prev, createNewValueDraft()]);
-  };
-
-  const removeNewValueDraft = (key: string) => {
-    setNewValueDrafts((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((item) => item.key !== key);
-    });
-  };
-
-  const updateNewValueDraft = (key: string, patch: Partial<NewValueDraft>) => {
-    setNewValueDrafts((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, ...patch } : item)),
-    );
-  };
 
   const valuesForRow = (attribute: Attribute): AttributeValue[] =>
-    [...(attribute.values ?? [])].sort((a, b) => a.value.localeCompare(b.value, "tr"));
+    [...(attribute.values ?? [])].sort((a, b) => Number(a.value) - Number(b.value));
 
   const totalPages = meta?.totalPages ?? 1;
   const canGoPrev = currentPage > 1;
@@ -441,6 +372,7 @@ export default function AttributesPage() {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Ozellik Yonetimi</h1>
@@ -468,6 +400,7 @@ export default function AttributesPage() {
         </div>
       </div>
 
+      {/* Filters */}
       <div className="flex items-center gap-3 rounded-xl2 border border-border bg-surface p-3">
         <div className="w-[220px]">
           <SearchableDropdown
@@ -491,31 +424,46 @@ export default function AttributesPage() {
         </div>
       </div>
 
+      {/* Alerts */}
       {success && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
+        <div className="animate-fi rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
           {success}
         </div>
       )}
       {error && (
-        <div className="rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+        <div className="animate-fi rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
           {error}
         </div>
       )}
 
+      {/* Table */}
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {loading ? (
-          <div className="p-6 text-sm text-muted">Ozellikler yukleniyor...</div>
+          <div className="flex items-center gap-2 p-6 text-sm text-muted">
+            <svg className="h-4 w-4 animate-sp" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+            Ozellikler yukleniyor...
+          </div>
         ) : attributes.length === 0 ? (
-          <div className="p-6 text-sm text-muted">Gosterilecek ozellik bulunamadi.</div>
+          <div className="flex flex-col items-center gap-2 p-10 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted/40">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.29 7 12 12 20.71 7" />
+              <line x1="12" y1="22" x2="12" y2="12" />
+            </svg>
+            <p className="text-sm font-medium text-muted">Gosterilecek ozellik bulunamadi</p>
+            <p className="text-xs text-muted/70">Yeni bir ozellik ekleyerek baslayabilirsiniz</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[940px]">
+            <table className="w-full min-w-[800px]">
               <thead className="border-b border-border bg-surface2/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-muted">
                   <th className="px-4 py-3">Ozellik</th>
-                  <th className="px-4 py-3">Kod</th>
                   <th className="px-4 py-3">Durum</th>
-                  <th className="px-4 py-3 text-right">Deger</th>
+                  <th className="px-4 py-3 text-center">Deger Sayisi</th>
                   <th className="px-4 py-3">Guncelleme</th>
                   <th className="px-4 py-3 text-right">Islemler</th>
                 </tr>
@@ -527,9 +475,7 @@ export default function AttributesPage() {
 
                   return (
                     <Fragment key={attribute.id}>
-                      <tr
-                        className="border-b border-border last:border-b-0 hover:bg-surface2/40"
-                      >
+                      <tr className="border-b border-border last:border-b-0 hover:bg-surface2/40 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-text">
                           <button
                             type="button"
@@ -547,27 +493,28 @@ export default function AttributesPage() {
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              className={`text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              className={`text-muted transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
                             >
                               <path d="m9 18 6-6-6-6" />
                             </svg>
                             <span>{attribute.name}</span>
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-sm text-text2">{attribute.value}</td>
                         <td className="px-4 py-3 text-sm">
                           <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                               attribute.isActive
                                 ? "bg-primary/15 text-primary"
                                 : "bg-error/15 text-error"
                             }`}
                           >
-                            {attribute.isActive ? "Active" : "Passive"}
+                            {attribute.isActive ? "Aktif" : "Pasif"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm text-text2">
-                          {attribute.values?.length ?? 0}
+                        <td className="px-4 py-3 text-center text-sm text-text2">
+                          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-surface2 px-2 text-xs font-medium">
+                            {attribute.values?.length ?? 0}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-text2">{formatDate(attribute.updatedAt)}</td>
                         <td className="px-4 py-3 text-right">
@@ -575,7 +522,7 @@ export default function AttributesPage() {
                             <button
                               type="button"
                               onClick={() => openEditDrawer(attribute)}
-                              className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
+                              className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-text2 hover:border-primary/40 hover:text-primary transition-colors"
                             >
                               Duzenle
                             </button>
@@ -587,43 +534,45 @@ export default function AttributesPage() {
                           </div>
                         </td>
                       </tr>
+
+                      {/* Expanded child values */}
                       {isExpanded && (
                         <tr className="border-b border-border bg-surface/60">
-                          <td colSpan={6} className="px-5 py-4">
+                          <td colSpan={5} className="px-5 py-4">
                             {values.length === 0 ? (
-                              <div className="text-xs text-muted">Bu ozellige ait deger yok.</div>
+                              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted">
+                                Bu ozellige ait deger bulunamadi.
+                              </div>
                             ) : (
                               <div className="overflow-hidden rounded-xl border border-border bg-surface">
-                                <table className="w-full min-w-[680px]">
+                                <table className="w-full min-w-[500px]">
                                   <thead className="border-b border-border bg-surface2/70">
                                     <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
-                                      <th className="px-3 py-2">Name</th>
-                                      <th className="px-3 py-2">Deger</th>
+                                      <th className="px-3 py-2">Deger Adi</th>
                                       <th className="px-3 py-2">Durum</th>
                                       <th className="px-3 py-2 text-right">Islemler</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {values.map((value) => (
-                                      <tr key={value.id} className="border-b border-border last:border-b-0">
+                                      <tr key={value.id} className="border-b border-border last:border-b-0 hover:bg-surface2/30 transition-colors">
                                         <td className="px-3 py-2 text-sm text-text">{value.name}</td>
-                                        <td className="px-3 py-2 text-sm text-text">{value.value}</td>
                                         <td className="px-3 py-2">
                                           <span
-                                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
                                               value.isActive
                                                 ? "bg-primary/15 text-primary"
                                                 : "bg-error/15 text-error"
                                             }`}
                                           >
-                                            {value.isActive ? "Active" : "Passive"}
+                                            {value.isActive ? "Aktif" : "Pasif"}
                                           </span>
                                         </td>
                                         <td className="px-3 py-2 text-right">
                                           <ToggleSwitch
                                             checked={value.isActive}
                                             onChange={(next) =>
-                                              toggleAttributeValueStatus(attribute.id, value, next)
+                                              toggleAttributeValueStatus(value, next)
                                             }
                                             disabled={togglingValueIds.includes(value.id)}
                                           />
@@ -646,6 +595,7 @@ export default function AttributesPage() {
         )}
       </section>
 
+      {/* Pagination */}
       {meta && (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-border rounded-xl2 bg-surface px-4 py-3 text-xs text-muted">
           <div className="flex items-center gap-4">
@@ -703,6 +653,7 @@ export default function AttributesPage() {
         </div>
       )}
 
+      {/* Drawer */}
       <Drawer
         open={drawerOpen}
         onClose={closeDrawer}
@@ -710,7 +661,7 @@ export default function AttributesPage() {
         title={editingId ? "Ozellik Duzenle" : "Yeni Ozellik"}
         description={`Adim ${drawerStep}/2`}
         closeDisabled={submitting}
-        className="!max-w-[760px]"
+        className="!max-w-[640px]"
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button label="Iptal" onClick={closeDrawer} disabled={submitting} variant="secondary" />
@@ -722,11 +673,12 @@ export default function AttributesPage() {
                 label="Devam"
                 onClick={goNextStep}
                 disabled={submitting || detailLoading}
+                loading={submitting}
                 variant="primarySolid"
               />
             ) : (
               <Button
-                label="Degerleri Kaydet"
+                label="Kaydet"
                 onClick={handleSave}
                 loading={submitting}
                 variant="primarySolid"
@@ -735,131 +687,124 @@ export default function AttributesPage() {
           </div>
         }
       >
-        <div className="space-y-4 p-5">
-          <div className="flex gap-2 mb-2">
+        <div className="space-y-5 p-5">
+          {/* Step indicator */}
+          <div className="flex gap-2">
             <div className="h-1 flex-1 rounded-full bg-primary" />
-            <div className={`h-1 flex-1 rounded-full ${drawerStep === 2 ? "bg-primary" : "bg-border"}`} />
+            <div className={`h-1 flex-1 rounded-full transition-colors ${drawerStep === 2 ? "bg-primary" : "bg-border"}`} />
           </div>
 
+          {/* Step 1 - Attribute Name */}
           {drawerStep === 1 && (
-            <>
+            <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-semibold text-text">Ozellik Bilgisi</h3>
-                <p className="text-xs text-muted">Ilk adimda ozellik adi ve kodu kaydedilir</p>
+                <p className="text-xs text-muted">Ozellik adini girin</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted">Ozellik Adi *</label>
                 <input
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Orn: Renk, Beden"
+                  placeholder="Orn: Renk, Beden, Malzeme"
                   className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !submitting) goNextStep();
+                  }}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Ozellik Kodu (value) *</label>
-                <input
-                  type="text"
-                  value={formValue}
-                  onChange={(e) => setFormValue(e.target.value)}
-                  placeholder="Orn: color"
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </>
+            </div>
           )}
 
+          {/* Step 2 - Attribute Values */}
           {drawerStep === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div>
                 <h3 className="text-sm font-semibold text-text">Ozellik Degerleri</h3>
-                <p className="text-xs text-muted">Mevcut degerleri guncelleyin veya yenilerini ekleyin</p>
+                <p className="text-xs text-muted">
+                  <span className="font-medium text-text">{originalName}</span> icin degerlerini yonetin
+                </p>
               </div>
+
               {detailLoading ? (
-                <div className="text-sm text-muted">Degerler yukleniyor...</div>
+                <div className="flex items-center gap-2 py-4 text-sm text-muted">
+                  <svg className="h-4 w-4 animate-sp" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  Degerler yukleniyor...
+                </div>
               ) : (
                 <>
-                  {editingId && (
+                  {/* Existing values */}
+                  {editingId && existingValues.length > 0 && (
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-muted">Mevcut Degerler</label>
-                      {existingValues.length === 0 ? (
-                        <div className="rounded-lg border border-border bg-surface2/40 px-3 py-2 text-xs text-muted">
-                          Bu ozellige ait kayitli deger yok.
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {existingValues.map((item) => (
-                            <div
-                              key={item.id}
-                              className="grid gap-2 rounded-xl border border-border bg-surface2/30 p-2 sm:grid-cols-2"
+                      <div className="space-y-2">
+                        {existingValues.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-2 rounded-xl border border-border bg-surface2/30 p-2"
+                          >
+                            <input
+                              type="text"
+                              value={item.name}
+                              onChange={(e) => updateEditableValue(item.id, { name: e.target.value })}
+                              placeholder="Deger adi"
+                              className="h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            />
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                item.isActive
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-error/15 text-error"
+                              }`}
                             >
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => updateEditableValue(item.id, { name: e.target.value })}
-                                placeholder="Name"
-                                className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                              />
-                              <input
-                                type="text"
-                                value={item.value}
-                                onChange={(e) => updateEditableValue(item.id, { value: e.target.value })}
-                                placeholder="Value"
-                                className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                              {item.isActive ? "Aktif" : "Pasif"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
+                  {editingId && existingValues.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted">
+                      Kayitli deger bulunamadi
+                    </div>
+                  )}
+
+                  {/* New values */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted">Yeni Degerler</label>
-                      <button
-                        type="button"
-                        onClick={addNewValueDraft}
-                        className="text-xs font-medium text-primary hover:text-primary/80"
-                      >
-                        + Satir Ekle
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {newValueDrafts.map((item) => (
-                        <div key={item.key} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updateNewValueDraft(item.key, { name: e.target.value })}
-                            placeholder="Name (orn: Orange)"
-                            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                          <input
-                            type="text"
-                            value={item.value}
-                            onChange={(e) => updateNewValueDraft(item.key, { value: e.target.value })}
-                            placeholder="Value (orn: Turuncu)"
-                            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeNewValueDraft(item.key)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error"
-                            aria-label="Satiri sil"
+                    <label className="text-xs font-semibold text-muted">Yeni Degerler</label>
+                    <input
+                      type="text"
+                      value={newValuesInput}
+                      onChange={(e) => setNewValuesInput(e.target.value)}
+                      placeholder="Virgul ile ayirin: Kirmizi, Mavi, Yesil"
+                      className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                    {newValuesInput.trim() && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {parseCommaSeparated(newValuesInput).map((name, i) => (
+                          <span
+                            key={`${name}-${i}`}
+                            className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
                           >
-                            x
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
             </div>
           )}
 
+          {/* Form error */}
           {formError && (
             <div className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error">
               {formError}

@@ -1,4 +1,4 @@
-import { ApiError, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 export type AttributeValue = {
   id: string;
@@ -7,7 +7,7 @@ export type AttributeValue = {
   updatedAt: string;
   updatedById?: string | null;
   name: string;
-  value: string;
+  value: number | string;
   isActive: boolean;
 };
 
@@ -18,7 +18,7 @@ export type Attribute = {
   updatedAt: string;
   updatedById?: string | null;
   name: string;
-  value: string;
+  value: number | string;
   isActive: boolean;
   values: AttributeValue[];
 };
@@ -55,6 +55,8 @@ export type GetAttributesPaginatedParams = {
   isActive?: boolean | "all";
 };
 
+/* ── Attribute ── */
+
 export async function getAttributes(): Promise<Attribute[]> {
   return apiFetch<Attribute[]>("/attributes");
 }
@@ -86,7 +88,7 @@ export async function getAttributeById(id: string): Promise<AttributeDetail> {
   return apiFetch<AttributeDetail>(`/attributes/${id}`);
 }
 
-export async function createAttribute(payload: { name: string; value: string }): Promise<Attribute> {
+export async function createAttribute(payload: { name: string }): Promise<Attribute> {
   return apiFetch<Attribute>("/attributes", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -95,7 +97,7 @@ export async function createAttribute(payload: { name: string; value: string }):
 
 export async function updateAttribute(
   id: string,
-  payload: { name?: string; value?: string; isActive?: boolean },
+  payload: { name?: string; isActive?: boolean },
 ): Promise<Attribute> {
   return apiFetch<Attribute>(`/attributes/${id}`, {
     method: "PATCH",
@@ -103,11 +105,13 @@ export async function updateAttribute(
   });
 }
 
+/* ── Attribute Value ── */
+
 export async function createAttributeValues(
-  attributeId: string,
-  payload: Array<{ name: string; value: string }>,
+  attributeValue: number | string,
+  payload: Array<{ name: string }>,
 ): Promise<AttributeDetail> {
-  return apiFetch<AttributeDetail>(`/attributes/${attributeId}/values`, {
+  return apiFetch<AttributeDetail>(`/attributes/${attributeValue}/values`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -115,20 +119,10 @@ export async function createAttributeValues(
 
 export async function updateAttributeValue(
   valueId: string,
-  payload: { name?: string; value?: string; isActive?: boolean },
+  payload: { name?: string; isActive?: boolean },
 ): Promise<unknown> {
-  try {
-    return await apiFetch<unknown>(`/attributes/values/${valueId}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
-      return apiFetch<unknown>(`/attributes/${valueId}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-    }
-    throw error;
-  }
+  return apiFetch<unknown>(`/attributes/values/${valueId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
