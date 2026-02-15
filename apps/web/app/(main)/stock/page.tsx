@@ -748,14 +748,14 @@ export default function StockPage() {
                         <button
                           type="button"
                           onClick={() => openDrawer("adjust", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
+                          className="rounded-lg border border-border cursor-pointer bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
                         >
                           Duzelt
                         </button>
                         <button
                           type="button"
                           onClick={() => openDrawer("transfer", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
+                          className="rounded-lg border border-border cursor-pointer bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
                         >
                           Transfer
                         </button>
