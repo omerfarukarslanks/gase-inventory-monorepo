@@ -6,6 +6,7 @@ export type AttributeValue = {
   createdById?: string | null;
   updatedAt: string;
   updatedById?: string | null;
+  name: string;
   value: string;
   isActive: boolean;
 };
@@ -17,6 +18,7 @@ export type Attribute = {
   updatedAt: string;
   updatedById?: string | null;
   name: string;
+  value: string;
   isActive: boolean;
   values: AttributeValue[];
 };
@@ -84,7 +86,7 @@ export async function getAttributeById(id: string): Promise<AttributeDetail> {
   return apiFetch<AttributeDetail>(`/attributes/${id}`);
 }
 
-export async function createAttribute(payload: { name: string }): Promise<Attribute> {
+export async function createAttribute(payload: { name: string; value: string }): Promise<Attribute> {
   return apiFetch<Attribute>("/attributes", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -93,7 +95,7 @@ export async function createAttribute(payload: { name: string }): Promise<Attrib
 
 export async function updateAttribute(
   id: string,
-  payload: { name?: string; isActive?: boolean },
+  payload: { name?: string; value?: string; isActive?: boolean },
 ): Promise<Attribute> {
   return apiFetch<Attribute>(`/attributes/${id}`, {
     method: "PATCH",
@@ -103,7 +105,7 @@ export async function updateAttribute(
 
 export async function createAttributeValues(
   attributeId: string,
-  payload: Array<{ value: string }>,
+  payload: Array<{ name: string; value: string }>,
 ): Promise<AttributeDetail> {
   return apiFetch<AttributeDetail>(`/attributes/${attributeId}/values`, {
     method: "POST",
@@ -113,7 +115,7 @@ export async function createAttributeValues(
 
 export async function updateAttributeValue(
   valueId: string,
-  payload: { value?: string; isActive?: boolean },
+  payload: { name?: string; value?: string; isActive?: boolean },
 ): Promise<unknown> {
   try {
     return await apiFetch<unknown>(`/attributes/values/${valueId}`, {

@@ -15,6 +15,7 @@ import {
   type Currency,
   type CreateVariantDto,
 } from "@/lib/products";
+import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
 import { getStores, type Store } from "@/lib/stores";
 import { receiveInventoryBulk, type InventoryReceiveItem } from "@/lib/inventory";
 import Drawer from "@/components/ui/Drawer";
@@ -46,40 +47,6 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 type IsActiveFilter = boolean | "all";
-
-const COMMON_ATTRIBUTE_KEYS = [
-  { value: "color", label: "Renk" },
-  { value: "size", label: "Beden" },
-  { value: "weight", label: "Agirlik" },
-  { value: "length", label: "Uzunluk" },
-  { value: "material", label: "Materyal" },
-  { value: "width", label: "Genislik" },
-  { value: "height", label: "Yukseklik" },
-  { value: "volume", label: "Hacim" },
-];
-
-const SIZE_SUGGESTIONS = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
-const COLOR_SUGGESTIONS = [
-  "Kirmizi", "Mavi", "Yesil", "Siyah", "Beyaz", "Sari",
-  "Turuncu", "Mor", "Pembe", "Gri", "Kahverengi", "Lacivert",
-];
-
-const ATTRIBUTE_UNIT_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  length: [
-    { value: "mm", label: "mm" },
-    { value: "cm", label: "cm" },
-    { value: "m", label: "m" },
-  ],
-  width: [
-    { value: "mm", label: "mm" },
-    { value: "cm", label: "cm" },
-    { value: "m", label: "m" },
-  ],
-  weight: [
-    { value: "g", label: "g" },
-    { value: "kg", label: "kg" },
-  ],
-};
 
 /* ── Types ── */
 
@@ -175,32 +142,9 @@ function areAttributesEqual(a: Record<string, string>, b: Record<string, string>
   return true;
 }
 
-function getAttributeUnitOptions(key: string) {
-  return ATTRIBUTE_UNIT_OPTIONS[key] ?? [];
-}
-
-function parseAttributeValue(key: string, rawValue: string) {
-  const value = rawValue ?? "";
-  const unitOptions = getAttributeUnitOptions(key);
-  if (unitOptions.length === 0) return { value, unit: "" };
-
-  const matchedUnit = unitOptions.find((opt) => value.endsWith(` ${opt.value}`));
-  if (!matchedUnit) return { value, unit: "" };
-
-  return {
-    value: value.slice(0, -(` ${matchedUnit.value}`.length)).trim(),
-    unit: matchedUnit.value,
-  };
-}
-
 function serializeAttributeValue(attr: { key: string; value: string; unit?: string }) {
   const trimmedValue = attr.value.trim();
-  if (!trimmedValue) return "";
-
-  const unitOptions = getAttributeUnitOptions(attr.key);
-  if (unitOptions.length === 0) return trimmedValue;
-  if (!attr.unit) return trimmedValue;
-  return `${trimmedValue} ${attr.unit}`;
+  return trimmedValue;
 }
 
 function VirtualVariantList({
@@ -301,6 +245,7 @@ export default function ProductsPage() {
   /* Stores (for stock entry) */
   const [storesList, setStoresList] = useState<Store[]>([]);
   const [stockSubmitting, setStockSubmitting] = useState(false);
+  const [attributeDefinitions, setAttributeDefinitions] = useState<AttributeDefinition[]>([]);
 
   /* Saved variants for step 3 (ProductVariant[] from API) */
   const [savedVariants, setSavedVariants] = useState<ProductVariant[]>([]);
@@ -398,6 +343,12 @@ export default function ProductsPage() {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
     if (!token) return;
     getStores({ token }).then((res) => setStoresList(res.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    getAttributes()
+      .then((res) => setAttributeDefinitions(res))
+      .catch(() => setAttributeDefinitions([]));
   }, []);
 
   /* ── Pagination ── */
@@ -624,12 +575,8 @@ export default function ProductsPage() {
 
       const hasEmptyAttr = v.attributes.some((a) => a.key && !a.value.trim());
       const hasEmptyKey = v.attributes.some((a) => !a.key && a.value.trim());
-      const hasMissingUnit = v.attributes.some((a) => {
-        const unitOptions = getAttributeUnitOptions(a.key);
-        return Boolean(a.key && a.value.trim() && unitOptions.length > 0 && !a.unit);
-      });
 
-      if (hasEmptyAttr || hasEmptyKey || hasMissingUnit) {
+      if (hasEmptyAttr || hasEmptyKey) {
         e.attributes = "Tum ozellik alanlari doldurulmalidir.";
       }
 
@@ -675,10 +622,7 @@ export default function ProductsPage() {
           name: v.name,
           code: v.code,
           barcode: v.barcode,
-          attributes: Object.entries(v.attributes).map(([key, value]) => {
-            const parsed = parseAttributeValue(key, value);
-            return { key, value: parsed.value, unit: parsed.unit };
-          }),
+          attributes: Object.entries(v.attributes).map(([key, value]) => ({ key, value, unit: "" })),
         })),
       );
       setExpandedVariantKeys(data.length > 0 ? [data[0].id] : []);
@@ -946,6 +890,26 @@ export default function ProductsPage() {
     );
   };
 
+  const getAttributeKeyOptions = (variantIndex: number, attrIndex: number) => {
+    const base = attributeDefinitions
+      .filter((item) => item.isActive)
+      .map((item) => ({ value: item.value, label: item.name }));
+
+    const selectedKey = variants[variantIndex]?.attributes[attrIndex]?.key ?? "";
+    if (!selectedKey || base.some((item) => item.value === selectedKey)) return base;
+    return [{ value: selectedKey, label: selectedKey }, ...base];
+  };
+
+  const getAttributeValueOptions = (key: string, currentValue: string) => {
+    const definition = attributeDefinitions.find((item) => item.value === key);
+    const base = (definition?.values ?? [])
+      .filter((item) => item.isActive)
+      .map((item) => ({ value: item.value, label: item.name }));
+
+    if (!currentValue || base.some((item) => item.value === currentValue)) return base;
+    return [{ value: currentValue, label: currentValue }, ...base];
+  };
+
   const updateAttribute = (variantIndex: number, attrIndex: number, field: "key" | "value" | "unit", value: string) => {
     setVariants((prev) =>
       prev.map((v, i) =>
@@ -955,11 +919,11 @@ export default function ProductsPage() {
               attributes: v.attributes.map((a, ai) => {
                 if (ai !== attrIndex) return a;
                 if (field === "key") {
-                  const unitOptions = getAttributeUnitOptions(value);
                   return {
                     ...a,
                     key: value,
-                    unit: unitOptions.length > 0 ? (a.unit && unitOptions.some((opt) => opt.value === a.unit) ? a.unit : unitOptions[0].value) : "",
+                    value: "",
+                    unit: "",
                   };
                 }
                 return { ...a, [field]: value };
@@ -968,10 +932,6 @@ export default function ProductsPage() {
           : v,
       ),
     );
-  };
-
-  const applySuggestion = (variantIndex: number, attrIndex: number, value: string) => {
-    updateAttribute(variantIndex, attrIndex, "value", value);
   };
 
   /* ── Render ── */
@@ -1558,7 +1518,7 @@ export default function ProductsPage() {
                           <div key={ai} className="space-y-1">
                             <div className="flex items-center gap-2">
                               <SearchableDropdown
-                                options={COMMON_ATTRIBUTE_KEYS}
+                                options={getAttributeKeyOptions(vi, ai)}
                                 value={attr.key}
                                 onChange={(v) => updateAttribute(vi, ai, "key", v)}
                                 placeholder="Ozellik secin"
@@ -1566,24 +1526,15 @@ export default function ProductsPage() {
                                 allowClear={false}
                                 className="flex-1"
                               />
-                              <input
-                                type="text"
+                              <SearchableDropdown
+                                options={getAttributeValueOptions(attr.key, attr.value)}
                                 value={attr.value}
-                                onChange={(e) => updateAttribute(vi, ai, "value", e.target.value)}
-                                placeholder="Deger girin"
-                                className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                onChange={(v) => updateAttribute(vi, ai, "value", v)}
+                                placeholder={attr.key ? "Deger secin" : "Once ozellik secin"}
+                                showEmptyOption={false}
+                                allowClear={false}
+                                className="flex-1"
                               />
-                              {getAttributeUnitOptions(attr.key).length > 0 && (
-                                <SearchableDropdown
-                                  options={getAttributeUnitOptions(attr.key)}
-                                  value={attr.unit || ""}
-                                  onChange={(v) => updateAttribute(vi, ai, "unit", v)}
-                                  placeholder="Birim"
-                                  showEmptyOption={false}
-                                  allowClear={false}
-                                  className="w-28"
-                                />
-                              )}
                               {variant.attributes.length > 1 && (
                                 <button
                                   type="button"
@@ -1598,46 +1549,6 @@ export default function ProductsPage() {
                                 </button>
                               )}
                             </div>
-
-                            {/* Suggestions */}
-                            {attr.key === "size" && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {SIZE_SUGGESTIONS.map((s) => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => applySuggestion(vi, ai, s)}
-                                    className={cn(
-                                      "rounded-md border px-2 py-0.5 text-xs cursor-pointer transition-colors",
-                                      attr.value === s
-                                        ? "border-primary bg-primary/10 text-primary"
-                                        : "border-border bg-surface text-muted hover:border-primary/40 hover:text-text",
-                                    )}
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {attr.key === "color" && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {COLOR_SUGGESTIONS.map((c) => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => applySuggestion(vi, ai, c)}
-                                    className={cn(
-                                      "rounded-md border px-2 py-0.5 text-xs cursor-pointer transition-colors",
-                                      attr.value === c
-                                        ? "border-primary bg-primary/10 text-primary"
-                                        : "border-border bg-surface text-muted hover:border-primary/40 hover:text-text",
-                                    )}
-                                  >
-                                    {c}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         ))}
 

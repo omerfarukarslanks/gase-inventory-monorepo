@@ -24,10 +24,18 @@ type DrawerStep = 1 | 2;
 
 type EditableValue = {
   id: string;
+  name: string;
   value: string;
   isActive: boolean;
+  originalName: string;
   originalValue: string;
   originalIsActive: boolean;
+};
+
+type NewValueDraft = {
+  key: string;
+  name: string;
+  value: string;
 };
 
 function useDebounceStr(value: string, delay: number) {
@@ -46,13 +54,12 @@ function formatDate(value?: string) {
   return d.toLocaleString("tr-TR");
 }
 
-function parseNewValues(input: string) {
-  const lines = input
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const uniq = Array.from(new Set(lines));
-  return uniq.map((value) => ({ value }));
+function createNewValueDraft(): NewValueDraft {
+  return {
+    key: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: "",
+    value: "",
+  };
 }
 
 export default function AttributesPage() {
@@ -78,9 +85,11 @@ export default function AttributesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [workingAttributeId, setWorkingAttributeId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
+  const [formValue, setFormValue] = useState("");
   const [originalName, setOriginalName] = useState("");
+  const [originalValue, setOriginalValue] = useState("");
   const [existingValues, setExistingValues] = useState<EditableValue[]>([]);
-  const [newValuesText, setNewValuesText] = useState("");
+  const [newValueDrafts, setNewValueDrafts] = useState<NewValueDraft[]>([createNewValueDraft()]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
@@ -140,9 +149,11 @@ export default function AttributesPage() {
     setWorkingAttributeId(null);
     setDrawerStep(1);
     setFormName("");
+    setFormValue("");
     setOriginalName("");
+    setOriginalValue("");
     setExistingValues([]);
-    setNewValuesText("");
+    setNewValueDrafts([createNewValueDraft()]);
     setFormError("");
     setDrawerOpen(true);
   };
@@ -152,9 +163,11 @@ export default function AttributesPage() {
     setWorkingAttributeId(attribute.id);
     setDrawerStep(1);
     setFormName(attribute.name);
+    setFormValue(attribute.value ?? "");
     setOriginalName(attribute.name);
+    setOriginalValue(attribute.value ?? "");
     setExistingValues([]);
-    setNewValuesText("");
+    setNewValueDrafts([createNewValueDraft()]);
     setFormError("");
     setDrawerOpen(true);
     setDetailLoading(true);
@@ -165,8 +178,10 @@ export default function AttributesPage() {
         .sort((a, b) => a.value.localeCompare(b.value, "tr"))
         .map((v) => ({
           id: v.id,
+          name: v.name ?? "",
           value: v.value,
           isActive: v.isActive,
+          originalName: v.name ?? "",
           originalValue: v.value,
           originalIsActive: v.isActive,
         }));
@@ -185,8 +200,8 @@ export default function AttributesPage() {
 
   const goNextStep = async () => {
     setFormError("");
-    if (!formName.trim()) {
-      setFormError("Ozellik adi zorunludur.");
+    if (!formName.trim() || !formValue.trim()) {
+      setFormError("Ozellik adi ve teknik degeri zorunludur.");
       return;
     }
     if (submitting) return;
@@ -194,21 +209,24 @@ export default function AttributesPage() {
     setSubmitting(true);
     try {
       const nextName = formName.trim();
+      const nextValue = formValue.trim();
       let shouldRefreshList = false;
 
       if (editingId) {
-        if (nextName !== originalName.trim()) {
-          await updateAttribute(editingId, { name: nextName });
+        if (nextName !== originalName.trim() || nextValue !== originalValue.trim()) {
+          await updateAttribute(editingId, { name: nextName, value: nextValue });
           setOriginalName(nextName);
+          setOriginalValue(nextValue);
           shouldRefreshList = true;
-          setSuccess("Ozellik adi guncellendi.");
+          setSuccess("Ozellik bilgisi guncellendi.");
         }
         setWorkingAttributeId(editingId);
       } else {
-        const created = await createAttribute({ name: nextName });
+        const created = await createAttribute({ name: nextName, value: nextValue });
         setEditingId(created.id);
         setWorkingAttributeId(created.id);
         setOriginalName(created.name ?? nextName);
+        setOriginalValue(created.value ?? nextValue);
         shouldRefreshList = true;
         setSuccess("Ozellik olusturuldu. Deger girisine devam edin.");
       }
@@ -300,17 +318,33 @@ export default function AttributesPage() {
       setFormError("Ozellik kimligi bulunamadi. Lutfen tekrar deneyin.");
       return;
     }
-    const newValuesPayload = parseNewValues(newValuesText);
+    const preparedNewValues = newValueDrafts
+      .map((item) => ({ name: item.name.trim(), value: item.value.trim() }))
+      .filter((item) => item.name || item.value);
+
+    const hasInvalidNewRow = preparedNewValues.some((item) => !item.name || !item.value);
+    if (hasInvalidNewRow) {
+      setFormError("Yeni deger satirlarinda Name ve Value birlikte zorunludur.");
+      return;
+    }
+
+    const dedupNewMap = new Map<string, { name: string; value: string }>();
+    for (const item of preparedNewValues) {
+      dedupNewMap.set(`${item.name}::${item.value}`, item);
+    }
+    const newValuesPayload = [...dedupNewMap.values()];
+
     const existingValueUpdates = existingValues
       .map((item) => ({
         id: item.id,
+        name: item.name.trim(),
         value: item.value.trim(),
-        changed: item.value.trim() !== item.originalValue,
+        changed: item.name.trim() !== item.originalName || item.value.trim() !== item.originalValue,
       }))
       .filter((item) => item.changed);
 
-    if (existingValueUpdates.some((item) => !item.value)) {
-      setFormError("Bos deger kaydedilemez.");
+    if (existingValueUpdates.some((item) => !item.name || !item.value)) {
+      setFormError("Guncellenen degerlerde Name ve Value zorunludur.");
       return;
     }
 
@@ -326,7 +360,7 @@ export default function AttributesPage() {
       if (existingValueUpdates.length > 0) {
         await Promise.all(
           existingValueUpdates.map((value) =>
-            updateAttributeValue(value.id, { value: value.value }),
+            updateAttributeValue(value.id, { name: value.name, value: value.value }),
           ),
         );
       }
@@ -348,6 +382,23 @@ export default function AttributesPage() {
   const updateEditableValue = (id: string, patch: Partial<EditableValue>) => {
     setExistingValues((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const addNewValueDraft = () => {
+    setNewValueDrafts((prev) => [...prev, createNewValueDraft()]);
+  };
+
+  const removeNewValueDraft = (key: string) => {
+    setNewValueDrafts((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((item) => item.key !== key);
+    });
+  };
+
+  const updateNewValueDraft = (key: string, patch: Partial<NewValueDraft>) => {
+    setNewValueDrafts((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, ...patch } : item)),
     );
   };
 
@@ -462,6 +513,7 @@ export default function AttributesPage() {
               <thead className="border-b border-border bg-surface2/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-muted">
                   <th className="px-4 py-3">Ozellik</th>
+                  <th className="px-4 py-3">Kod</th>
                   <th className="px-4 py-3">Durum</th>
                   <th className="px-4 py-3 text-right">Deger</th>
                   <th className="px-4 py-3">Guncelleme</th>
@@ -502,6 +554,7 @@ export default function AttributesPage() {
                             <span>{attribute.name}</span>
                           </button>
                         </td>
+                        <td className="px-4 py-3 text-sm text-text2">{attribute.value}</td>
                         <td className="px-4 py-3 text-sm">
                           <span
                             className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
@@ -536,7 +589,7 @@ export default function AttributesPage() {
                       </tr>
                       {isExpanded && (
                         <tr className="border-b border-border bg-surface/60">
-                          <td colSpan={5} className="px-5 py-4">
+                          <td colSpan={6} className="px-5 py-4">
                             {values.length === 0 ? (
                               <div className="text-xs text-muted">Bu ozellige ait deger yok.</div>
                             ) : (
@@ -544,6 +597,7 @@ export default function AttributesPage() {
                                 <table className="w-full min-w-[680px]">
                                   <thead className="border-b border-border bg-surface2/70">
                                     <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+                                      <th className="px-3 py-2">Name</th>
                                       <th className="px-3 py-2">Deger</th>
                                       <th className="px-3 py-2">Durum</th>
                                       <th className="px-3 py-2 text-right">Islemler</th>
@@ -552,6 +606,7 @@ export default function AttributesPage() {
                                   <tbody>
                                     {values.map((value) => (
                                       <tr key={value.id} className="border-b border-border last:border-b-0">
+                                        <td className="px-3 py-2 text-sm text-text">{value.name}</td>
                                         <td className="px-3 py-2 text-sm text-text">{value.value}</td>
                                         <td className="px-3 py-2">
                                           <span
@@ -690,7 +745,7 @@ export default function AttributesPage() {
             <>
               <div>
                 <h3 className="text-sm font-semibold text-text">Ozellik Bilgisi</h3>
-                <p className="text-xs text-muted">Ilk adimda ozellik adi kaydedilir</p>
+                <p className="text-xs text-muted">Ilk adimda ozellik adi ve kodu kaydedilir</p>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-muted">Ozellik Adi *</label>
@@ -699,6 +754,16 @@ export default function AttributesPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="Orn: Renk, Beden"
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted">Ozellik Kodu (value) *</label>
+                <input
+                  type="text"
+                  value={formValue}
+                  onChange={(e) => setFormValue(e.target.value)}
+                  placeholder="Orn: color"
                   className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -727,12 +792,20 @@ export default function AttributesPage() {
                           {existingValues.map((item) => (
                             <div
                               key={item.id}
-                              className="rounded-xl border border-border bg-surface2/30 p-2"
+                              className="grid gap-2 rounded-xl border border-border bg-surface2/30 p-2 sm:grid-cols-2"
                             >
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => updateEditableValue(item.id, { name: e.target.value })}
+                                placeholder="Name"
+                                className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              />
                               <input
                                 type="text"
                                 value={item.value}
                                 onChange={(e) => updateEditableValue(item.id, { value: e.target.value })}
+                                placeholder="Value"
                                 className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                               />
                             </div>
@@ -743,16 +816,44 @@ export default function AttributesPage() {
                   )}
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-muted">Yeni Degerler (satir satir)</label>
-                    <textarea
-                      value={newValuesText}
-                      onChange={(e) => setNewValuesText(e.target.value)}
-                      placeholder={"Kirmizi\nMavi\nSiyah"}
-                      className="min-h-[120px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                    <p className="text-xs text-muted">
-                      Ayni degerler tekillestirilir. Bos satirlar yok sayilir.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted">Yeni Degerler</label>
+                      <button
+                        type="button"
+                        onClick={addNewValueDraft}
+                        className="text-xs font-medium text-primary hover:text-primary/80"
+                      >
+                        + Satir Ekle
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {newValueDrafts.map((item) => (
+                        <div key={item.key} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateNewValueDraft(item.key, { name: e.target.value })}
+                            placeholder="Name (orn: Orange)"
+                            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                          <input
+                            type="text"
+                            value={item.value}
+                            onChange={(e) => updateNewValueDraft(item.key, { value: e.target.value })}
+                            placeholder="Value (orn: Turuncu)"
+                            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeNewValueDraft(item.key)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error"
+                            aria-label="Satiri sil"
+                          >
+                            x
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
