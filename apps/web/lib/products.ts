@@ -22,8 +22,21 @@ export type ProductAttributeInput = {
   values: string[];
 };
 
+export type ProductAttributeValueOption = {
+  id: string;
+  name: string;
+  isActive: boolean;
+};
+
+export type ProductAttributeDefinition = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  values: ProductAttributeValueOption[];
+};
+
 export type ProductAttributesResponse = {
-  attributes: ProductAttributeInput[];
+  attributes: ProductAttributeDefinition[];
 };
 
 export type Product = {

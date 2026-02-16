@@ -111,15 +111,6 @@ function createVariantClientKey() {
   return `variant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createEmptyVariant(): VariantForm {
-  return {
-    clientKey: createVariantClientKey(),
-    id: undefined,
-    isActive: true,
-    attributes: [{ id: "", values: [] }],
-  };
-}
-
 function formatPrice(val: number | string | null | undefined): string {
   if (val == null) return "-";
   const numeric = Number(val);
@@ -579,24 +570,24 @@ export default function ProductsPage() {
   const fetchVariants = async (productId: string) => {
     try {
       const productAttributesRes = await getProductAttributes(productId);
-      const productAttributes = productAttributesRes.attributes ?? [];
+      const productAttributes = (productAttributesRes.attributes ?? []).map((attribute) => ({
+        id: attribute.id,
+        values: (attribute.values ?? [])
+          .filter((value) => value.isActive)
+          .map((value) => value.id),
+      }));
 
       setOriginalVariantMap({});
-      if (productAttributes.length > 0) {
-        const clientKey = createVariantClientKey();
-        setVariants([
-          {
-            clientKey,
-            id: undefined,
-            isActive: true,
-            attributes: productAttributes,
-          },
-        ]);
-        setExpandedVariantKeys([clientKey]);
-      } else {
-        setVariants([]);
-        setExpandedVariantKeys([]);
-      }
+      const clientKey = createVariantClientKey();
+      setVariants([
+        {
+          clientKey,
+          id: undefined,
+          isActive: true,
+          attributes: productAttributes.length > 0 ? productAttributes : [{ id: "", values: [] }],
+        },
+      ]);
+      setExpandedVariantKeys([clientKey]);
     } catch {
       setExpandedVariantKeys([]);
       setOriginalVariantMap({});
@@ -759,12 +750,6 @@ export default function ProductsPage() {
   };
 
   /* ── Variant helpers ── */
-
-  const addVariant = () => {
-    const newVariant = createEmptyVariant();
-    setVariants((prev) => [...prev, newVariant]);
-    setExpandedVariantKeys((prev) => [...prev, newVariant.clientKey]);
-  };
 
   const removeVariant = (index: number) => {
     const removedKey = variants[index]?.clientKey;
@@ -1412,7 +1397,6 @@ export default function ProductsPage() {
                   <h3 className="text-sm font-semibold text-text">Varyantlar</h3>
                   <p className="text-xs text-muted">Urun icin renk, beden gibi varyantlar ekleyin</p>
                 </div>
-                <Button label="+ Varyant Ekle" onClick={addVariant} variant="primarySoft" className="px-2.5 py-1.5 text-xs" />
               </div>
 
               {variants.length === 0 ? (
