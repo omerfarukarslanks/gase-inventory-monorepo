@@ -3,7 +3,8 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   createProduct,
-  createProductVariants,
+  createProductVariant,
+  getProductAttributes,
   getProductById,
   getProductVariants,
   getProducts,
@@ -14,16 +15,16 @@ import {
   type ProductsListMeta,
   type Currency,
   type CreateVariantDto,
+  type ProductAttributeInput,
 } from "@/lib/products";
-import { getStores, type Store } from "@/lib/stores";
-import { receiveInventoryBulk, type InventoryReceiveItem } from "@/lib/inventory";
+import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import StockEntryForm from "@/components/inventory/StockEntryForm";
 import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 
@@ -47,40 +48,6 @@ const STATUS_FILTER_OPTIONS = [
 
 type IsActiveFilter = boolean | "all";
 
-const COMMON_ATTRIBUTE_KEYS = [
-  { value: "color", label: "Renk" },
-  { value: "size", label: "Beden" },
-  { value: "weight", label: "Agirlik" },
-  { value: "length", label: "Uzunluk" },
-  { value: "material", label: "Materyal" },
-  { value: "width", label: "Genislik" },
-  { value: "height", label: "Yukseklik" },
-  { value: "volume", label: "Hacim" },
-];
-
-const SIZE_SUGGESTIONS = ["XS", "S", "M", "L", "XL", "XXL", "3XL"];
-const COLOR_SUGGESTIONS = [
-  "Kirmizi", "Mavi", "Yesil", "Siyah", "Beyaz", "Sari",
-  "Turuncu", "Mor", "Pembe", "Gri", "Kahverengi", "Lacivert",
-];
-
-const ATTRIBUTE_UNIT_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  length: [
-    { value: "mm", label: "mm" },
-    { value: "cm", label: "cm" },
-    { value: "m", label: "m" },
-  ],
-  width: [
-    { value: "mm", label: "mm" },
-    { value: "cm", label: "cm" },
-    { value: "m", label: "m" },
-  ],
-  weight: [
-    { value: "g", label: "g" },
-    { value: "kg", label: "kg" },
-  ],
-};
-
 /* ── Types ── */
 
 type ProductForm = {
@@ -93,20 +60,18 @@ type ProductForm = {
   defaultSalePrice: string;
   defaultPurchasePrice: string;
   defaultTaxPercent: string;
+  attributes: ProductAttributeInput[];
 };
 
 type VariantForm = {
   clientKey: string;
   id?: string;
   isActive?: boolean;
-  name: string;
-  code: string;
-  barcode: string;
-  attributes: { key: string; value: string; unit?: string }[];
+  attributes: ProductAttributeInput[];
 };
 
 type FormErrors = Partial<Record<keyof ProductForm, string>>;
-type VariantErrors = Partial<Record<keyof Omit<VariantForm, "attributes">, string>> & {
+type VariantErrors = {
   attributes?: string;
 };
 
@@ -125,6 +90,7 @@ const EMPTY_PRODUCT_FORM: ProductForm = {
   defaultSalePrice: "",
   defaultPurchasePrice: "",
   defaultTaxPercent: "",
+  attributes: [],
 };
 
 /* ── Helpers ── */
@@ -145,18 +111,6 @@ function createVariantClientKey() {
   return `variant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createEmptyVariant(): VariantForm {
-  return {
-    clientKey: createVariantClientKey(),
-    id: undefined,
-    isActive: true,
-    name: "",
-    code: "",
-    barcode: "",
-    attributes: [{ key: "", value: "", unit: "" }],
-  };
-}
-
 function formatPrice(val: number | string | null | undefined): string {
   if (val == null) return "-";
   const numeric = Number(val);
@@ -164,43 +118,16 @@ function formatPrice(val: number | string | null | undefined): string {
   return numeric.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function areAttributesEqual(a: Record<string, string>, b: Record<string, string>) {
-  const aKeys = Object.keys(a).sort();
-  const bKeys = Object.keys(b).sort();
-  if (aKeys.length !== bKeys.length) return false;
-  for (let i = 0; i < aKeys.length; i++) {
-    if (aKeys[i] !== bKeys[i]) return false;
-    if (a[aKeys[i]] !== b[bKeys[i]]) return false;
+function areVariantAttributesEqual(a: ProductAttributeInput[], b: ProductAttributeInput[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false;
+    if (a[i].values.length !== b[i].values.length) return false;
+    for (let j = 0; j < a[i].values.length; j++) {
+      if (a[i].values[j] !== b[i].values[j]) return false;
+    }
   }
   return true;
-}
-
-function getAttributeUnitOptions(key: string) {
-  return ATTRIBUTE_UNIT_OPTIONS[key] ?? [];
-}
-
-function parseAttributeValue(key: string, rawValue: string) {
-  const value = rawValue ?? "";
-  const unitOptions = getAttributeUnitOptions(key);
-  if (unitOptions.length === 0) return { value, unit: "" };
-
-  const matchedUnit = unitOptions.find((opt) => value.endsWith(` ${opt.value}`));
-  if (!matchedUnit) return { value, unit: "" };
-
-  return {
-    value: value.slice(0, -(` ${matchedUnit.value}`.length)).trim(),
-    unit: matchedUnit.value,
-  };
-}
-
-function serializeAttributeValue(attr: { key: string; value: string; unit?: string }) {
-  const trimmedValue = attr.value.trim();
-  if (!trimmedValue) return "";
-
-  const unitOptions = getAttributeUnitOptions(attr.key);
-  if (unitOptions.length === 0) return trimmedValue;
-  if (!attr.unit) return trimmedValue;
-  return `${trimmedValue} ${attr.unit}`;
 }
 
 function VirtualVariantList({
@@ -243,18 +170,12 @@ function VirtualVariantList({
               key={variant.id}
               className="flex h-14 items-center justify-between border-b border-border px-3 text-sm last:border-b-0"
             >
-              <div className="min-w-0">
-                <div className="truncate font-medium text-text">{variant.name}</div>
-                <div className="truncate text-xs text-muted">
-                  Kod: {variant.code || "-"}{variant.barcode ? ` | Barkod: ${variant.barcode}` : ""}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs text-text2">
+                  {variant.name ?? "Ozellik yok"}
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="max-w-[320px] truncate text-xs text-text2">
-                  {Object.keys(variant.attributes || {}).length > 0
-                    ? Object.entries(variant.attributes).map(([k, v]) => `${k}: ${v}`).join(", ")
-                    : "-"}
-                </div>
                 <ToggleSwitch
                   checked={Boolean(variant.isActive)}
                   onChange={(next) => onToggleVariantActive(variant, next)}
@@ -292,18 +213,13 @@ export default function ProductsPage() {
 
   /* Drawer state */
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [submitting, setSubmitting] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [formError, setFormError] = useState("");
 
-  /* Stores (for stock entry) */
-  const [storesList, setStoresList] = useState<Store[]>([]);
-  const [stockSubmitting, setStockSubmitting] = useState(false);
-
-  /* Saved variants for step 3 (ProductVariant[] from API) */
-  const [savedVariants, setSavedVariants] = useState<ProductVariant[]>([]);
+  const [attributeDefinitions, setAttributeDefinitions] = useState<AttributeDefinition[]>([]);
 
   /* Product form */
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
@@ -393,11 +309,10 @@ export default function ProductsPage() {
     fetchProducts();
   }, [fetchProducts]);
 
-  /* ── Fetch stores for stock entry ── */
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
-    if (!token) return;
-    getStores({ token }).then((res) => setStoresList(res.data)).catch(() => {});
+    getAttributes()
+      .then((res) => setAttributeDefinitions(res))
+      .catch(() => setAttributeDefinitions([]));
   }, []);
 
   /* ── Pagination ── */
@@ -503,10 +418,7 @@ export default function ProductsPage() {
     setTogglingVariantIds((prev) => [...prev, variant.id]);
     try {
       await updateProductVariant(productId, variant.id, {
-        name: variant.name,
-        code: variant.code,
-        barcode: variant.barcode,
-        attributes: variant.attributes || {},
+        attributes: variant.attributes ?? [],
         isActive: next,
       });
       await fetchTableVariants(productId, variantStatusFilter);
@@ -575,6 +487,7 @@ export default function ProductsPage() {
         defaultSalePrice: detail.defaultSalePrice != null ? String(detail.defaultSalePrice) : "",
         defaultPurchasePrice: detail.defaultPurchasePrice != null ? String(detail.defaultPurchasePrice) : "",
         defaultTaxPercent: detail.defaultTaxPercent != null ? String(detail.defaultTaxPercent) : "",
+        attributes: detail.attributes ?? [],
       };
       setForm(formData);
       setOriginalForm(formData);
@@ -619,17 +532,11 @@ export default function ProductsPage() {
 
     variants.forEach((v, i) => {
       const e: VariantErrors = {};
-      if (!v.name.trim()) e.name = "Varyant adi zorunludur.";
-      if (!v.code.trim()) e.code = "Varyant kodu zorunludur.";
 
-      const hasEmptyAttr = v.attributes.some((a) => a.key && !a.value.trim());
-      const hasEmptyKey = v.attributes.some((a) => !a.key && a.value.trim());
-      const hasMissingUnit = v.attributes.some((a) => {
-        const unitOptions = getAttributeUnitOptions(a.key);
-        return Boolean(a.key && a.value.trim() && unitOptions.length > 0 && !a.unit);
-      });
+      const hasEmptyAttr = v.attributes.some((a) => a.id && a.values.length === 0);
+      const hasEmptyKey = v.attributes.some((a) => !a.id && a.values.length > 0);
 
-      if (hasEmptyAttr || hasEmptyKey || hasMissingUnit) {
+      if (hasEmptyAttr || hasEmptyKey) {
         e.attributes = "Tum ozellik alanlari doldurulmalidir.";
       }
 
@@ -643,45 +550,44 @@ export default function ProductsPage() {
   /* ── Step navigation ── */
 
   const isFormChanged = (): boolean => {
-    return (Object.keys(originalForm) as (keyof ProductForm)[]).some(
-      (key) => form[key] !== originalForm[key],
+    const simpleKeys = (Object.keys(originalForm) as (keyof ProductForm)[]).filter(
+      (key) => key !== "attributes",
+    );
+    const simpleChanged = simpleKeys.some((key) => form[key] !== originalForm[key]);
+    if (simpleChanged) return true;
+
+    const origAttrs = originalForm.attributes;
+    const currAttrs = form.attributes;
+    if (origAttrs.length !== currAttrs.length) return true;
+    return origAttrs.some(
+      (oa, i) =>
+        oa.id !== currAttrs[i].id ||
+        oa.values.length !== currAttrs[i].values.length ||
+        oa.values.some((v, vi) => v !== currAttrs[i].values[vi]),
     );
   };
 
   const fetchVariants = async (productId: string) => {
     try {
-      const data = await getProductVariants(productId);
-      setOriginalVariantMap(
-        Object.fromEntries(
-          data.map((v) => [
-            v.id,
-            {
-              payload: {
-                name: v.name ?? "",
-                code: v.code ?? "",
-                barcode: v.barcode ?? "",
-                attributes: v.attributes ?? {},
-              },
-              isActive: v.isActive ?? true,
-            },
-          ]),
-        ),
-      );
-      setVariants(
-        data.map((v) => ({
-          clientKey: v.id,
-          id: v.id,
-          isActive: v.isActive ?? true,
-          name: v.name,
-          code: v.code,
-          barcode: v.barcode,
-          attributes: Object.entries(v.attributes).map(([key, value]) => {
-            const parsed = parseAttributeValue(key, value);
-            return { key, value: parsed.value, unit: parsed.unit };
-          }),
-        })),
-      );
-      setExpandedVariantKeys(data.length > 0 ? [data[0].id] : []);
+      const productAttributesRes = await getProductAttributes(productId);
+      const productAttributes = (productAttributesRes.attributes ?? []).map((attribute) => ({
+        id: attribute.id,
+        values: (attribute.values ?? [])
+          .filter((value) => value.isActive)
+          .map((value) => value.id),
+      }));
+
+      setOriginalVariantMap({});
+      const clientKey = createVariantClientKey();
+      setVariants([
+        {
+          clientKey,
+          id: undefined,
+          isActive: true,
+          attributes: productAttributes.length > 0 ? productAttributes : [{ id: "", values: [] }],
+        },
+      ]);
+      setExpandedVariantKeys([clientKey]);
     } catch {
       setExpandedVariantKeys([]);
       setOriginalVariantMap({});
@@ -709,6 +615,7 @@ export default function ProductsPage() {
             defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
             defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
             defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
+            attributes: form.attributes.filter((a) => a.id && a.values.length > 0),
           };
           await updateProduct(editingProductId, productPayload);
         }
@@ -725,6 +632,7 @@ export default function ProductsPage() {
           defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
           defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
           defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
+          attributes: form.attributes.filter((a) => a.id && a.values.length > 0),
         };
         const created = await createProduct(productPayload);
         setCreatedProductId(created.id);
@@ -743,8 +651,6 @@ export default function ProductsPage() {
   };
 
   const goToStep1 = () => setStep(1);
-  const goToStep2FromStep3 = () => setStep(2);
-
   /* ── Close & reset helper ── */
   const closeAndReset = async () => {
     setDrawerOpen(false);
@@ -754,7 +660,6 @@ export default function ProductsPage() {
     setCreatedProductId(null);
     setExpandedVariantKeys([]);
     setOriginalVariantMap({});
-    setSavedVariants([]);
     setStep(1);
     await fetchProducts();
   };
@@ -769,27 +674,15 @@ export default function ProductsPage() {
       return;
     }
 
-    if (step === 3) {
-      // Step 3 is handled by StockEntryForm's own submit
-      return;
-    }
-
     if (!validateVariants()) return;
 
     const preparedVariants = variants
-      .filter((v) => v.name.trim() || v.code.trim())
+      .filter((v) => v.attributes.some((a) => a.id && a.values.length > 0))
       .map((v) => ({
         id: v.id,
         isActive: v.isActive ?? true,
         payload: {
-          name: v.name.trim(),
-          code: v.code.trim(),
-          barcode: v.barcode.trim(),
-          attributes: Object.fromEntries(
-            v.attributes
-              .filter((a) => a.key && a.value.trim())
-              .map((a) => [a.key, serializeAttributeValue(a)]),
-          ),
+          attributes: v.attributes.filter((a) => a.id && a.values.length > 0),
         },
       }));
 
@@ -812,10 +705,7 @@ export default function ProductsPage() {
           if (!original) return true;
           return (
             original.isActive !== v.isActive ||
-            original.payload.name !== v.payload.name ||
-            original.payload.code !== v.payload.code ||
-            original.payload.barcode !== v.payload.barcode ||
-            !areAttributesEqual(original.payload.attributes, v.payload.attributes)
+            !areVariantAttributesEqual(original.payload.attributes, v.payload.attributes)
           );
         });
         const variantsToCreate = preparedVariants
@@ -828,31 +718,30 @@ export default function ProductsPage() {
           if (variantsToUpdate.length > 0) {
             await Promise.all(
               variantsToUpdate.map((v) =>
-                updateProductVariant(editingProductId, v.id!, {
-                  ...v.payload,
-                  isActive: v.isActive,
-                }),
+                updateProductVariant(editingProductId, v.id!, v.payload),
               ),
             );
           }
 
           if (variantsToCreate.length > 0) {
-            await createProductVariants(editingProductId, variantsToCreate);
+            await Promise.all(
+              variantsToCreate.map((dto) =>
+                createProductVariant(editingProductId, dto),
+              ),
+            );
           }
 
           await fetchTableVariants(editingProductId, variantStatusFilter);
         }
       } else {
-        await createProductVariants(
-          targetProductId!,
-          preparedVariants.map((v) => v.payload),
+        await Promise.all(
+          preparedVariants.map((v) =>
+            createProductVariant(targetProductId!, v.payload),
+          ),
         );
       }
 
-      /* After saving variants, fetch saved variants and go to step 3 */
-      const allVariants = await getProductVariants(targetProductId!);
-      setSavedVariants(allVariants);
-      setStep(3);
+      await closeAndReset();
     } catch {
       setFormError("Varyantlar olusturulamadi. Lutfen tekrar deneyin.");
     } finally {
@@ -860,43 +749,7 @@ export default function ProductsPage() {
     }
   };
 
-  /* ── Stock entry submit ── */
-  const onStockEntrySubmit = async (items: InventoryReceiveItem[]) => {
-    // No stock data filled — just close without calling API
-    if (items.length === 0) {
-      await closeAndReset();
-      return;
-    }
-
-    setStockSubmitting(true);
-    setFormError("");
-    try {
-      if (items.length === 1) {
-        const { receiveInventory } = await import("@/lib/inventory");
-        await receiveInventory(items[0]);
-      } else {
-        await receiveInventoryBulk(items);
-      }
-      await closeAndReset();
-    } catch {
-      setFormError("Stok girisi yapilamadi. Lutfen tekrar deneyin.");
-    } finally {
-      setStockSubmitting(false);
-    }
-  };
-
-  /* ── Skip stock entry ── */
-  const skipStockEntry = async () => {
-    await closeAndReset();
-  };
-
   /* ── Variant helpers ── */
-
-  const addVariant = () => {
-    const newVariant = createEmptyVariant();
-    setVariants((prev) => [...prev, newVariant]);
-    setExpandedVariantKeys((prev) => [...prev, newVariant.clientKey]);
-  };
 
   const removeVariant = (index: number) => {
     const removedKey = variants[index]?.clientKey;
@@ -917,25 +770,10 @@ export default function ProductsPage() {
     );
   };
 
-  const updateVariantField = (index: number, field: keyof Omit<VariantForm, "attributes">, value: string) => {
-    setVariants((prev) => prev.map((v, i) => (i === index ? { ...v, [field]: value } : v)));
-    if (variantErrors[index]?.[field]) {
-      setVariantErrors((prev) => {
-        const next = { ...prev };
-        if (next[index]) {
-          const updated = { ...next[index] };
-          delete updated[field];
-          next[index] = updated;
-        }
-        return next;
-      });
-    }
-  };
-
   const addAttribute = (variantIndex: number) => {
     setVariants((prev) =>
       prev.map((v, i) =>
-        i === variantIndex ? { ...v, attributes: [...v.attributes, { key: "", value: "", unit: "" }] } : v,
+        i === variantIndex ? { ...v, attributes: [...v.attributes, { id: "", values: [] }] } : v,
       ),
     );
   };
@@ -946,7 +784,40 @@ export default function ProductsPage() {
     );
   };
 
-  const updateAttribute = (variantIndex: number, attrIndex: number, field: "key" | "value" | "unit", value: string) => {
+  const getVariantAttributeOptions = (variantIndex: number, attrIndex: number) => {
+    const base = attributeDefinitions
+      .filter((item) => item.isActive)
+      .map((item) => ({ value: item.id, label: item.name }));
+
+    const selectedId = variants[variantIndex]?.attributes[attrIndex]?.id ?? "";
+    if (!selectedId || base.some((item) => item.value === selectedId)) return base;
+    const selectedDef = attributeDefinitions.find((d) => d.id === selectedId);
+    return [{ value: selectedId, label: selectedDef?.name ?? selectedId }, ...base];
+  };
+
+  const getVariantAttributeValueOptions = (attrId: string, currentValues: string[]) => {
+    const definition = attributeDefinitions.find((item) => item.id === attrId);
+    const base = (definition?.values ?? [])
+      .filter((item) => item.isActive)
+      .map((item) => ({ value: item.id, label: item.name }));
+
+    const selectedSet = new Set(currentValues.filter(Boolean));
+    const extraSelected = [...selectedSet]
+      .filter((value) => !base.some((item) => item.value === value))
+      .map((value) => {
+        const valDef = definition?.values?.find((v) => v.id === value);
+        return { value, label: valDef?.name ?? value };
+      });
+
+    return [...extraSelected, ...base];
+  };
+
+  const updateVariantAttribute = (
+    variantIndex: number,
+    attrIndex: number,
+    field: "id" | "values",
+    value: string | string[],
+  ) => {
     setVariants((prev) =>
       prev.map((v, i) =>
         i === variantIndex
@@ -954,24 +825,15 @@ export default function ProductsPage() {
               ...v,
               attributes: v.attributes.map((a, ai) => {
                 if (ai !== attrIndex) return a;
-                if (field === "key") {
-                  const unitOptions = getAttributeUnitOptions(value);
-                  return {
-                    ...a,
-                    key: value,
-                    unit: unitOptions.length > 0 ? (a.unit && unitOptions.some((opt) => opt.value === a.unit) ? a.unit : unitOptions[0].value) : "",
-                  };
+                if (field === "id") {
+                  return { id: String(value), values: [] };
                 }
-                return { ...a, [field]: value };
+                return { ...a, values: Array.isArray(value) ? value : [] };
               }),
             }
           : v,
       ),
     );
-  };
-
-  const applySuggestion = (variantIndex: number, attrIndex: number, value: string) => {
-    updateAttribute(variantIndex, attrIndex, "value", value);
   };
 
   /* ── Render ── */
@@ -1299,7 +1161,7 @@ export default function ProductsPage() {
         onClose={onCloseDrawer}
         side="right"
         title={editingProductId ? "Urunu Guncelle" : "Yeni Urun Olustur"}
-        description={step === 1 ? "Adim 1/3 - Urun Bilgileri" : step === 2 ? "Adim 2/3 - Varyantlar" : "Adim 3/3 - Stok Girisi"}
+        description={step === 1 ? "Adim 1/2 - Urun Bilgileri" : "Adim 2/2 - Varyantlar"}
         closeDisabled={submitting || loadingDetail}
         className={cn(isMobile ? "!max-w-none" : "!max-w-[540px]")}
         footer={
@@ -1308,28 +1170,15 @@ export default function ProductsPage() {
               {step === 2 && (
                 <Button label="Geri" type="button" onClick={goToStep1} disabled={submitting} variant="secondary" />
               )}
-              {step === 3 && (
-                <Button label="Geri" type="button" onClick={goToStep2FromStep3} disabled={stockSubmitting} variant="secondary" />
-              )}
             </div>
             <div className="flex items-center gap-2">
-              {step === 3 ? (
-                <Button
-                  label="Atla"
-                  type="button"
-                  onClick={skipStockEntry}
-                  disabled={stockSubmitting}
-                  variant="secondary"
-                />
-              ) : (
-                <Button
-                  label="Iptal"
-                  type="button"
-                  onClick={onCloseDrawer}
-                  disabled={submitting || loadingDetail}
-                  variant="secondary"
-                />
-              )}
+              <Button
+                label="Iptal"
+                type="button"
+                onClick={onCloseDrawer}
+                disabled={submitting || loadingDetail}
+                variant="secondary"
+              />
               {step === 1 ? (
                 <Button
                   label="Devam Et"
@@ -1340,7 +1189,7 @@ export default function ProductsPage() {
                 />
               ) : step === 2 ? (
                 <Button
-                  label={submitting ? (editingProductId ? "Guncelleniyor..." : "Olusturuluyor...") : "Devam Et"}
+                  label={submitting ? (editingProductId ? "Guncelleniyor..." : "Olusturuluyor...") : "Kaydet"}
                   type="submit"
                   form="product-form"
                   disabled={submitting || loadingDetail}
@@ -1361,7 +1210,6 @@ export default function ProductsPage() {
               {/* Step indicator */}
               <div className="flex gap-2 mb-2">
                 <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-border" />
                 <div className="h-1 flex-1 rounded-full bg-border" />
               </div>
 
@@ -1449,6 +1297,90 @@ export default function ProductsPage() {
                 error={errors.defaultTaxPercent}
               />
 
+              {/* ── Product Attributes ── */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-muted">Ozellikler</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        attributes: [...prev.attributes, { id: "", values: [] }],
+                      }))
+                    }
+                    className="text-xs cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    + Ozellik Ekle
+                  </button>
+                </div>
+
+                {form.attributes.length === 0 ? (
+                  <p className="text-xs text-muted">Henuz ozellik eklenmedi.</p>
+                ) : (
+                  form.attributes.map((attr, ai) => {
+                    const selectedAttrDef = attributeDefinitions.find((d) => d.id === attr.id);
+                    const attrOptions = attributeDefinitions
+                      .filter((d) => d.isActive)
+                      .map((d) => ({ value: d.id, label: d.name }));
+                    const valueOptions = (selectedAttrDef?.values ?? [])
+                      .filter((v) => v.isActive)
+                      .map((v) => ({ value: v.id, label: v.name }));
+
+                    return (
+                      <div key={ai} className="flex items-center gap-2">
+                        <SearchableDropdown
+                          options={attrOptions}
+                          value={attr.id}
+                          onChange={(v) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              attributes: prev.attributes.map((a, i) =>
+                                i === ai ? { id: v, values: [] } : a,
+                              ),
+                            }))
+                          }
+                          placeholder="Ozellik secin"
+                          showEmptyOption={false}
+                          allowClear={false}
+                          className="flex-1"
+                        />
+                        <SearchableMultiSelectDropdown
+                          options={valueOptions}
+                          values={attr.values}
+                          onChange={(values) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              attributes: prev.attributes.map((a, i) =>
+                                i === ai ? { ...a, values } : a,
+                              ),
+                            }))
+                          }
+                          placeholder={attr.id ? "Deger(ler) secin" : "Once ozellik secin"}
+                          className="flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              attributes: prev.attributes.filter((_, i) => i !== ai),
+                            }))
+                          }
+                          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors"
+                          aria-label="Ozelligi sil"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
               {formError && <p className="text-sm text-error">{formError}</p>}
             </>
           ) : step === 2 ? (
@@ -1458,7 +1390,6 @@ export default function ProductsPage() {
               <div className="flex gap-2 mb-2">
                 <div className="h-1 flex-1 rounded-full bg-primary" />
                 <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-border" />
               </div>
 
               <div className="flex items-center justify-between">
@@ -1466,7 +1397,6 @@ export default function ProductsPage() {
                   <h3 className="text-sm font-semibold text-text">Varyantlar</h3>
                   <p className="text-xs text-muted">Urun icin renk, beden gibi varyantlar ekleyin</p>
                 </div>
-                <Button label="+ Varyant Ekle" onClick={addVariant} variant="primarySoft" className="px-2.5 py-1.5 text-xs" />
               </div>
 
               {variants.length === 0 ? (
@@ -1479,7 +1409,7 @@ export default function ProductsPage() {
                   {variants.map((variant, vi) => (
                     <CollapsiblePanel
                       key={variant.clientKey}
-                      title={`Varyant #${vi + 1}${variant.name ? ` - ${variant.name}` : ""}`}
+                      title={`Varyant #${vi + 1}`}
                       open={expandedVariantKeys.includes(variant.clientKey)}
                       onToggle={() => toggleVariantPanel(variant.clientKey)}
                       toggleAriaLabel={expandedVariantKeys.includes(variant.clientKey) ? "Varyanti daralt" : "Varyanti genislet"}
@@ -1494,53 +1424,6 @@ export default function ProductsPage() {
                         </button>
                       )}
                     >
-                      {/* Variant base fields */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted">Varyant Adi *</label>
-                          <input
-                            type="text"
-                            value={variant.name}
-                            onChange={(e) => updateVariantField(vi, "name", e.target.value)}
-                            placeholder="Kirmizi / L"
-                            className={cn(
-                              "h-10 w-full rounded-xl border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                              variantErrors[vi]?.name ? "border-error" : "border-border",
-                            )}
-                          />
-                          {variantErrors[vi]?.name && (
-                            <p className="text-xs text-error">{variantErrors[vi].name}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted">Kod *</label>
-                          <input
-                            type="text"
-                            value={variant.code}
-                            onChange={(e) => updateVariantField(vi, "code", e.target.value)}
-                            placeholder="RED-L"
-                            className={cn(
-                              "h-10 w-full rounded-xl border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary",
-                              variantErrors[vi]?.code ? "border-error" : "border-border",
-                            )}
-                          />
-                          {variantErrors[vi]?.code && (
-                            <p className="text-xs text-error">{variantErrors[vi].code}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Barkod</label>
-                        <input
-                          type="text"
-                          value={variant.barcode}
-                          onChange={(e) => updateVariantField(vi, "barcode", e.target.value)}
-                          placeholder="8691234567890"
-                          className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-
                       {/* Attributes */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -1558,32 +1441,21 @@ export default function ProductsPage() {
                           <div key={ai} className="space-y-1">
                             <div className="flex items-center gap-2">
                               <SearchableDropdown
-                                options={COMMON_ATTRIBUTE_KEYS}
-                                value={attr.key}
-                                onChange={(v) => updateAttribute(vi, ai, "key", v)}
+                                options={getVariantAttributeOptions(vi, ai)}
+                                value={attr.id}
+                                onChange={(v) => updateVariantAttribute(vi, ai, "id", v)}
                                 placeholder="Ozellik secin"
                                 showEmptyOption={false}
                                 allowClear={false}
                                 className="flex-1"
                               />
-                              <input
-                                type="text"
-                                value={attr.value}
-                                onChange={(e) => updateAttribute(vi, ai, "value", e.target.value)}
-                                placeholder="Deger girin"
-                                className="h-10 flex-1 rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              <SearchableMultiSelectDropdown
+                                options={getVariantAttributeValueOptions(attr.id, attr.values)}
+                                values={attr.values}
+                                onChange={(values) => updateVariantAttribute(vi, ai, "values", values)}
+                                placeholder={attr.id ? "Deger(ler) secin" : "Once ozellik secin"}
+                                className="flex-1"
                               />
-                              {getAttributeUnitOptions(attr.key).length > 0 && (
-                                <SearchableDropdown
-                                  options={getAttributeUnitOptions(attr.key)}
-                                  value={attr.unit || ""}
-                                  onChange={(v) => updateAttribute(vi, ai, "unit", v)}
-                                  placeholder="Birim"
-                                  showEmptyOption={false}
-                                  allowClear={false}
-                                  className="w-28"
-                                />
-                              )}
                               {variant.attributes.length > 1 && (
                                 <button
                                   type="button"
@@ -1598,46 +1470,6 @@ export default function ProductsPage() {
                                 </button>
                               )}
                             </div>
-
-                            {/* Suggestions */}
-                            {attr.key === "size" && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {SIZE_SUGGESTIONS.map((s) => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => applySuggestion(vi, ai, s)}
-                                    className={cn(
-                                      "rounded-md border px-2 py-0.5 text-xs cursor-pointer transition-colors",
-                                      attr.value === s
-                                        ? "border-primary bg-primary/10 text-primary"
-                                        : "border-border bg-surface text-muted hover:border-primary/40 hover:text-text",
-                                    )}
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {attr.key === "color" && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {COLOR_SUGGESTIONS.map((c) => (
-                                  <button
-                                    key={c}
-                                    type="button"
-                                    onClick={() => applySuggestion(vi, ai, c)}
-                                    className={cn(
-                                      "rounded-md border px-2 py-0.5 text-xs cursor-pointer transition-colors",
-                                      attr.value === c
-                                        ? "border-primary bg-primary/10 text-primary"
-                                        : "border-border bg-surface text-muted hover:border-primary/40 hover:text-text",
-                                    )}
-                                  >
-                                    {c}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         ))}
 
@@ -1652,32 +1484,7 @@ export default function ProductsPage() {
 
               {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
             </>
-          ) : (
-            /* ── Step 3: Stock Entry ── */
-            <>
-              {/* Step indicator */}
-              <div className="flex gap-2 mb-2">
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-              </div>
-
-              <div className="mb-3">
-                <h3 className="text-sm font-semibold text-text">Stok Girisi</h3>
-                <p className="text-xs text-muted">Varyantlar icin stok miktari ve fiyat bilgilerini girin. Bu adimi atlayabilirsiniz.</p>
-              </div>
-
-              <StockEntryForm
-                variants={savedVariants}
-                productCurrency={form.defaultCurrency}
-                stores={storesList}
-                onSubmit={onStockEntrySubmit}
-                submitting={stockSubmitting}
-              />
-
-              {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
-            </>
-          )}
+          ) : null}
         </form>
       </Drawer>
 

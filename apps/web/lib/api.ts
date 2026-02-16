@@ -1,4 +1,4 @@
-export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 let unauthorizedRedirectInProgress = false;
 
 export class ApiError extends Error {
@@ -46,5 +46,19 @@ export async function apiFetch<T>(
     throw new ApiError(message, res.status);
   }
 
-  return res.json() as Promise<T>;
+  if (res.status === 204 || res.status === 205) {
+    return undefined as T;
+  }
+
+  const raw = await res.text();
+  if (!raw.trim()) {
+    return undefined as T;
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return JSON.parse(raw) as T;
+  }
+
+  return raw as T;
 }

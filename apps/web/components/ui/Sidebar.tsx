@@ -12,10 +12,10 @@ const items = [
   { href: "/products", label: "Urunler", icon: "U" },
   { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3" },
   { href: "/sales", label: "Satislar", icon: "TL" },
-  { href: "/transfers", label: "Transferler", icon: "T" },
 ];
 
 const adminItems = [
+  { href: "/attributes", label: "Ozellikler", icon: "O" },
   { href: "/stores", label: "Magazalar", icon: "M" },
   { href: "/users", label: "Kullanicilar", icon: "K" },
   { href: "/reports", label: "Raporlar", icon: "R" },
@@ -185,7 +185,11 @@ export default function Sidebar({
 
         <div className="space-y-1">
           {adminItems
-            .filter((it) => canSeeTenantManagement || (it.href !== "/stores" && it.href !== "/users"))
+            .filter(
+              (it) =>
+                canSeeTenantManagement ||
+                (it.href !== "/stores" && it.href !== "/users" && it.href !== "/attributes"),
+            )
             .map((it) => (
             <Link
               key={it.href}

@@ -36,9 +36,8 @@ type StoreEntry = {
   discountMode: DiscountMode;
   discountPercent: string;
   discountAmount: string;
-  reference: string;
-  supplier: string;
-  campaignCode: string;
+  reason: string;
+  note: string;
 };
 
 /** All store entries for a single variant */
@@ -54,6 +53,23 @@ type Props = {
   stores: Store[];
   onSubmit: (items: InventoryReceiveItem[]) => Promise<void>;
   submitting?: boolean;
+  initialEntriesByVariant?: Record<string, StockEntryInitialEntry[]>;
+  mode?: "receive" | "adjust";
+};
+
+export type StockEntryInitialEntry = {
+  storeId: string;
+  quantity?: number | string;
+  unitPrice?: number | string;
+  currency?: Currency;
+  taxMode?: TaxMode;
+  taxPercent?: number | string;
+  taxAmount?: number | string;
+  discountMode?: DiscountMode;
+  discountPercent?: number | string;
+  discountAmount?: number | string;
+  reason?: string;
+  note?: string;
 };
 
 /* ── Helpers ── */
@@ -76,9 +92,34 @@ function createEmptyEntry(defaultCurrency: Currency): StoreEntry {
     discountMode: "percent",
     discountPercent: "",
     discountAmount: "",
-    reference: "",
-    supplier: "",
-    campaignCode: "",
+    reason: "",
+    note: "",
+  };
+}
+
+function createEntryFromInitial(
+  defaultCurrency: Currency,
+  initial: StockEntryInitialEntry,
+): StoreEntry {
+  const taxMode: TaxMode =
+    initial.taxMode ?? (initial.taxAmount != null && initial.taxAmount !== "" ? "amount" : "percent");
+  const discountMode: DiscountMode =
+    initial.discountMode ?? (initial.discountAmount != null && initial.discountAmount !== "" ? "amount" : "percent");
+
+  return {
+    entryKey: createEntryKey(),
+    storeId: initial.storeId ?? "",
+    quantity: initial.quantity != null ? String(initial.quantity) : "",
+    unitPrice: initial.unitPrice != null ? String(initial.unitPrice) : "",
+    currency: initial.currency ?? defaultCurrency,
+    taxMode,
+    taxPercent: initial.taxPercent != null ? String(initial.taxPercent) : "",
+    taxAmount: initial.taxAmount != null ? String(initial.taxAmount) : "",
+    discountMode,
+    discountPercent: initial.discountPercent != null ? String(initial.discountPercent) : "",
+    discountAmount: initial.discountAmount != null ? String(initial.discountAmount) : "",
+    reason: initial.reason ?? "",
+    note: initial.note ?? "",
   };
 }
 
@@ -92,11 +133,14 @@ function formatPrice(val: number): string {
  * - "partial" → user filled some but not all required fields, needs validation error
  * - "filled"  → all 3 required fields present, ready for full validation
  */
-function getEntryStatus(entry: StoreEntry): "empty" | "partial" | "filled" {
+function getEntryStatus(
+  entry: StoreEntry,
+  requirePrice: boolean,
+): "empty" | "partial" | "filled" {
   const has = {
     store: Boolean(entry.storeId),
     qty: Boolean(entry.quantity && Number(entry.quantity) > 0),
-    price: Boolean(entry.unitPrice && Number(entry.unitPrice) > 0),
+    price: !requirePrice || Boolean(entry.unitPrice && Number(entry.unitPrice) > 0),
   };
 
   const filledCount = [has.store, has.qty, has.price].filter(Boolean).length;
@@ -138,7 +182,10 @@ export default function StockEntryForm({
   stores,
   onSubmit,
   submitting = false,
+  initialEntriesByVariant,
+  mode = "receive",
 }: Props) {
+  const isAdjustMode = mode === "adjust";
   const [blocks, setBlocks] = useState<VariantBlock[]>([]);
   const [expandedVariants, setExpandedVariants] = useState<Set<string>>(new Set());
   const [rates, setRates] = useState<Record<string, number>>({ TRY: 1 });
@@ -148,19 +195,26 @@ export default function StockEntryForm({
   // Initialize blocks from variants
   useEffect(() => {
     setBlocks(
-      variants.map((v) => ({
-        variantId: v.id,
-        variantName: v.name,
-        entries: [createEmptyEntry(productCurrency)],
-      })),
+      variants.map((v) => {
+        const initialEntries = initialEntriesByVariant?.[v.id] ?? [];
+        return {
+          variantId: v.id,
+          variantName: v.name,
+          entries:
+            initialEntries.length > 0
+              ? initialEntries.map((entry) => createEntryFromInitial(productCurrency, entry))
+              : [createEmptyEntry(productCurrency)],
+        };
+      }),
     );
     if (variants.length > 0) {
       setExpandedVariants(new Set([variants[0].id]));
     }
-  }, [variants, productCurrency]);
+  }, [variants, productCurrency, initialEntriesByVariant]);
 
   // Collect all active currencies
   const activeCurrencies = useMemo(() => {
+    if (isAdjustMode) return ["TRY"] as Currency[];
     const currencies = new Set<Currency>();
     for (const block of blocks) {
       for (const entry of block.entries) {
@@ -168,12 +222,17 @@ export default function StockEntryForm({
       }
     }
     return [...currencies];
-  }, [blocks]);
+  }, [blocks, isAdjustMode]);
 
   // Fetch exchange rates
   useEffect(() => {
     let cancelled = false;
     async function fetchRates() {
+      if (isAdjustMode) {
+        setRates({ TRY: 1 });
+        setRateLoading(false);
+        return;
+      }
       setRateLoading(true);
       const newRates: Record<string, number> = { TRY: 1 };
       for (const cur of activeCurrencies) {
@@ -191,7 +250,7 @@ export default function StockEntryForm({
     }
     fetchRates();
     return () => { cancelled = true; };
-  }, [activeCurrencies]);
+  }, [activeCurrencies, isAdjustMode]);
 
   const storeOptions = useMemo(
     () => stores.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
@@ -260,23 +319,29 @@ export default function StockEntryForm({
               ? e
               : {
                   ...e,
-                  unitPrice: first.unitPrice,
-                  currency: first.currency,
-                  taxMode: first.taxMode,
-                  taxPercent: first.taxPercent,
-                  taxAmount: first.taxAmount,
-                  discountMode: first.discountMode,
-                  discountPercent: first.discountPercent,
-                  discountAmount: first.discountAmount,
-                  reference: first.reference,
-                  supplier: first.supplier,
-                  campaignCode: first.campaignCode,
+                  ...(isAdjustMode
+                    ? {
+                        reason: first.reason,
+                        note: first.note,
+                      }
+                    : {
+                        unitPrice: first.unitPrice,
+                        currency: first.currency,
+                        taxMode: first.taxMode,
+                        taxPercent: first.taxPercent,
+                        taxAmount: first.taxAmount,
+                        discountMode: first.discountMode,
+                        discountPercent: first.discountPercent,
+                        discountAmount: first.discountAmount,
+                        reason: first.reason,
+                        note: first.note,
+                      }),
                 },
           ),
         };
       }),
     );
-  }, []);
+  }, [isAdjustMode]);
 
   /* ── Apply first variant's first entry to ALL variants' ALL entries (shared fields only) ── */
   const applyFirstToAllVariants = useCallback(() => {
@@ -292,22 +357,28 @@ export default function StockEntryForm({
             ? e
             : {
                 ...e,
-                unitPrice: firstEntry.unitPrice,
-                currency: firstEntry.currency,
-                taxMode: firstEntry.taxMode,
-                taxPercent: firstEntry.taxPercent,
-                taxAmount: firstEntry.taxAmount,
-                discountMode: firstEntry.discountMode,
-                discountPercent: firstEntry.discountPercent,
-                discountAmount: firstEntry.discountAmount,
-                reference: firstEntry.reference,
-                supplier: firstEntry.supplier,
-                campaignCode: firstEntry.campaignCode,
+                ...(isAdjustMode
+                  ? {
+                      reason: firstEntry.reason,
+                      note: firstEntry.note,
+                    }
+                  : {
+                      unitPrice: firstEntry.unitPrice,
+                      currency: firstEntry.currency,
+                      taxMode: firstEntry.taxMode,
+                      taxPercent: firstEntry.taxPercent,
+                      taxAmount: firstEntry.taxAmount,
+                      discountMode: firstEntry.discountMode,
+                      discountPercent: firstEntry.discountPercent,
+                      discountAmount: firstEntry.discountAmount,
+                      reason: firstEntry.reason,
+                      note: firstEntry.note,
+                    }),
               },
         ),
       })),
     );
-  }, [blocks]);
+  }, [blocks, isAdjustMode]);
 
   /* ── Toggle variant panel ── */
   const toggleVariant = useCallback((variantId: string) => {
@@ -326,7 +397,7 @@ export default function StockEntryForm({
 
     for (const block of blocks) {
       for (const entry of block.entries) {
-        const status = getEntryStatus(entry);
+        const status = getEntryStatus(entry, !isAdjustMode);
         if (status === "filled") filled.push({ block, entry });
         else if (status === "partial") partial.push({ block, entry });
         // "empty" → skip entirely
@@ -334,7 +405,7 @@ export default function StockEntryForm({
     }
 
     return { filled, partial };
-  }, [blocks]);
+  }, [blocks, isAdjustMode]);
 
   /* ── Validation (partial entries get specific missing-field errors) ── */
   const validate = useCallback(
@@ -347,7 +418,7 @@ export default function StockEntryForm({
         const errs: string[] = [];
         if (!entry.storeId) errs.push("Magaza secimi zorunludur");
         if (!entry.quantity || Number(entry.quantity) <= 0) errs.push("Miktar 0'dan buyuk olmalidir");
-        if (!entry.unitPrice || Number(entry.unitPrice) <= 0) errs.push("Birim fiyat 0'dan buyuk olmalidir");
+        if (!isAdjustMode && (!entry.unitPrice || Number(entry.unitPrice) <= 0)) errs.push("Birim fiyat 0'dan buyuk olmalidir");
         if (errs.length > 0) {
           nextErrors[entry.entryKey] = errs;
           valid = false;
@@ -359,7 +430,7 @@ export default function StockEntryForm({
         const errs: string[] = [];
         if (!entry.storeId) errs.push("Magaza secimi zorunludur");
         if (!entry.quantity || Number(entry.quantity) <= 0) errs.push("Miktar 0'dan buyuk olmalidir");
-        if (!entry.unitPrice || Number(entry.unitPrice) <= 0) errs.push("Birim fiyat 0'dan buyuk olmalidir");
+        if (!isAdjustMode && (!entry.unitPrice || Number(entry.unitPrice) <= 0)) errs.push("Birim fiyat 0'dan buyuk olmalidir");
         if (errs.length > 0) {
           nextErrors[entry.entryKey] = errs;
           valid = false;
@@ -369,7 +440,7 @@ export default function StockEntryForm({
       setErrors(nextErrors);
       return valid;
     },
-    [],
+    [isAdjustMode],
   );
 
   /* ── Submit ── */
@@ -386,37 +457,40 @@ export default function StockEntryForm({
     if (!validate(filled, partial)) return;
 
     const items: InventoryReceiveItem[] = filled.map(({ block, entry }) => {
-      const lineTotal = calcEntryTotal(entry, rates);
+      const lineTotal = isAdjustMode ? 0 : calcEntryTotal(entry, rates);
       const item: InventoryReceiveItem = {
         storeId: entry.storeId,
         productVariantId: block.variantId,
         quantity: Number(entry.quantity),
-        currency: entry.currency,
-        unitPrice: Number(entry.unitPrice),
+        currency: isAdjustMode ? productCurrency : entry.currency,
+        unitPrice: isAdjustMode ? 0 : Number(entry.unitPrice),
         lineTotal: Math.round(lineTotal * 100) / 100,
       };
 
-      if (entry.taxMode === "percent" && entry.taxPercent) {
+      if (!isAdjustMode && entry.taxMode === "percent" && entry.taxPercent) {
         item.taxPercent = Number(entry.taxPercent);
-      } else if (entry.taxMode === "amount" && entry.taxAmount) {
+      } else if (!isAdjustMode && entry.taxMode === "amount" && entry.taxAmount) {
         item.taxAmount = Number(entry.taxAmount);
       }
 
-      if (entry.discountMode === "percent" && entry.discountPercent) {
+      if (!isAdjustMode && entry.discountMode === "percent" && entry.discountPercent) {
         item.discountPercent = Number(entry.discountPercent);
-      } else if (entry.discountMode === "amount" && entry.discountAmount) {
+      } else if (!isAdjustMode && entry.discountMode === "amount" && entry.discountAmount) {
         item.discountAmount = Number(entry.discountAmount);
       }
 
-      if (entry.reference) item.reference = entry.reference;
-      if (entry.supplier) item.meta = { supplier: entry.supplier };
-      if (entry.campaignCode) item.campaignCode = entry.campaignCode;
+      if (entry.reason || entry.note) {
+        item.meta = {
+          reason: entry.reason || undefined,
+          note: entry.note || undefined,
+        };
+      }
 
       return item;
     });
 
     await onSubmit(items);
-  }, [categoriseEntries, rates, validate, onSubmit]);
+  }, [categoriseEntries, isAdjustMode, onSubmit, productCurrency, rates, validate]);
 
   /* ── Render ── */
 
@@ -442,18 +516,22 @@ export default function StockEntryForm({
         </div>
       )}
 
-      {/* Currency rate info */}
-      {rateLoading && (
-        <div className="text-xs text-muted">Doviz kurlari yukleniyor...</div>
-      )}
-      {!rateLoading && activeCurrencies.some((c) => c !== "TRY") && (
-        <div className="rounded-xl border border-border bg-surface2/30 px-3 py-2 text-xs text-muted">
-          Guncel Kurlar:{" "}
-          {activeCurrencies
-            .filter((c) => c !== "TRY")
-            .map((c) => `1 ${c} = ${formatPrice(rates[c] ?? 1)} TRY`)
-            .join(" | ")}
-        </div>
+      {!isAdjustMode && (
+        <>
+          {/* Currency rate info */}
+          {rateLoading && (
+            <div className="text-xs text-muted">Doviz kurlari yukleniyor...</div>
+          )}
+          {!rateLoading && activeCurrencies.some((c) => c !== "TRY") && (
+            <div className="rounded-xl border border-border bg-surface2/30 px-3 py-2 text-xs text-muted">
+              Guncel Kurlar:{" "}
+              {activeCurrencies
+                .filter((c) => c !== "TRY")
+                .map((c) => `1 ${c} = ${formatPrice(rates[c] ?? 1)} TRY`)
+                .join(" | ")}
+            </div>
+          )}
+        </>
       )}
 
       {/* Variant blocks */}
@@ -472,7 +550,7 @@ export default function StockEntryForm({
                 <span className="rounded-full bg-surface2 px-1.5 py-0.5 text-[10px] font-medium text-muted">
                   {block.entries.length} magaza
                 </span>
-                {variantTotal > 0 && (
+                {!isAdjustMode && variantTotal > 0 && (
                   <span className="ml-1 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                     {formatPrice(variantTotal)} TRY
                   </span>
@@ -503,7 +581,7 @@ export default function StockEntryForm({
                         {storeName && <span className="ml-1 text-text">- {storeName}</span>}
                       </span>
                       <div className="flex items-center gap-2">
-                        {entryTotal > 0 && (
+                        {!isAdjustMode && entryTotal > 0 && (
                           <span className="text-xs font-medium text-primary">
                             {formatPrice(entryTotal)} TRY
                           </span>
@@ -553,115 +631,110 @@ export default function StockEntryForm({
                       </FieldGroup>
                     </div>
 
-                    {/* Price & Currency */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <FieldGroup label="Birim Fiyat *">
-                        <NumberInput
-                          value={entry.unitPrice}
-                          onChange={(v) => updateEntry(block.variantId, entry.entryKey, { unitPrice: v })}
-                          placeholder="0.00"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Para Birimi">
-                        <SearchableDropdown
-                          options={CURRENCY_OPTIONS}
-                          value={entry.currency}
-                          onChange={(v) =>
-                            updateEntry(block.variantId, entry.entryKey, { currency: v as Currency })
-                          }
-                          showEmptyOption={false}
-                          allowClear={false}
-                        />
-                      </FieldGroup>
-                    </div>
+                    {!isAdjustMode && (
+                      <>
+                        {/* Price & Currency */}
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <FieldGroup label="Birim Fiyat *">
+                            <NumberInput
+                              value={entry.unitPrice}
+                              onChange={(v) => updateEntry(block.variantId, entry.entryKey, { unitPrice: v })}
+                              placeholder="0.00"
+                            />
+                          </FieldGroup>
+                          <FieldGroup label="Para Birimi">
+                            <SearchableDropdown
+                              options={CURRENCY_OPTIONS}
+                              value={entry.currency}
+                              onChange={(v) =>
+                                updateEntry(block.variantId, entry.entryKey, { currency: v as Currency })
+                              }
+                              showEmptyOption={false}
+                              allowClear={false}
+                            />
+                          </FieldGroup>
+                        </div>
 
-                    {/* Tax & Discount */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <FieldGroup label="Vergi">
-                        <div className="flex items-center gap-2">
-                          <ModeToggle
-                            mode={entry.taxMode}
-                            onToggle={(m) =>
-                              updateEntry(block.variantId, entry.entryKey, {
-                                taxMode: m,
-                                taxPercent: "",
-                                taxAmount: "",
-                              })
-                            }
-                          />
-                          <NumberInput
-                            value={entry.taxMode === "percent" ? entry.taxPercent : entry.taxAmount}
-                            onChange={(v) =>
-                              updateEntry(
-                                block.variantId,
-                                entry.entryKey,
-                                entry.taxMode === "percent" ? { taxPercent: v } : { taxAmount: v },
-                              )
-                            }
-                            placeholder={entry.taxMode === "percent" ? "% 0" : "0.00"}
-                          />
+                        {/* Tax & Discount */}
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <FieldGroup label="Vergi">
+                            <div className="flex items-center gap-2">
+                              <ModeToggle
+                                mode={entry.taxMode}
+                                onToggle={(m) =>
+                                  updateEntry(block.variantId, entry.entryKey, {
+                                    taxMode: m,
+                                    taxPercent: "",
+                                    taxAmount: "",
+                                  })
+                                }
+                              />
+                              <NumberInput
+                                value={entry.taxMode === "percent" ? entry.taxPercent : entry.taxAmount}
+                                onChange={(v) =>
+                                  updateEntry(
+                                    block.variantId,
+                                    entry.entryKey,
+                                    entry.taxMode === "percent" ? { taxPercent: v } : { taxAmount: v },
+                                  )
+                                }
+                                placeholder={entry.taxMode === "percent" ? "% 0" : "0.00"}
+                              />
+                            </div>
+                          </FieldGroup>
+                          <FieldGroup label="Indirim">
+                            <div className="flex items-center gap-2">
+                              <ModeToggle
+                                mode={entry.discountMode}
+                                onToggle={(m) =>
+                                  updateEntry(block.variantId, entry.entryKey, {
+                                    discountMode: m,
+                                    discountPercent: "",
+                                    discountAmount: "",
+                                  })
+                                }
+                              />
+                              <NumberInput
+                                value={
+                                  entry.discountMode === "percent"
+                                    ? entry.discountPercent
+                                    : entry.discountAmount
+                                }
+                                onChange={(v) =>
+                                  updateEntry(
+                                    block.variantId,
+                                    entry.entryKey,
+                                    entry.discountMode === "percent"
+                                      ? { discountPercent: v }
+                                      : { discountAmount: v },
+                                  )
+                                }
+                                placeholder={entry.discountMode === "percent" ? "% 0" : "0.00"}
+                              />
+                            </div>
+                          </FieldGroup>
                         </div>
-                      </FieldGroup>
-                      <FieldGroup label="Indirim">
-                        <div className="flex items-center gap-2">
-                          <ModeToggle
-                            mode={entry.discountMode}
-                            onToggle={(m) =>
-                              updateEntry(block.variantId, entry.entryKey, {
-                                discountMode: m,
-                                discountPercent: "",
-                                discountAmount: "",
-                              })
-                            }
-                          />
-                          <NumberInput
-                            value={
-                              entry.discountMode === "percent"
-                                ? entry.discountPercent
-                                : entry.discountAmount
-                            }
-                            onChange={(v) =>
-                              updateEntry(
-                                block.variantId,
-                                entry.entryKey,
-                                entry.discountMode === "percent"
-                                  ? { discountPercent: v }
-                                  : { discountAmount: v },
-                              )
-                            }
-                            placeholder={entry.discountMode === "percent" ? "% 0" : "0.00"}
-                          />
-                        </div>
-                      </FieldGroup>
-                    </div>
+                      </>
+                    )}
 
                     {/* Optional fields */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <FieldGroup label="Referans">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <FieldGroup label="Sebep">
                         <TextInput
-                          value={entry.reference}
+                          value={entry.reason}
                           onChange={(v) =>
-                            updateEntry(block.variantId, entry.entryKey, { reference: v })
+                            updateEntry(block.variantId, entry.entryKey, { reason: v })
                           }
-                          placeholder="PO-2025-001"
+                          placeholder="Stok giris sebebi"
                         />
                       </FieldGroup>
-                      <FieldGroup label="Tedarikci">
+                      <FieldGroup label="Not">
                         <TextInput
-                          value={entry.supplier}
+                          value={entry.note}
                           onChange={(v) =>
-                            updateEntry(block.variantId, entry.entryKey, { supplier: v })
+                            updateEntry(block.variantId, entry.entryKey, { note: v })
                           }
-                          placeholder="Tedarikci adi"
-                        />
-                      </FieldGroup>
-                      <FieldGroup label="Kampanya Kodu">
-                        <TextInput
-                          value={entry.campaignCode}
-                          onChange={(v) =>
-                            updateEntry(block.variantId, entry.entryKey, { campaignCode: v })
-                          }
-                          placeholder="CAMP-XXX"
+                          placeholder="Aciklama"
                         />
                       </FieldGroup>
                     </div>
@@ -690,7 +763,7 @@ export default function StockEntryForm({
               </div>
 
               {/* Variant total */}
-              {block.entries.length > 1 && (
+              {!isAdjustMode && block.entries.length > 1 && (
                 <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5">
                   <span className="text-xs font-medium text-text2">Varyant Toplami</span>
                   <span className="text-sm font-bold text-primary">
@@ -706,25 +779,26 @@ export default function StockEntryForm({
         );
       })}
 
-      {/* Grand total & Submit */}
+      {/* Submit */}
       <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-          <span className="text-sm font-semibold text-text">Genel Toplam</span>
-          <span className="text-lg font-bold text-primary">
-            {formatPrice(
-              blocks.reduce(
-                (total, block) =>
-                  total + block.entries.reduce((s, e) => s + calcEntryTotal(e, rates), 0),
-                0,
-              ),
-            )}{" "}
-            TRY
-          </span>
-        </div>
-
+        {!isAdjustMode && (
+          <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <span className="text-sm font-semibold text-text">Genel Toplam</span>
+            <span className="text-lg font-bold text-primary">
+              {formatPrice(
+                blocks.reduce(
+                  (total, block) =>
+                    total + block.entries.reduce((s, e) => s + calcEntryTotal(e, rates), 0),
+                  0,
+                ),
+              )}{" "}
+              TRY
+            </span>
+          </div>
+        )}
         <div className="flex justify-end">
           <Button
-            label="Stok Girisini Kaydet"
+            label={isAdjustMode ? "Stok Duzeltmeyi Kaydet" : "Stok Girisini Kaydet"}
             variant="primarySolid"
             onClick={handleSubmit}
             loading={submitting}

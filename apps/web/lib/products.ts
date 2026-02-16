@@ -1,20 +1,42 @@
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 /* ── Types ── */
 
 export type Currency = "TRY" | "USD" | "EUR";
 
-export type VariantAttribute = {
-  [key: string]: string;
-};
-
 export type ProductVariant = {
   id: string;
-  isActive?: boolean;
+  createdAt?: string;
+  createdById?: string | null;
+  updatedAt?: string;
+  updatedById?: string | null;
   name: string;
   code: string;
-  barcode: string;
-  attributes: VariantAttribute;
+  barcode: string | null;
+  isActive?: boolean;
+  attributes?: ProductAttributeInput[];
+};
+
+export type ProductAttributeInput = {
+  id: string;
+  values: string[];
+};
+
+export type ProductAttributeValueOption = {
+  id: string;
+  name: string;
+  isActive: boolean;
+};
+
+export type ProductAttributeDefinition = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  values: ProductAttributeValueOption[];
+};
+
+export type ProductAttributesResponse = {
+  attributes: ProductAttributeDefinition[];
 };
 
 export type Product = {
@@ -38,6 +60,7 @@ export type Product = {
   isActive?: boolean;
   variantCount?: number;
   variants?: ProductVariant[];
+  attributes?: ProductAttributeInput[];
 };
 
 export type ProductsListMeta = {
@@ -54,10 +77,7 @@ export type ProductsListResponse = {
 };
 
 export type CreateVariantDto = {
-  name: string;
-  code: string;
-  barcode: string;
-  attributes: VariantAttribute;
+  attributes: ProductAttributeInput[];
 };
 
 export type CreateProductRequest = {
@@ -70,6 +90,7 @@ export type CreateProductRequest = {
   defaultSalePrice: number;
   defaultPurchasePrice: number;
   defaultTaxPercent: number;
+  attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
 };
 
@@ -84,6 +105,7 @@ export type UpdateProductRequest = {
   defaultPurchasePrice?: number;
   defaultTaxPercent?: number;
   isActive?: boolean;
+  attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
 };
 
@@ -167,29 +189,29 @@ export async function getProductVariants(
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiFetch<ProductVariant[]>(`/products/${productId}/variants${suffix}`);
+  return await apiFetch<ProductVariant[]>(`/products/${productId}/variants${suffix}`);
 }
 
-export async function createProductVariants(
+export async function getProductAttributes(
   productId: string,
-  variants: CreateVariantDto[],
-): Promise<ProductVariant[]> {
-  return apiFetch<ProductVariant[]>(`/products/${productId}/variants`, {
+): Promise<ProductAttributesResponse> {
+  return await apiFetch<ProductAttributesResponse>(`/products/${productId}/attributes`);
+}
+
+export async function createProductVariant(
+  productId: string,
+  payload: CreateVariantDto,
+): Promise<ProductVariant> {
+  return apiFetch<ProductVariant>(`/products/${productId}/variants`, {
     method: "POST",
-    body: JSON.stringify(variants),
+    body: JSON.stringify(payload),
   });
 }
 
 export async function updateProductVariant(
   productId: string,
   variantId: string,
-  payload: {
-    name: string;
-    code: string;
-    barcode: string;
-    attributes: VariantAttribute;
-    isActive: boolean;
-  },
+  payload: CreateVariantDto & { isActive?: boolean },
 ): Promise<ProductVariant> {
   return apiFetch<ProductVariant>(`/products/${productId}/variants/${variantId}`, {
     method: "PATCH",

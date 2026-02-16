@@ -1,50 +1,28 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import type { Currency, ProductVariant } from "@/lib/products";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { getStores, type Store } from "@/lib/stores";
 import {
   adjustInventory,
-  getStoreStockSummary,
+  adjustInventoryBulk,
   getTenantStockSummary,
-  receiveInventory,
-  receiveInventoryBulk,
-  sellInventory,
+  getVariantStockByStore,
   transferInventory,
   type InventoryAdjustPayload,
   type InventoryReceiveItem,
-  type InventorySellPayload,
+  type InventoryProductStockItem,
+  type InventoryStoreStockItem,
   type InventoryTransferPayload,
+  type InventoryVariantStockItem,
 } from "@/lib/inventory";
+import type { Currency, ProductVariant } from "@/lib/products";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import StockEntryForm from "@/components/inventory/StockEntryForm";
-import { SearchIcon } from "@/components/ui/icons/TableIcons";
+import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
+import StockEntryForm, { type StockEntryInitialEntry } from "@/components/inventory/StockEntryForm";
+import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
-import {
-  getSessionUser,
-  getSessionUserRole,
-  getSessionUserStoreIds,
-  isStoreScopedRole,
-  type UserRole,
-} from "@/lib/authz";
-
-type Scope = "tenant" | "store";
-type DrawerMode = "receive" | "adjust" | "transfer" | "sell" | null;
-type SellType = "sale" | "return";
-
-type InventoryRow = {
-  key: string;
-  productVariantId: string;
-  productVariantName: string;
-  productName: string;
-  storeId: string;
-  storeName: string;
-  quantity: number;
-  reservedQuantity: number;
-  availableQuantity: number;
-};
 
 function useDebounceStr(value: string, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -81,189 +59,143 @@ function pickNumber(...values: unknown[]) {
   return 0;
 }
 
-function normalizeSingleRow(raw: Record<string, unknown>): InventoryRow | null {
-  const storeObj = asObject(raw.store);
-  const variantObj = asObject(raw.productVariant) ?? asObject(raw.variant);
-  const productObj = asObject(raw.product) ?? asObject(variantObj?.product);
-
-  const productVariantId = pickString(
-    raw.productVariantId,
-    raw.variantId,
-    variantObj?.id,
-  );
-
-  if (!productVariantId) return null;
-
-  const quantity = pickNumber(
-    raw.quantity,
-    raw.stock,
-    raw.currentQuantity,
-    raw.onHand,
-  );
-
-  const reservedQuantity = pickNumber(raw.reservedQuantity, raw.reserved);
-
-  const availableQuantity = pickNumber(
-    raw.availableQuantity,
-    raw.available,
-    quantity - reservedQuantity,
-  );
-
-  const storeId = pickString(raw.storeId, storeObj?.id, "-");
-
-  return {
-    key: `${productVariantId}-${storeId || "-"}`,
-    productVariantId,
-    productVariantName: pickString(
-      raw.productVariantName,
-      raw.variantName,
-      variantObj?.name,
-      productVariantId,
-    ),
-    productName: pickString(raw.productName, productObj?.name, "-"),
-    storeId: storeId || "-",
-    storeName: pickString(raw.storeName, storeObj?.name, "-"),
-    quantity,
-    reservedQuantity,
-    availableQuantity,
-  };
-}
-
-function normalizeInventoryRows(payload: unknown): InventoryRow[] {
+function normalizeStoreItems(payload: unknown): InventoryStoreStockItem[] {
   const root = asObject(payload);
+  const dataNode = asObject(root?.data);
   const rawItems = Array.isArray(payload)
     ? payload
-    : Array.isArray(root?.data)
-      ? root?.data
-      : Array.isArray(root?.items)
-        ? root?.items
+    : Array.isArray(root?.items)
+      ? root?.items
+      : Array.isArray(dataNode?.items)
+        ? dataNode?.items
+      : Array.isArray(root?.data)
+        ? root?.data
         : [];
 
-  const rows: InventoryRow[] = [];
-  const storeGroupKeys = ["stores", "storeStocks"];
-  const productGroupKeys = ["products", "productStocks"];
-  const variantGroupKeys = ["variants", "productVariants", "variantStocks"];
-
-  const collectRows = (
-    node: Record<string, unknown>,
-    inherited: Record<string, unknown> = {},
-  ) => {
-    const merged: Record<string, unknown> = {
-      ...inherited,
-      ...node,
-      store: node.store ?? inherited.store,
-      storeId: node.storeId ?? inherited.storeId,
-      storeName: node.storeName ?? inherited.storeName,
-      product: node.product ?? inherited.product,
-      productName: node.productName ?? inherited.productName,
-      productVariant: node.productVariant ?? inherited.productVariant,
-      productVariantId: node.productVariantId ?? inherited.productVariantId,
-      productVariantName: node.productVariantName ?? inherited.productVariantName,
-      variant: node.variant ?? inherited.variant,
-      variantId: node.variantId ?? inherited.variantId,
-      variantName: node.variantName ?? inherited.variantName,
-    };
-    const context: Record<string, unknown> = {
-      store: merged.store,
-      storeId: merged.storeId,
-      storeName: merged.storeName,
-      product: merged.product,
-      productName: merged.productName,
-      productVariant: merged.productVariant,
-      productVariantId: merged.productVariantId,
-      productVariantName: merged.productVariantName,
-      variant: merged.variant,
-      variantId: merged.variantId,
-      variantName: merged.variantName,
-    };
-
-    let traversed = false;
-
-    for (const key of storeGroupKeys) {
-      const group = node[key];
-      if (!Array.isArray(group)) continue;
-      traversed = true;
-      for (const item of group) {
-        const itemObj = asObject(item);
-        if (!itemObj) continue;
-        collectRows(itemObj, context);
-      }
-    }
-
-    for (const key of productGroupKeys) {
-      const group = node[key];
-      if (!Array.isArray(group)) continue;
-      traversed = true;
-      for (const item of group) {
-        const itemObj = asObject(item);
-        if (!itemObj) continue;
-        collectRows(itemObj, context);
-      }
-    }
-
-    for (const key of variantGroupKeys) {
-      const group = node[key];
-      if (!Array.isArray(group)) continue;
-      traversed = true;
-      for (const item of group) {
-        const itemObj = asObject(item);
-        if (!itemObj) continue;
-        collectRows(itemObj, context);
-      }
-    }
-
-    if (!traversed) {
-      const normalized = normalizeSingleRow(merged);
-      if (normalized) rows.push(normalized);
-    }
-  };
-
-  for (const item of rawItems) {
-    const rowObj = asObject(item);
-    if (!rowObj) continue;
-    collectRows(rowObj);
-  }
-
-  const map = new Map<string, InventoryRow>();
-  for (const row of rows) {
-    map.set(row.key, row);
-  }
-
-  return [...map.values()];
+  return rawItems
+    .map((item) => asObject(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .map((item) => ({
+      storeId: pickString(item.storeId, asObject(item.store)?.id),
+      storeName: pickString(item.storeName, asObject(item.store)?.name, "-"),
+      quantity: pickNumber(item.quantity, item.totalQuantity),
+      totalQuantity: pickNumber(item.totalQuantity, item.quantity),
+      salePrice: item.salePrice == null ? null : pickNumber(item.salePrice),
+      purchasePrice: item.purchasePrice == null ? null : pickNumber(item.purchasePrice),
+      currency: pickString(item.currency) as "TRY" | "USD" | "EUR" | "",
+      taxPercent: item.taxPercent == null ? null : pickNumber(item.taxPercent),
+      discountPercent: item.discountPercent == null ? null : pickNumber(item.discountPercent),
+      isStoreOverride: Boolean(item.isStoreOverride),
+    }));
 }
 
-function toProductVariant(row: InventoryRow): ProductVariant {
-  return {
-    id: row.productVariantId,
-    name: row.productVariantName,
-    code: row.productVariantName,
-    barcode: "",
-    attributes: {},
-    isActive: true,
-  };
+function normalizeProducts(payload: unknown): InventoryProductStockItem[] {
+  const root = asObject(payload);
+  const dataNode = asObject(root?.data);
+  const rawItems = Array.isArray(root?.items)
+    ? root?.items
+    : Array.isArray(dataNode?.items)
+      ? dataNode?.items
+      : Array.isArray(root?.data)
+        ? root?.data
+      : [];
+
+  return rawItems
+    .map((item) => asObject(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .map((item) => {
+      const rawVariants = Array.isArray(item.variants) ? item.variants : [];
+      const variants: InventoryVariantStockItem[] = rawVariants
+        .map((variant) => asObject(variant))
+        .filter((variant): variant is Record<string, unknown> => Boolean(variant))
+        .map((variant) => ({
+          productVariantId: pickString(variant.productVariantId, variant.variantId),
+          variantName: pickString(variant.variantName, variant.name, "-"),
+          variantCode: pickString(variant.variantCode, variant.code),
+          totalQuantity: pickNumber(variant.totalQuantity, variant.quantity),
+          stores: normalizeStoreItems(variant.stores),
+        }))
+        .filter((variant) => Boolean(variant.productVariantId));
+
+      return {
+        productId: pickString(item.productId, item.id),
+        productName: pickString(item.productName, item.name, "-"),
+        totalQuantity: pickNumber(item.totalQuantity, item.quantity),
+        variants,
+      };
+    })
+    .filter((product) => Boolean(product.productId));
+}
+
+function getPaginationValue(
+  payload: unknown,
+  key: "totalPages" | "total" | "page" | "limit",
+): number {
+  const root = asObject(payload);
+  const metaNode = asObject(root?.meta);
+  const dataNode = asObject(root?.data);
+
+  const fromRoot = Number(root?.[key]);
+  if (!Number.isNaN(fromRoot) && fromRoot > 0) return fromRoot;
+
+  const fromMeta = Number(metaNode?.[key]);
+  if (!Number.isNaN(fromMeta) && fromMeta > 0) return fromMeta;
+
+  const fromData = Number(dataNode?.[key]);
+  if (!Number.isNaN(fromData) && fromData > 0) return fromData;
+
+  return 0;
 }
 
 export default function StockPage() {
-  const [scope, setScope] = useState<Scope>("tenant");
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounceStr(searchTerm, 400);
-
-  const [stores, setStores] = useState<Store[]>([]);
-  const [selectedStoreId, setSelectedStoreId] = useState("");
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [userStoreIds, setUserStoreIds] = useState<string[]>([]);
-  const [roleReady, setRoleReady] = useState(false);
-
-  const [rows, setRows] = useState<InventoryRow[]>([]);
+  const [products, setProducts] = useState<InventoryProductStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [drawerMode, setDrawerMode] = useState<DrawerMode>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [storeFilterIds, setStoreFilterIds] = useState<string[]>([]);
+  const debouncedSearch = useDebounceStr(searchTerm, 400);
+
+  const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
+
+  const [variantStoresById, setVariantStoresById] = useState<Record<string, InventoryStoreStockItem[]>>({});
+  const [variantStoresLoadingById, setVariantStoresLoadingById] = useState<Record<string, boolean>>({});
+
+  const [stores, setStores] = useState<Store[]>([]);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<InventoryRow | null>(null);
+  const [drawerLoading, setDrawerLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [transferDrawerOpen, setTransferDrawerOpen] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [transferFormError, setTransferFormError] = useState("");
+
+  const [adjustTarget, setAdjustTarget] = useState<{
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+  } | null>(null);
+  const [adjustInitialEntriesByVariant, setAdjustInitialEntriesByVariant] = useState<Record<string, StockEntryInitialEntry[]>>({});
+  const [transferTarget, setTransferTarget] = useState<{
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+    stores: InventoryStoreStockItem[];
+  } | null>(null);
+  const [transferForm, setTransferForm] = useState({
+    fromStoreId: "",
+    toStoreId: "",
+    quantity: "",
+    reason: "",
+    note: "",
+  });
 
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -274,254 +206,278 @@ export default function StockPage() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  useEffect(() => {
-    const user = getSessionUser();
-    setUserRole(getSessionUserRole());
-    setUserStoreIds(getSessionUserStoreIds(user));
-    setRoleReady(true);
-  }, []);
-
-  const storeScopedAccess = isStoreScopedRole(userRole);
-
-  useEffect(() => {
-    if (storeScopedAccess && scope !== "store") {
-      setScope("store");
-    }
-  }, [storeScopedAccess, scope]);
-
-  const [adjustForm, setAdjustForm] = useState({
-    storeId: "",
-    newQuantity: "",
-    reference: "",
-    reason: "",
-    note: "",
-  });
-
-  const [transferForm, setTransferForm] = useState({
-    fromStoreId: "",
-    toStoreId: "",
-    quantity: "",
-    reference: "",
-    note: "",
-  });
-
-  const [sellType, setSellType] = useState<SellType>("sale");
-  const [sellForm, setSellForm] = useState({
-    storeId: "",
-    quantity: "",
-    reference: "",
-    posTerminal: "",
-    currency: "TRY" as Currency,
-    unitPrice: "",
-    discountPercent: "",
-    discountAmount: "",
-    taxPercent: "",
-    taxAmount: "",
-    campaignCode: "",
-    saleId: "",
-    saleLineId: "",
-  });
-
-  const scopeOptions = storeScopedAccess
-    ? [{ value: "store", label: "Magaza Bazli Ozet" }]
-    : [
-        { value: "tenant", label: "Tenant Stok Ozeti" },
-        { value: "store", label: "Magaza Bazli Ozet" },
-      ];
-
   const storeOptions = useMemo(
     () => stores.map((s) => ({ value: s.id, label: s.name })),
     [stores],
   );
 
-  const filteredRows = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) => {
-      const haystack = `${row.productName} ${row.productVariantName} ${row.storeName}`.toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [rows, debouncedSearch]);
+  const transferFromStoreOptions = useMemo(
+    () => (transferTarget?.stores ?? []).map((s) => ({ value: s.storeId, label: s.storeName })),
+    [transferTarget],
+  );
 
-  const receiveVariants = useMemo(() => {
-    const map = new Map<string, ProductVariant>();
-    for (const row of rows) {
-      if (!map.has(row.productVariantId)) {
-        map.set(row.productVariantId, toProductVariant(row));
-      }
-    }
-    return [...map.values()];
-  }, [rows]);
+  const transferToStoreOptions = useMemo(
+    () => storeOptions.filter((s) => s.value !== transferForm.fromStoreId),
+    [storeOptions, transferForm.fromStoreId],
+  );
+
+  const selectedFromStore = useMemo(
+    () => transferTarget?.stores.find((s) => s.storeId === transferForm.fromStoreId) ?? null,
+    [transferTarget, transferForm.fromStoreId],
+  );
+
+  const adjustFormVariant = useMemo<ProductVariant[]>(
+    () =>
+      adjustTarget
+        ? [
+            {
+              id: adjustTarget.productVariantId,
+              name: adjustTarget.variantName,
+              code: adjustTarget.variantName,
+              barcode: null,
+            },
+          ]
+        : [],
+    [adjustTarget],
+  );
+
+  const adjustFormCurrency = useMemo<Currency>(() => {
+    if (!adjustTarget) return "TRY";
+    const storesForVariant = variantStoresById[adjustTarget.productVariantId] ?? [];
+    const currency = storesForVariant[0]?.currency;
+    if (currency === "TRY" || currency === "USD" || currency === "EUR") return currency;
+    return "TRY";
+  }, [adjustTarget, variantStoresById]);
+
+  const filteredProducts = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((product) => {
+      if (product.productName.toLowerCase().includes(q)) return true;
+      return (product.variants ?? []).some((variant) => {
+        if (variant.variantName.toLowerCase().includes(q)) return true;
+        if ((variant.variantCode ?? "").toLowerCase().includes(q)) return true;
+        return (variantStoresById[variant.productVariantId] ?? variant.stores ?? []).some((store) =>
+          store.storeName.toLowerCase().includes(q),
+        );
+      });
+    });
+  }, [products, debouncedSearch, variantStoresById]);
 
   const fetchStores = useCallback(async () => {
-    if (!roleReady) return;
     const token = localStorage.getItem("token");
     if (!token) return;
     try {
       const res = await getStores({ token, page: 1, limit: 100 });
-      const nextStores = storeScopedAccess
-        ? res.data.filter((store) => userStoreIds.includes(store.id))
-        : res.data;
-      setStores(nextStores);
-      if (storeScopedAccess) {
-        setSelectedStoreId((prev) => {
-          if (prev && nextStores.some((store) => store.id === prev)) return prev;
-          return nextStores[0]?.id ?? "";
-        });
-      }
+      setStores(res.data);
     } catch {
       setStores([]);
     }
-  }, [storeScopedAccess, userStoreIds, roleReady]);
+  }, []);
 
-  const fetchSummary = useCallback(async () => {
-    if (!roleReady) {
-      setLoading(false);
-      return;
-    }
+  const fetchTenantSummary = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      let payload: unknown;
-      if (storeScopedAccess || scope === "store") {
-        const targetStoreId = selectedStoreId || userStoreIds[0] || "";
-        if (!targetStoreId) {
-          setRows([]);
-          if (storeScopedAccess) {
-            setError("Bu kullanici icin magaza erisimi bulunamadi.");
-          }
-          return;
-        }
-        payload = await getStoreStockSummary(targetStoreId);
+      const res = await getTenantStockSummary({
+        page,
+        limit,
+        storeIds: storeFilterIds.length > 0 ? storeFilterIds : undefined,
+        search: debouncedSearch || undefined,
+      });
+      setProducts(normalizeProducts(res));
+
+      const nextTotalPages = getPaginationValue(res, "totalPages");
+      if (nextTotalPages > 0) {
+        setTotalPages(nextTotalPages);
       } else {
-        payload = await getTenantStockSummary();
+        const total = getPaginationValue(res, "total");
+        if (total > 0) setTotalPages(Math.max(1, Math.ceil(total / limit)));
+        else setTotalPages(1);
       }
-      setRows(normalizeInventoryRows(payload));
     } catch {
-      setRows([]);
+      setProducts([]);
       setError("Stok ozeti yuklenemedi. Lutfen tekrar deneyin.");
     } finally {
       setLoading(false);
     }
-  }, [scope, selectedStoreId, storeScopedAccess, userStoreIds, roleReady]);
+  }, [page, limit, storeFilterIds, debouncedSearch]);
+
+  const fetchVariantStores = useCallback(async (variantId: string) => {
+    if (!variantId || variantStoresLoadingById[variantId]) return;
+    setVariantStoresLoadingById((prev) => ({ ...prev, [variantId]: true }));
+    try {
+      const res = await getVariantStockByStore(variantId);
+      setVariantStoresById((prev) => ({
+        ...prev,
+        [variantId]: normalizeStoreItems(res),
+      }));
+    } catch {
+      setVariantStoresById((prev) => ({ ...prev, [variantId]: [] }));
+    } finally {
+      setVariantStoresLoadingById((prev) => ({ ...prev, [variantId]: false }));
+    }
+  }, [variantStoresLoadingById]);
 
   useEffect(() => {
     fetchStores();
   }, [fetchStores]);
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchTenantSummary();
+  }, [fetchTenantSummary]);
 
-  const openDrawer = (mode: Exclude<DrawerMode, null>, row?: InventoryRow) => {
-    if (mode !== "receive" && !row) return;
+  useEffect(() => {
+    setPage(1);
+  }, [storeFilterIds, debouncedSearch]);
+
+  const getVariantStoresForEditor = useCallback((variant: InventoryVariantStockItem) => {
+    const cached = variantStoresById[variant.productVariantId];
+    if (cached && cached.length > 0) return cached;
+    return variant.stores ?? [];
+  }, [variantStoresById]);
+
+  const toggleProduct = (productId: string) => {
+    setExpandedProductIds((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
+    );
+  };
+
+  const openAdjustDrawer = async (params: {
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+    stores: InventoryStoreStockItem[];
+  }) => {
     setFormError("");
-    setSelectedRow(row ?? null);
-    setDrawerMode(mode);
+    setDrawerLoading(true);
+    setAdjustTarget({
+      productVariantId: params.productVariantId,
+      productName: params.productName,
+      variantName: params.variantName,
+    });
 
-    if (mode === "adjust" && row) {
-      setAdjustForm({
-        storeId: row.storeId !== "-" ? row.storeId : "",
-        newQuantity: String(Math.max(0, row.quantity)),
-        reference: "",
-        reason: "",
-        note: "",
-      });
+    let normalizedStores = params.stores;
+    if (normalizedStores.length === 0) {
+      try {
+        const res = await getVariantStockByStore(params.productVariantId);
+        normalizedStores = normalizeStoreItems(res);
+        setVariantStoresById((prev) => ({ ...prev, [params.productVariantId]: normalizedStores }));
+      } catch {
+        normalizedStores = [];
+      }
     }
 
-    if (mode === "transfer" && row) {
-      setTransferForm({
-        fromStoreId: row.storeId !== "-" ? row.storeId : "",
-        toStoreId: "",
-        quantity: "",
-        reference: "",
-        note: "",
-      });
-    }
-
-    if (mode === "sell" && row) {
-      setSellType("sale");
-      setSellForm({
-        storeId: row.storeId !== "-" ? row.storeId : "",
-        quantity: "",
-        reference: "",
-        posTerminal: "",
-        currency: "TRY",
-        unitPrice: "",
-        discountPercent: "",
-        discountAmount: "",
-        taxPercent: "",
-        taxAmount: "",
-        campaignCode: "",
-        saleId: "",
-        saleLineId: "",
-      });
-    }
+    setAdjustInitialEntriesByVariant({
+      [params.productVariantId]: normalizedStores.map((store) => ({
+        storeId: store.storeId,
+        quantity: store.quantity,
+        unitPrice: store.salePrice ?? 0,
+        currency: (store.currency === "TRY" || store.currency === "USD" || store.currency === "EUR")
+          ? store.currency
+          : "TRY",
+        taxMode: "percent",
+        taxPercent: store.taxPercent ?? undefined,
+        discountMode: "percent",
+        discountPercent: store.discountPercent ?? undefined,
+      })),
+    });
 
     setDrawerOpen(true);
+    setDrawerLoading(false);
   };
 
   const closeDrawer = () => {
     if (submitting) return;
     setDrawerOpen(false);
-    setDrawerMode(null);
-    setSelectedRow(null);
+    setAdjustTarget(null);
+    setAdjustInitialEntriesByVariant({});
     setFormError("");
   };
 
-  const onReceiveSubmit = async (items: InventoryReceiveItem[]) => {
-    if (items.length === 0) {
-      closeDrawer();
-      return;
-    }
+  const openTransferDrawer = async (params: {
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+    stores: InventoryStoreStockItem[];
+  }) => {
+    setTransferFormError("");
+    setTransferLoading(true);
 
-    setSubmitting(true);
-    setFormError("");
-    try {
-      if (items.length === 1) {
-        await receiveInventory(items[0]);
-      } else {
-        await receiveInventoryBulk(items);
+    let normalizedStores = params.stores;
+    if (normalizedStores.length === 0) {
+      try {
+        const res = await getVariantStockByStore(params.productVariantId);
+        normalizedStores = normalizeStoreItems(res);
+        setVariantStoresById((prev) => ({ ...prev, [params.productVariantId]: normalizedStores }));
+      } catch {
+        normalizedStores = [];
       }
-      closeDrawer();
-      setSuccess("Stok girisi tamamlandi.");
-      await fetchSummary();
-    } catch {
-      setFormError("Stok girisi yapilamadi.");
-    } finally {
-      setSubmitting(false);
     }
+
+    setTransferTarget({
+      productVariantId: params.productVariantId,
+      productName: params.productName,
+      variantName: params.variantName,
+      stores: normalizedStores,
+    });
+    setTransferForm({
+      fromStoreId: "",
+      toStoreId: "",
+      quantity: "",
+      reason: "",
+      note: "",
+    });
+    setTransferDrawerOpen(true);
+    setTransferLoading(false);
   };
 
-  const onSubmitAdjust = async () => {
-    if (!selectedRow) return;
-    if (!adjustForm.storeId) {
-      setFormError("Magaza secimi zorunludur.");
-      return;
-    }
-    if (adjustForm.newQuantity === "" || Number(adjustForm.newQuantity) < 0) {
-      setFormError("Yeni miktar 0 veya daha buyuk olmalidir.");
+  const closeTransferDrawer = () => {
+    if (transferSubmitting) return;
+    setTransferDrawerOpen(false);
+    setTransferTarget(null);
+    setTransferFormError("");
+  };
+
+  const submitAdjustFromStockEntry = async (items: InventoryReceiveItem[]) => {
+    if (!adjustTarget) return;
+
+    if (items.length === 0) {
+      setFormError("En az bir magaza satiri doldurulmalidir.");
       return;
     }
 
-    const payload: InventoryAdjustPayload = {
-      storeId: adjustForm.storeId,
-      productVariantId: selectedRow.productVariantId,
-      newQuantity: Number(adjustForm.newQuantity),
-      reference: adjustForm.reference || undefined,
-      meta: {
-        reason: adjustForm.reason || undefined,
-        note: adjustForm.note || undefined,
-      },
-    };
+    const usedStoreIds = new Set<string>();
+    for (const item of items) {
+      if (usedStoreIds.has(item.storeId)) {
+        setFormError("Ayni magaza birden fazla kez secilemez.");
+        return;
+      }
+      usedStoreIds.add(item.storeId);
+    }
 
     setSubmitting(true);
     setFormError("");
     try {
-      await adjustInventory(payload);
-      closeDrawer();
+      const adjustItems: InventoryAdjustPayload[] = items.map((item) => ({
+        storeId: item.storeId,
+        productVariantId: item.productVariantId,
+        newQuantity: item.quantity,
+        meta: {
+          reason: item.meta?.reason,
+          note: item.meta?.note,
+        },
+      }));
+
+      if (adjustItems.length > 1) {
+        await adjustInventoryBulk(adjustItems);
+      } else {
+        await adjustInventory(adjustItems[0]);
+      }
       setSuccess("Stok duzeltme kaydedildi.");
-      await fetchSummary();
+      closeDrawer();
+      await fetchTenantSummary();
+      await fetchVariantStores(adjustTarget.productVariantId);
     } catch {
       setFormError("Stok duzeltme yapilamadi.");
     } finally {
@@ -529,125 +485,64 @@ export default function StockPage() {
     }
   };
 
-  const onSubmitTransfer = async () => {
-    if (!selectedRow) return;
-    if (!transferForm.fromStoreId || !transferForm.toStoreId) {
-      setFormError("Kaynak ve hedef magazalar zorunludur.");
+  const submitTransfer = async () => {
+    if (!transferTarget) return;
+    if (!transferForm.fromStoreId) {
+      setTransferFormError("Kaynak magaza secimi zorunludur.");
+      return;
+    }
+    if (!transferForm.toStoreId) {
+      setTransferFormError("Hedef magaza secimi zorunludur.");
       return;
     }
     if (transferForm.fromStoreId === transferForm.toStoreId) {
-      setFormError("Kaynak ve hedef magaza farkli olmalidir.");
+      setTransferFormError("Kaynak ve hedef magaza ayni olamaz.");
       return;
     }
     if (!transferForm.quantity || Number(transferForm.quantity) <= 0) {
-      setFormError("Transfer miktari 0'dan buyuk olmalidir.");
+      setTransferFormError("Adet 0'dan buyuk olmalidir.");
+      return;
+    }
+
+    const qty = Number(transferForm.quantity);
+    const available = Number(selectedFromStore?.quantity ?? 0);
+    if (qty > available) {
+      setTransferFormError("Transfer adedi, kaynak magazadaki stoktan fazla olamaz.");
       return;
     }
 
     const payload: InventoryTransferPayload = {
       fromStoreId: transferForm.fromStoreId,
       toStoreId: transferForm.toStoreId,
-      productVariantId: selectedRow.productVariantId,
-      quantity: Number(transferForm.quantity),
-      reference: transferForm.reference || undefined,
+      productVariantId: transferTarget.productVariantId,
+      quantity: qty,
       meta: {
+        reason: transferForm.reason || undefined,
         note: transferForm.note || undefined,
       },
     };
 
-    setSubmitting(true);
-    setFormError("");
+    setTransferSubmitting(true);
+    setTransferFormError("");
     try {
       await transferInventory(payload);
-      closeDrawer();
-      setSuccess("Transfer kaydedildi.");
-      await fetchSummary();
+      setSuccess("Stok transferi kaydedildi.");
+      closeTransferDrawer();
+      await fetchTenantSummary();
+      await fetchVariantStores(transferTarget.productVariantId);
     } catch {
-      setFormError("Transfer islemi basarisiz oldu.");
+      setTransferFormError("Stok transferi yapilamadi.");
     } finally {
-      setSubmitting(false);
+      setTransferSubmitting(false);
     }
   };
-
-  const sellLineTotal = useMemo(() => {
-    const qty = Number(sellForm.quantity) || 0;
-    const unitPrice = Number(sellForm.unitPrice) || 0;
-    const subtotal = qty * unitPrice;
-    const discountFromPercent = subtotal * ((Number(sellForm.discountPercent) || 0) / 100);
-    const discountFromAmount = Number(sellForm.discountAmount) || 0;
-    const taxFromPercent = subtotal * ((Number(sellForm.taxPercent) || 0) / 100);
-    const taxFromAmount = Number(sellForm.taxAmount) || 0;
-    return subtotal - discountFromPercent - discountFromAmount + taxFromPercent + taxFromAmount;
-  }, [sellForm]);
-
-  const onSubmitSell = async () => {
-    if (!selectedRow) return;
-    if (!sellForm.storeId) {
-      setFormError("Magaza secimi zorunludur.");
-      return;
-    }
-    if (!sellForm.quantity || Number(sellForm.quantity) <= 0) {
-      setFormError("Miktar 0'dan buyuk olmalidir.");
-      return;
-    }
-    if (!sellForm.unitPrice || Number(sellForm.unitPrice) < 0) {
-      setFormError("Birim fiyat gecersiz.");
-      return;
-    }
-
-    const quantity = Number(sellForm.quantity);
-
-    const payload: InventorySellPayload = {
-      storeId: sellForm.storeId,
-      productVariantId: selectedRow.productVariantId,
-      quantity: sellType === "return" ? -quantity : quantity,
-      reference: sellForm.reference || undefined,
-      meta: {
-        posTerminal: sellForm.posTerminal || undefined,
-      },
-      currency: sellForm.currency,
-      unitPrice: Number(sellForm.unitPrice),
-      discountPercent: sellForm.discountPercent ? Number(sellForm.discountPercent) : undefined,
-      discountAmount: sellForm.discountAmount ? Number(sellForm.discountAmount) : undefined,
-      taxPercent: sellForm.taxPercent ? Number(sellForm.taxPercent) : undefined,
-      taxAmount: sellForm.taxAmount ? Number(sellForm.taxAmount) : undefined,
-      lineTotal: Number(sellLineTotal.toFixed(2)),
-      campaignCode: sellForm.campaignCode || undefined,
-      saleId: sellForm.saleId || undefined,
-      saleLineId: sellForm.saleLineId || undefined,
-    };
-
-    setSubmitting(true);
-    setFormError("");
-    try {
-      await sellInventory(payload);
-      closeDrawer();
-      setSuccess(sellType === "return" ? "Iade islemi kaydedildi." : "Satis islemi kaydedildi.");
-      await fetchSummary();
-    } catch {
-      setFormError("Satis/iade islemi basarisiz oldu.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const drawerTitle =
-    drawerMode === "receive"
-      ? "Stok Girisi"
-      : drawerMode === "adjust"
-        ? "Stok Duzeltme"
-        : drawerMode === "transfer"
-          ? "Magazalar Arasi Transfer"
-          : drawerMode === "sell"
-            ? "Satis / Iade"
-            : "";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-text">Stok Yonetimi</h1>
-          <p className="text-sm text-muted">Ozet stoklari goruntuleyin ve hareket yonetin</p>
+          <p className="text-sm text-muted">Urun {'>'} varyant {'>'} magaza bazinda stok ozetini yonetin</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
           <div className="relative w-full lg:w-72">
@@ -656,53 +551,19 @@ export default function StockPage() {
             </div>
             <input
               type="text"
-              placeholder="Urun/Varyant/Magaza ara..."
+              placeholder="Urun / varyant / magaza ara..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <Button
-            label="Yeni Stok Girisi"
-            onClick={() => openDrawer("receive")}
-            variant="primarySolid"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          
-        </div>
-      </div>
-
-      <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted">Ozet Tipi</label>
-          <SearchableDropdown
-            options={scopeOptions}
-            value={scope}
-            onChange={(v) => setScope(v as Scope)}
-            showEmptyOption={false}
-            allowClear={false}
-            placeholder="Ozet tipi"
-          />
-        </div>
-
-        {scope === "store" && (
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Magaza</label>
-            <SearchableDropdown
+          <div className="w-full lg:w-72">
+            <SearchableMultiSelectDropdown
               options={storeOptions}
-              value={selectedStoreId}
-              onChange={setSelectedStoreId}
-              placeholder="Magaza seciniz"
-              emptyOptionLabel="Magaza seciniz"
-              showEmptyOption={false}
-              allowClear={false}
+              values={storeFilterIds}
+              onChange={setStoreFilterIds}
+              placeholder="Tum Magazalar"
             />
-          </div>
-        )}
-
-        <div className="flex items-end">
-          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
-            Gosterilen Kayit: <span className="font-semibold">{filteredRows.length}</span>
           </div>
         </div>
       </div>
@@ -718,359 +579,204 @@ export default function StockPage() {
           <div className="p-6 text-sm text-muted">Stok ozeti yukleniyor...</div>
         ) : error ? (
           <div className="p-6 text-sm text-error">{error}</div>
-        ) : filteredRows.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted">Gosterilecek stok verisi bulunamadi.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
+            <table className="w-full min-w-[960px]">
               <thead className="border-b border-border bg-surface2/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                  <th className="w-10 px-2 py-3"></th>
                   <th className="px-4 py-3">Urun</th>
-                  <th className="px-4 py-3">Varyant</th>
-                  <th className="px-4 py-3">Magaza</th>
                   <th className="px-4 py-3 text-right">Miktar</th>
-                  <th className="px-4 py-3 text-right">Rezerve</th>
-                  <th className="px-4 py-3 text-right">Kullanilabilir</th>
-                  <th className="px-4 py-3 text-right">Islemler</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredRows.map((row) => (
-                  <tr key={row.key} className="border-b border-border last:border-b-0 hover:bg-surface2/40">
-                    <td className="px-4 py-3 text-sm font-medium text-text">{row.productName}</td>
-                    <td className="px-4 py-3 text-sm text-text2">{row.productVariantName}</td>
-                    <td className="px-4 py-3 text-sm text-text2">{row.storeName}</td>
-                    <td className="px-4 py-3 text-right text-sm text-text">{formatNumber(row.quantity)}</td>
-                    <td className="px-4 py-3 text-right text-sm text-text2">{formatNumber(row.reservedQuantity)}</td>
-                    <td className="px-4 py-3 text-right text-sm text-text2">{formatNumber(row.availableQuantity)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openDrawer("adjust", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
-                        >
-                          Duzelt
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDrawer("transfer", row)}
-                          className="rounded-lg border border-border bg-surface2 px-2 py-1 text-xs text-text2 hover:border-primary/40 hover:text-primary"
-                        >
-                          Transfer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredProducts.map((product) => {
+                  const productExpanded = expandedProductIds.includes(product.productId);
+                  return (
+                    <Fragment key={product.productId}>
+                      <tr className="border-b border-border hover:bg-surface2/40">
+                        <td className="px-2 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleProduct(product.productId)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface2 hover:text-text"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-transform", productExpanded && "rotate-90")}>
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium text-text">{product.productName}</td>
+                        <td className="px-4 py-3 text-right text-sm text-text">{formatNumber(product.totalQuantity)}</td>
+                      </tr>
+
+                      {productExpanded && (
+                        <tr className="border-b border-border bg-surface/70">
+                          <td></td>
+                          <td colSpan={2} className="px-4 py-3">
+                            <div className="overflow-hidden rounded-xl border border-border bg-surface2/30">
+                              <div className="grid grid-cols-[1.5fr_1fr_0.8fr_0.8fr] border-b border-border bg-surface2/60 px-3 py-2 text-[11px] uppercase tracking-wide text-muted">
+                                <div>Varyant</div>
+                                <div>Kod</div>
+                                <div className="text-right">Miktar</div>
+                                <div className="text-right">Islem</div>
+                              </div>
+                              <VirtualVariantRows
+                                variants={product.variants ?? []}
+                                productName={product.productName}
+                                getVariantStoresForEditor={getVariantStoresForEditor}
+                                onAdjust={openAdjustDrawer}
+                                onTransfer={openTransferDrawer}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </section>
 
+      <div className="flex flex-wrap items-center justify-end gap-2 border border-border rounded-xl2 bg-surface px-4 py-3 text-xs text-muted">
+        <label htmlFor="stockPageSize" className="text-xs text-muted">Satir:</label>
+        <select
+          id="stockPageSize"
+          value={limit}
+          onChange={(e) => {
+            setLimit(Number(e.target.value));
+            setPage(1);
+          }}
+          className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
+        >
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+
+        <Button label="Onceki" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1 || loading} variant="pagination" />
+        <span>Sayfa: {page}/{Math.max(1, totalPages)}</span>
+        <Button label="Sonraki" onClick={() => setPage((p) => Math.min(Math.max(1, totalPages), p + 1))} disabled={page >= totalPages || loading} variant="pagination" />
+      </div>
+
       <Drawer
         open={drawerOpen}
         onClose={closeDrawer}
         side="right"
-        title={drawerTitle}
-        description={
-          drawerMode === "receive"
-            ? "Yeni stok girisi"
-            : selectedRow
-              ? `${selectedRow.productName} / ${selectedRow.productVariantName}`
-              : ""
-        }
+        title="Stok Duzeltme"
+        description={adjustTarget ? `${adjustTarget.productName} / ${adjustTarget.variantName}` : ""}
         closeDisabled={submitting}
-        className={cn(isMobile ? "!max-w-none" : "!max-w-[720px]")}
+        className={cn(isMobile ? "!max-w-none" : "!max-w-[560px]")}
         footer={
           <div className="flex items-center justify-end gap-2">
-            <Button
-              label="Iptal"
-              type="button"
-              onClick={closeDrawer}
-              disabled={submitting}
-              variant="secondary"
-            />
-            {drawerMode === "adjust" && (
-              <Button label="Duzeltmeyi Kaydet" type="button" onClick={onSubmitAdjust} loading={submitting} variant="primarySolid" />
-            )}
-            {drawerMode === "transfer" && (
-              <Button label="Transferi Kaydet" type="button" onClick={onSubmitTransfer} loading={submitting} variant="primarySolid" />
-            )}
-            {drawerMode === "sell" && (
-              <Button label={sellType === "return" ? "Iadeyi Kaydet" : "Satisi Kaydet"} type="button" onClick={onSubmitSell} loading={submitting} variant="primarySolid" />
-            )}
+            <Button label="Iptal" type="button" onClick={closeDrawer} disabled={submitting} variant="secondary" />
           </div>
         }
       >
-        <div className="space-y-4 p-5">
-          {drawerMode === "receive" && (
-            <StockEntryForm
-              variants={receiveVariants}
-              productCurrency="TRY"
-              stores={stores}
-              onSubmit={onReceiveSubmit}
-              submitting={submitting}
-            />
+        <div className="space-y-3 p-5">
+          {drawerLoading ? (
+            <p className="text-sm text-muted">Magaza bilgileri yukleniyor...</p>
+          ) : (
+            <>
+              <StockEntryForm
+                variants={adjustFormVariant}
+                productCurrency={adjustFormCurrency}
+                stores={stores}
+                initialEntriesByVariant={adjustInitialEntriesByVariant}
+                mode="adjust"
+                onSubmit={submitAdjustFromStockEntry}
+                submitting={submitting}
+              />
+            </>
           )}
 
-          {drawerMode === "adjust" && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Magaza *">
-                <SearchableDropdown
-                  options={storeOptions}
-                  value={adjustForm.storeId}
-                  onChange={(v) => setAdjustForm((p) => ({ ...p, storeId: v }))}
-                  placeholder="Magaza secin"
-                  showEmptyOption={false}
-                  allowClear={false}
-                />
-              </Field>
-              <Field label="Yeni Miktar *">
-                <input
-                  type="number"
-                  min={0}
-                  value={adjustForm.newQuantity}
-                  onChange={(e) => setAdjustForm((p) => ({ ...p, newQuantity: e.target.value }))}
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </Field>
-              <Field label="Referans">
-                <input
-                  type="text"
-                  value={adjustForm.reference}
-                  onChange={(e) => setAdjustForm((p) => ({ ...p, reference: e.target.value }))}
-                  placeholder="COUNT-2025-001"
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </Field>
-              <Field label="Sebep">
-                <input
-                  type="text"
-                  value={adjustForm.reason}
-                  onChange={(e) => setAdjustForm((p) => ({ ...p, reason: e.target.value }))}
-                  placeholder="Sayim farki"
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </Field>
-              <Field label="Not" className="md:col-span-2">
-                <textarea
-                  value={adjustForm.note}
-                  onChange={(e) => setAdjustForm((p) => ({ ...p, note: e.target.value }))}
-                  placeholder="Aciklama"
-                  className="min-h-[90px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </Field>
-            </div>
-          )}
+          {formError && <p className="text-sm text-error">{formError}</p>}
+        </div>
+      </Drawer>
 
-          {drawerMode === "transfer" && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Kaynak Magaza *">
+      <Drawer
+        open={transferDrawerOpen}
+        onClose={closeTransferDrawer}
+        side="right"
+        title="Stok Transfer"
+        description={transferTarget ? `${transferTarget.productName} / ${transferTarget.variantName}` : ""}
+        closeDisabled={transferSubmitting}
+        className={cn(isMobile ? "!max-w-none" : "!max-w-[560px]")}
+        footer={(
+          <div className="flex items-center justify-end gap-2">
+            <Button label="Iptal" type="button" onClick={closeTransferDrawer} disabled={transferSubmitting} variant="secondary" />
+            <Button label="Transferi Kaydet" type="button" onClick={submitTransfer} loading={transferSubmitting} variant="primarySolid" />
+          </div>
+        )}
+      >
+        <div className="space-y-3 p-5">
+          {transferLoading ? (
+            <p className="text-sm text-muted">Transfer bilgileri yukleniyor...</p>
+          ) : (
+            <>
+              <Field label="Hangi Magazadan *">
                 <SearchableDropdown
-                  options={storeOptions}
+                  options={transferFromStoreOptions}
                   value={transferForm.fromStoreId}
-                  onChange={(v) => setTransferForm((p) => ({ ...p, fromStoreId: v }))}
-                  placeholder="Kaynak magaza"
+                  onChange={(value) => setTransferForm((prev) => ({ ...prev, fromStoreId: value }))}
+                  placeholder="Kaynak magaza secin"
                   showEmptyOption={false}
-                  allowClear={false}
                 />
               </Field>
-              <Field label="Hedef Magaza *">
+
+              <Field label="Hangi Magazaya *">
                 <SearchableDropdown
-                  options={storeOptions}
+                  options={transferToStoreOptions}
                   value={transferForm.toStoreId}
-                  onChange={(v) => setTransferForm((p) => ({ ...p, toStoreId: v }))}
-                  placeholder="Hedef magaza"
+                  onChange={(value) => setTransferForm((prev) => ({ ...prev, toStoreId: value }))}
+                  placeholder="Hedef magaza secin"
                   showEmptyOption={false}
-                  allowClear={false}
                 />
               </Field>
-              <Field label="Miktar *">
+
+              {selectedFromStore && (
+                <div className="rounded-xl border border-border bg-surface2/20 px-3 py-2 text-xs text-muted">
+                  Kaynak magaza stok: <span className="font-semibold text-text">{formatNumber(selectedFromStore.quantity)}</span>
+                </div>
+              )}
+
+              <Field label="Adet *">
                 <input
                   type="number"
                   min={1}
                   value={transferForm.quantity}
-                  onChange={(e) => setTransferForm((p) => ({ ...p, quantity: e.target.value }))}
+                  onChange={(e) => setTransferForm((prev) => ({ ...prev, quantity: e.target.value }))}
                   className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </Field>
-              <Field label="Referans">
+
+              <Field label="Sebep">
                 <input
                   type="text"
-                  value={transferForm.reference}
-                  onChange={(e) => setTransferForm((p) => ({ ...p, reference: e.target.value }))}
-                  placeholder="TRF-2025-001"
+                  value={transferForm.reason}
+                  onChange={(e) => setTransferForm((prev) => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Transfer sebebi"
                   className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </Field>
-              <Field label="Not" className="md:col-span-2">
+
+              <Field label="Not">
                 <textarea
                   value={transferForm.note}
-                  onChange={(e) => setTransferForm((p) => ({ ...p, note: e.target.value }))}
-                  placeholder="Transfer aciklamasi"
+                  onChange={(e) => setTransferForm((prev) => ({ ...prev, note: e.target.value }))}
+                  placeholder="Aciklama"
                   className="min-h-[90px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </Field>
-            </div>
+            </>
           )}
 
-          {drawerMode === "sell" && (
-            <div className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Islem Tipi">
-                  <SearchableDropdown
-                    options={[
-                      { value: "sale", label: "Satis" },
-                      { value: "return", label: "Iade" },
-                    ]}
-                    value={sellType}
-                    onChange={(v) => setSellType(v as SellType)}
-                    showEmptyOption={false}
-                    allowClear={false}
-                  />
-                </Field>
-                <Field label="Magaza *">
-                  <SearchableDropdown
-                    options={storeOptions}
-                    value={sellForm.storeId}
-                    onChange={(v) => setSellForm((p) => ({ ...p, storeId: v }))}
-                    placeholder="Magaza secin"
-                    showEmptyOption={false}
-                    allowClear={false}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Miktar *">
-                  <input
-                    type="number"
-                    min={1}
-                    value={sellForm.quantity}
-                    onChange={(e) => setSellForm((p) => ({ ...p, quantity: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Birim Fiyat *">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={sellForm.unitPrice}
-                    onChange={(e) => setSellForm((p) => ({ ...p, unitPrice: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Para Birimi">
-                  <SearchableDropdown
-                    options={[
-                      { value: "TRY", label: "TRY" },
-                      { value: "USD", label: "USD" },
-                      { value: "EUR", label: "EUR" },
-                    ]}
-                    value={sellForm.currency}
-                    onChange={(v) => setSellForm((p) => ({ ...p, currency: v as Currency }))}
-                    showEmptyOption={false}
-                    allowClear={false}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Indirim %">
-                  <input
-                    type="number"
-                    min={0}
-                    value={sellForm.discountPercent}
-                    onChange={(e) => setSellForm((p) => ({ ...p, discountPercent: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Indirim Tutar">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={sellForm.discountAmount}
-                    onChange={(e) => setSellForm((p) => ({ ...p, discountAmount: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Vergi %">
-                  <input
-                    type="number"
-                    min={0}
-                    value={sellForm.taxPercent}
-                    onChange={(e) => setSellForm((p) => ({ ...p, taxPercent: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Vergi Tutar">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={sellForm.taxAmount}
-                    onChange={(e) => setSellForm((p) => ({ ...p, taxAmount: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Referans">
-                  <input
-                    type="text"
-                    value={sellForm.reference}
-                    onChange={(e) => setSellForm((p) => ({ ...p, reference: e.target.value }))}
-                    placeholder="POS-2025-001"
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="POS Terminal">
-                  <input
-                    type="text"
-                    value={sellForm.posTerminal}
-                    onChange={(e) => setSellForm((p) => ({ ...p, posTerminal: e.target.value }))}
-                    placeholder="Kasa 1"
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Kampanya Kodu">
-                  <input
-                    type="text"
-                    value={sellForm.campaignCode}
-                    onChange={(e) => setSellForm((p) => ({ ...p, campaignCode: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Sale ID">
-                  <input
-                    type="text"
-                    value={sellForm.saleId}
-                    onChange={(e) => setSellForm((p) => ({ ...p, saleId: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-                <Field label="Sale Line ID" className="md:col-span-2">
-                  <input
-                    type="text"
-                    value={sellForm.saleLineId}
-                    onChange={(e) => setSellForm((p) => ({ ...p, saleLineId: e.target.value }))}
-                    className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </Field>
-              </div>
-
-              <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
-                Hesaplanan Line Total: <span className="font-semibold">{formatNumber(sellLineTotal)}</span>
-              </div>
-            </div>
-          )}
-
-          {formError && <p className="text-sm text-error">{formError}</p>}
+          {transferFormError && <p className="text-sm text-error">{transferFormError}</p>}
         </div>
       </Drawer>
     </div>
@@ -1079,17 +785,128 @@ export default function StockPage() {
 
 function Field({
   label,
-  className,
   children,
 }: {
   label: string;
-  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={className}>
+    <div>
       <label className="mb-1 block text-xs font-semibold text-muted">{label}</label>
       {children}
     </div>
+  );
+}
+
+function VirtualVariantRows({
+  variants,
+  productName,
+  getVariantStoresForEditor,
+  onAdjust,
+  onTransfer,
+}: {
+  variants: InventoryVariantStockItem[];
+  productName: string;
+  getVariantStoresForEditor: (variant: InventoryVariantStockItem) => InventoryStoreStockItem[];
+  onAdjust: (params: {
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+    stores: InventoryStoreStockItem[];
+  }) => Promise<void>;
+  onTransfer: (params: {
+    productVariantId: string;
+    productName: string;
+    variantName: string;
+    stores: InventoryStoreStockItem[];
+  }) => Promise<void>;
+}) {
+  const rowHeight = 44;
+  const containerHeight = 280;
+  const overscan = 4;
+  const [scrollTop, setScrollTop] = useState(0);
+
+  if (variants.length === 0) {
+    return (
+      <div className="px-3 py-4 text-sm text-muted">Bu urun icin varyant bulunamadi.</div>
+    );
+  }
+
+  const totalHeight = variants.length * rowHeight;
+  const visibleCount = Math.ceil(containerHeight / rowHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+  const endIndex = Math.min(variants.length, startIndex + visibleCount + overscan * 2);
+  const visibleVariants = variants.slice(startIndex, endIndex);
+
+  return (
+    <div
+      className="h-[280px] overflow-y-auto"
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div className="relative" style={{ height: totalHeight }}>
+        <div
+          className="absolute inset-x-0"
+          style={{ transform: `translateY(${startIndex * rowHeight}px)` }}
+        >
+          {visibleVariants.map((variant) => (
+            <div
+              key={variant.productVariantId}
+              className="grid h-11 grid-cols-[1.5fr_1fr_0.8fr_0.8fr] items-center border-b border-border px-3 text-sm last:border-b-0 hover:bg-surface2/40"
+            >
+              <div className="truncate text-text">{variant.variantName}</div>
+              <div className="truncate text-text2">{variant.variantCode ?? "-"}</div>
+              <div className="text-right text-text">{formatNumber(variant.totalQuantity)}</div>
+              <div className="flex justify-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => void onAdjust({
+                    productVariantId: variant.productVariantId,
+                    productName,
+                    variantName: variant.variantName,
+                    stores: getVariantStoresForEditor(variant),
+                  })}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                >
+                  <EditIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void onTransfer({
+                    productVariantId: variant.productVariantId,
+                    productName,
+                    variantName: variant.variantName,
+                    stores: getVariantStoresForEditor(variant),
+                  })}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                >
+                  <TransferIcon />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransferIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 3h4v4" />
+      <path d="M3 21 21 3" />
+      <path d="M7 3H3v4" />
+      <path d="M21 21l-6-6" />
+    </svg>
   );
 }
