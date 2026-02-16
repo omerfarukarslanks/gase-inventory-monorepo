@@ -9,7 +9,8 @@ export type InventoryReceiveItem = {
   quantity: number;
   reference?: string;
   meta?: {
-    supplier?: string;
+    reason?: string;
+    note?: string;
   };
   currency: Currency;
   unitPrice: number;
@@ -28,6 +29,7 @@ export type InventoryTransferPayload = {
   quantity: number;
   reference?: string;
   meta?: {
+    reason?: string;
     note?: string;
   };
 };
@@ -63,6 +65,52 @@ export type InventorySellPayload = {
   saleLineId?: string;
 };
 
+export type InventoryStoreStockItem = {
+  storeId: string;
+  storeName: string;
+  quantity: number;
+  totalQuantity?: number;
+  salePrice?: number | null;
+  purchasePrice?: number | null;
+  currency?: Currency | null;
+  taxPercent?: number | null;
+  discountPercent?: number | null;
+  isStoreOverride?: boolean;
+};
+
+export type InventoryVariantStockItem = {
+  productVariantId: string;
+  variantName: string;
+  variantCode?: string;
+  totalQuantity: number;
+  stores?: InventoryStoreStockItem[];
+};
+
+export type InventoryProductStockItem = {
+  productId: string;
+  productName: string;
+  totalQuantity: number;
+  variants?: InventoryVariantStockItem[];
+};
+
+export type InventoryTenantStockResponse = {
+  items: InventoryProductStockItem[];
+  totalQuantity?: number;
+  total?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+};
+
+export type InventoryVariantByStoreResponse = {
+  items: InventoryStoreStockItem[];
+  totalQuantity?: number;
+  total?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+};
+
 /* ── API Functions ── */
 
 export async function receiveInventory(
@@ -83,8 +131,45 @@ export async function receiveInventoryBulk(
   });
 }
 
-export async function getTenantStockSummary(): Promise<unknown> {
-  return apiFetch<unknown>("/inventory/tenant/stock");
+export async function getTenantStockSummary(params?: {
+  page?: number;
+  limit?: number;
+  storeIds?: string[];
+  search?: string;
+}): Promise<InventoryTenantStockResponse> {
+  const query = new URLSearchParams();
+  const enablePagination = params?.page != null || params?.limit != null;
+  if (enablePagination) {
+    query.set("page", String(params?.page ?? 1));
+    query.set("limit", String(params?.limit ?? 10));
+  }
+  if (params?.storeIds?.length) {
+    params.storeIds.forEach((storeId) => {
+      if (storeId) query.append("storeIds", storeId);
+    });
+  }
+  if (params?.search) query.set("search", params.search);
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<InventoryTenantStockResponse>(`/inventory/tenant/stock${suffix}`);
+}
+
+export async function getVariantStockByStore(
+  variantId: string,
+  params?: {
+    page?: number;
+    limit?: number;
+  },
+): Promise<InventoryVariantByStoreResponse> {
+  const query = new URLSearchParams();
+  const enablePagination = params?.page != null || params?.limit != null;
+  if (enablePagination) {
+    query.set("page", String(params?.page ?? 1));
+    query.set("limit", String(params?.limit ?? 10));
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiFetch<InventoryVariantByStoreResponse>(`/inventory/variant/${variantId}/by-store${suffix}`);
 }
 
 export async function getStoreStockSummary(storeId: string): Promise<unknown> {
@@ -106,6 +191,15 @@ export async function adjustInventory(
   return apiFetch<unknown>("/inventory/adjust", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function adjustInventoryBulk(
+  items: InventoryAdjustPayload[],
+): Promise<unknown> {
+  return apiFetch<unknown>("/inventory/adjust/bulk", {
+    method: "POST",
+    body: JSON.stringify({ items }),
   });
 }
 
