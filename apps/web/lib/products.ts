@@ -119,13 +119,14 @@ export type GetProductsParams = {
   defaultSalePriceMin?: number;
   defaultSalePriceMax?: number;
   isActive?: boolean | "all";
+  variantIsActive?: boolean | "all";
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
 };
 
 /* ── API Functions ── */
 
-export async function getProducts({
+function buildProductsQuery({
   page = 1,
   limit = 10,
   search,
@@ -135,9 +136,10 @@ export async function getProducts({
   defaultSalePriceMin,
   defaultSalePriceMax,
   isActive,
+  variantIsActive,
   sortBy,
   sortOrder,
-}: GetProductsParams): Promise<ProductsListResponse> {
+}: GetProductsParams): string {
   const query = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -150,10 +152,16 @@ export async function getProducts({
   if (defaultSalePriceMin != null) query.append("defaultSalePriceMin", String(defaultSalePriceMin));
   if (defaultSalePriceMax != null) query.append("defaultSalePriceMax", String(defaultSalePriceMax));
   if (isActive != null) query.append("isActive", String(isActive));
+  if (variantIsActive != null) query.append("variantIsActive", String(variantIsActive));
   if (sortBy) query.append("sortBy", sortBy);
   if (sortOrder) query.append("sortOrder", sortOrder);
 
-  return apiFetch<ProductsListResponse>(`/products?${query.toString()}`);
+  return query.toString();
+}
+
+export async function getProducts(params: GetProductsParams): Promise<ProductsListResponse> {
+  const query = buildProductsQuery(params);
+  return apiFetch<ProductsListResponse>(`/products?${query}`);
 }
 
 export async function getProductById(id: string): Promise<Product> {

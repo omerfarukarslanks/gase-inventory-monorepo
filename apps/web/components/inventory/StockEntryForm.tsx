@@ -55,6 +55,8 @@ type Props = {
   submitting?: boolean;
   initialEntriesByVariant?: Record<string, StockEntryInitialEntry[]>;
   mode?: "receive" | "adjust";
+  showStoreSelector?: boolean;
+  fixedStoreId?: string;
 };
 
 export type StockEntryInitialEntry = {
@@ -79,10 +81,10 @@ function createEntryKey() {
   return `entry-${Date.now()}-${++entryCounter}`;
 }
 
-function createEmptyEntry(defaultCurrency: Currency): StoreEntry {
+function createEmptyEntry(defaultCurrency: Currency, fixedStoreId?: string): StoreEntry {
   return {
     entryKey: createEntryKey(),
-    storeId: "",
+    storeId: fixedStoreId ?? "",
     quantity: "",
     unitPrice: "",
     currency: defaultCurrency,
@@ -100,6 +102,7 @@ function createEmptyEntry(defaultCurrency: Currency): StoreEntry {
 function createEntryFromInitial(
   defaultCurrency: Currency,
   initial: StockEntryInitialEntry,
+  fixedStoreId?: string,
 ): StoreEntry {
   const taxMode: TaxMode =
     initial.taxMode ?? (initial.taxAmount != null && initial.taxAmount !== "" ? "amount" : "percent");
@@ -108,7 +111,7 @@ function createEntryFromInitial(
 
   return {
     entryKey: createEntryKey(),
-    storeId: initial.storeId ?? "",
+    storeId: initial.storeId ?? fixedStoreId ?? "",
     quantity: initial.quantity != null ? String(initial.quantity) : "",
     unitPrice: initial.unitPrice != null ? String(initial.unitPrice) : "",
     currency: initial.currency ?? defaultCurrency,
@@ -184,6 +187,8 @@ export default function StockEntryForm({
   submitting = false,
   initialEntriesByVariant,
   mode = "receive",
+  showStoreSelector = true,
+  fixedStoreId,
 }: Props) {
   const isAdjustMode = mode === "adjust";
   const [blocks, setBlocks] = useState<VariantBlock[]>([]);
@@ -202,15 +207,15 @@ export default function StockEntryForm({
           variantName: v.name,
           entries:
             initialEntries.length > 0
-              ? initialEntries.map((entry) => createEntryFromInitial(productCurrency, entry))
-              : [createEmptyEntry(productCurrency)],
+              ? initialEntries.map((entry) => createEntryFromInitial(productCurrency, entry, fixedStoreId))
+              : [createEmptyEntry(productCurrency, fixedStoreId)],
         };
       }),
     );
     if (variants.length > 0) {
       setExpandedVariants(new Set([variants[0].id]));
     }
-  }, [variants, productCurrency, initialEntriesByVariant]);
+  }, [variants, productCurrency, initialEntriesByVariant, fixedStoreId]);
 
   // Collect all active currencies
   const activeCurrencies = useMemo(() => {
@@ -288,11 +293,11 @@ export default function StockEntryForm({
         prev.map((b) =>
           b.variantId !== variantId
             ? b
-            : { ...b, entries: [...b.entries, createEmptyEntry(productCurrency)] },
+            : { ...b, entries: [...b.entries, createEmptyEntry(productCurrency, fixedStoreId)] },
         ),
       );
     },
-    [productCurrency],
+    [productCurrency, fixedStoreId],
   );
 
   const removeEntry = useCallback((variantId: string, entryKey: string) => {
@@ -416,7 +421,7 @@ export default function StockEntryForm({
       // Partial entries: user started filling but didn't complete all required fields
       for (const { entry } of partial) {
         const errs: string[] = [];
-        if (!entry.storeId) errs.push("Magaza secimi zorunludur");
+        if (showStoreSelector && !entry.storeId) errs.push("Magaza secimi zorunludur");
         if (!entry.quantity || Number(entry.quantity) <= 0) errs.push("Miktar 0'dan buyuk olmalidir");
         if (!isAdjustMode && (!entry.unitPrice || Number(entry.unitPrice) <= 0)) errs.push("Birim fiyat 0'dan buyuk olmalidir");
         if (errs.length > 0) {
@@ -428,7 +433,7 @@ export default function StockEntryForm({
       // Filled entries: all 3 required fields present — extra sanity check
       for (const { entry } of filled) {
         const errs: string[] = [];
-        if (!entry.storeId) errs.push("Magaza secimi zorunludur");
+        if (showStoreSelector && !entry.storeId) errs.push("Magaza secimi zorunludur");
         if (!entry.quantity || Number(entry.quantity) <= 0) errs.push("Miktar 0'dan buyuk olmalidir");
         if (!isAdjustMode && (!entry.unitPrice || Number(entry.unitPrice) <= 0)) errs.push("Birim fiyat 0'dan buyuk olmalidir");
         if (errs.length > 0) {
@@ -440,7 +445,7 @@ export default function StockEntryForm({
       setErrors(nextErrors);
       return valid;
     },
-    [isAdjustMode],
+    [isAdjustMode, showStoreSelector],
   );
 
   /* ── Submit ── */
@@ -459,7 +464,7 @@ export default function StockEntryForm({
     const items: InventoryReceiveItem[] = filled.map(({ block, entry }) => {
       const lineTotal = isAdjustMode ? 0 : calcEntryTotal(entry, rates);
       const item: InventoryReceiveItem = {
-        storeId: entry.storeId,
+        storeId: entry.storeId || fixedStoreId || "",
         productVariantId: block.variantId,
         quantity: Number(entry.quantity),
         currency: isAdjustMode ? productCurrency : entry.currency,
@@ -490,7 +495,7 @@ export default function StockEntryForm({
     });
 
     await onSubmit(items);
-  }, [categoriseEntries, isAdjustMode, onSubmit, productCurrency, rates, validate]);
+  }, [categoriseEntries, fixedStoreId, isAdjustMode, onSubmit, productCurrency, rates, validate]);
 
   /* ── Render ── */
 
@@ -612,16 +617,18 @@ export default function StockEntryForm({
                     )}
 
                     {/* Store & Quantity */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <FieldGroup label="Magaza *">
-                        <SearchableDropdown
-                          options={storeOptions}
-                          value={entry.storeId}
-                          onChange={(v) => updateEntry(block.variantId, entry.entryKey, { storeId: v })}
-                          placeholder="Magaza seciniz"
-                          showEmptyOption={false}
-                        />
-                      </FieldGroup>
+                    <div className={cn("grid grid-cols-1 gap-3", showStoreSelector && "md:grid-cols-2")}>
+                      {showStoreSelector && (
+                        <FieldGroup label="Magaza *">
+                          <SearchableDropdown
+                            options={storeOptions}
+                            value={entry.storeId}
+                            onChange={(v) => updateEntry(block.variantId, entry.entryKey, { storeId: v })}
+                            placeholder="Magaza seciniz"
+                            showEmptyOption={false}
+                          />
+                        </FieldGroup>
+                      )}
                       <FieldGroup label="Miktar *">
                         <NumberInput
                           value={entry.quantity}
@@ -744,13 +751,17 @@ export default function StockEntryForm({
 
               {/* Add store entry + apply to all entries */}
               <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => addEntry(block.variantId)}
-                  className="text-xs cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  + Magaza Ekle
-                </button>
+                {showStoreSelector ? (
+                  <button
+                    type="button"
+                    onClick={() => addEntry(block.variantId)}
+                    className="text-xs cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    + Magaza Ekle
+                  </button>
+                ) : (
+                  <span />
+                )}
                 {block.entries.length > 1 && (
                   <button
                     type="button"

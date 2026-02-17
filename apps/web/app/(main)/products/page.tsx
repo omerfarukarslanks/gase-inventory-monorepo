@@ -18,6 +18,7 @@ import {
   type ProductAttributeInput,
 } from "@/lib/products";
 import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
+import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
@@ -25,8 +26,14 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, PriceIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
+import { getStores, type Store } from "@/lib/stores";
+import {
+  getVariantStockByStore,
+  type InventoryStoreStockItem,
+} from "@/lib/inventory";
+import PriceDrawer, { type PriceTarget } from "@/components/stock/PriceDrawer";
 
 /* ── Constants ── */
 
@@ -130,14 +137,26 @@ function areVariantAttributesEqual(a: ProductAttributeInput[], b: ProductAttribu
   return true;
 }
 
+function normalizeVariantsResponse(payload: unknown): ProductVariant[] {
+  if (Array.isArray(payload)) return payload as ProductVariant[];
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.data)) return obj.data as ProductVariant[];
+    if (Array.isArray(obj.items)) return obj.items as ProductVariant[];
+  }
+  return [];
+}
+
 function VirtualVariantList({
   variants,
   togglingVariantIds,
   onToggleVariantActive,
+  onPrice,
 }: {
   variants: ProductVariant[];
   togglingVariantIds: string[];
   onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
+  onPrice: (variant: ProductVariant) => void;
 }) {
   const rowHeight = 56;
   const containerHeight = 240;
@@ -176,6 +195,14 @@ function VirtualVariantList({
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onPrice(variant)}
+                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
+                  title="Fiyat Duzenle"
+                >
+                  <PriceIcon />
+                </button>
                 <ToggleSwitch
                   checked={Boolean(variant.isActive)}
                   onChange={(next) => onToggleVariantActive(variant, next)}
@@ -241,8 +268,25 @@ export default function ProductsPage() {
   /* Created product id (for variant step) */
   const [createdProductId, setCreatedProductId] = useState<string | null>(null);
 
+  /* Price drawer state */
+  const [priceOpen, setPriceOpen] = useState(false);
+  const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
+  const [stores, setStores] = useState<Store[]>([]);
+
   /* Responsive */
   const [isMobile, setIsMobile] = useState(false);
+  const [scopeReady, setScopeReady] = useState(false);
+  const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
+  const [scopedStoreId, setScopedStoreId] = useState("");
+
+  useEffect(() => {
+    const role = getSessionUserRole();
+    const user = getSessionUser();
+    const storeIds = getSessionUserStoreIds(user);
+    setIsStoreScopedUser(isStoreScopedRole(role));
+    setScopedStoreId(storeIds[0] ?? "");
+    setScopeReady(true);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -255,10 +299,11 @@ export default function ProductsPage() {
   /* ── Fetch products ── */
 
   const fetchProducts = useCallback(async () => {
+    if (!scopeReady) return;
     setLoading(true);
     setError("");
     try {
-      const res = await getProducts({
+      const listParams = {
         page: currentPage,
         limit: pageSize,
         search: debouncedSearch,
@@ -268,7 +313,9 @@ export default function ProductsPage() {
         defaultSalePriceMin: defaultSalePriceMinFilter ? Number(defaultSalePriceMinFilter) : undefined,
         defaultSalePriceMax: defaultSalePriceMaxFilter ? Number(defaultSalePriceMaxFilter) : undefined,
         isActive: productStatusFilter,
-      });
+        variantIsActive: variantStatusFilter,
+      };
+      const res = await getProducts(listParams);
       setProducts(res.data);
       setMeta(res.meta);
     } catch {
@@ -288,6 +335,9 @@ export default function ProductsPage() {
     defaultSalePriceMinFilter,
     defaultSalePriceMaxFilter,
     productStatusFilter,
+    variantStatusFilter,
+    isStoreScopedUser,
+    scopeReady,
   ]);
 
   useEffect(() => {
@@ -303,6 +353,7 @@ export default function ProductsPage() {
     defaultSalePriceMinFilter,
     defaultSalePriceMaxFilter,
     productStatusFilter,
+    variantStatusFilter,
   ]);
 
   useEffect(() => {
@@ -313,6 +364,14 @@ export default function ProductsPage() {
     getAttributes()
       .then((res) => setAttributeDefinitions(res))
       .catch(() => setAttributeDefinitions([]));
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    getStores({ token, page: 1, limit: 100 })
+      .then((res) => setStores(res.data))
+      .catch(() => setStores([]));
   }, []);
 
   /* ── Pagination ── */
@@ -383,9 +442,10 @@ export default function ProductsPage() {
     setProductVariantsErrorById((prev) => ({ ...prev, [productId]: "" }));
 
     try {
-      const data = await getProductVariants(productId, {
+      const dataRaw = await getProductVariants(productId, {
         isActive: status,
       });
+      const data = normalizeVariantsResponse(dataRaw);
       setProductVariantsById((prev) => ({ ...prev, [productId]: data }));
     } catch {
       setProductVariantsErrorById((prev) => ({
@@ -438,6 +498,51 @@ export default function ProductsPage() {
       fetchTableVariants(productId, variantStatusFilter);
     });
   }, [variantStatusFilter]);
+
+  /* ── Price handlers ── */
+
+  const storeOptions = useMemo(
+    () => stores.map((s) => ({ value: s.id, label: s.name })),
+    [stores],
+  );
+
+  const openPriceDrawer = async (product: Product, variant: ProductVariant) => {
+    let variantStores: InventoryStoreStockItem[] = [];
+    try {
+      const res = await getVariantStockByStore(variant.id);
+      const raw = Array.isArray(res) ? res : Array.isArray((res as Record<string, unknown>)?.items) ? ((res as Record<string, unknown>).items as unknown[]) : Array.isArray((res as Record<string, unknown>)?.data) ? ((res as Record<string, unknown>).data as unknown[]) : [];
+      variantStores = raw.map((item: unknown) => {
+        const obj = item as Record<string, unknown>;
+        return {
+          storeId: String(obj.storeId ?? (obj.store as Record<string, unknown>)?.id ?? ""),
+          storeName: String(obj.storeName ?? (obj.store as Record<string, unknown>)?.name ?? "-"),
+          quantity: Number(obj.quantity ?? 0),
+          totalQuantity: Number(obj.totalQuantity ?? obj.quantity ?? 0),
+          salePrice: obj.salePrice == null ? null : Number(obj.salePrice),
+          purchasePrice: obj.purchasePrice == null ? null : Number(obj.purchasePrice),
+          currency: (String(obj.currency ?? "") || null) as InventoryStoreStockItem["currency"],
+          taxPercent: obj.taxPercent == null ? null : Number(obj.taxPercent),
+          discountPercent: obj.discountPercent == null ? null : Number(obj.discountPercent),
+          isStoreOverride: Boolean(obj.isStoreOverride),
+        };
+      });
+    } catch {
+      variantStores = [];
+    }
+
+    setPriceTarget({
+      productVariantId: variant.id,
+      productName: product.name,
+      variantName: variant.name ?? "-",
+      stores: variantStores,
+    });
+    setPriceOpen(true);
+  };
+
+  const closePriceDrawer = () => {
+    setPriceOpen(false);
+    setPriceTarget(null);
+  };
 
   /* ── Drawer handlers ── */
 
@@ -1101,6 +1206,7 @@ export default function ProductsPage() {
                                     onToggleVariantActive={(variant, next) =>
                                       onToggleVariantActive(product.id, variant, next)
                                     }
+                                    onPrice={(variant) => openPriceDrawer(product, variant)}
                                   />
                                 )}
                               </td>
@@ -1488,6 +1594,16 @@ export default function ProductsPage() {
         </form>
       </Drawer>
 
+      <PriceDrawer
+        open={priceOpen}
+        target={priceTarget}
+        allStoreOptions={storeOptions}
+        isMobile={isMobile}
+        showStoreScopeControls={!isStoreScopedUser}
+        fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
+        onClose={closePriceDrawer}
+        onSuccess={() => {}}
+      />
     </div>
   );
 }
