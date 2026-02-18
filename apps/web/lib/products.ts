@@ -13,6 +13,13 @@ export type ProductVariant = {
   name: string;
   code: string;
   isActive?: boolean;
+  currency?: Currency | null;
+  lineTotal?: number | string | null;
+  unitPrice?: number | string | null;
+  taxPercent?: number | string | null;
+  taxAmount?: number | string | null;
+  discountPercent?: number | string | null;
+  discountAmount?: number | string | null;
   attributes?: ProductAttributeInput[];
 };
 

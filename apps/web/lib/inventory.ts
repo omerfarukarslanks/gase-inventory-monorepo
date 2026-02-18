@@ -70,7 +70,10 @@ export type InventoryStoreStockItem = {
   purchasePrice?: number | null;
   currency?: Currency | null;
   taxPercent?: number | null;
+  taxAmount?: number | null;
   discountPercent?: number | null;
+  discountAmount?: number | null;
+  lineTotal?: number | null;
   isStoreOverride?: boolean;
 };
 

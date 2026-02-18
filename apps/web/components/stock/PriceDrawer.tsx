@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { InventoryStoreStockItem } from "@/lib/inventory";
 import type { Currency } from "@/lib/products";
 import { updateStorePrice, type StorePricePayload } from "@/lib/store-prices";
@@ -31,6 +31,15 @@ export type PriceTarget = {
   productName: string;
   variantName: string;
   stores: InventoryStoreStockItem[];
+  initial?: {
+    unitPrice?: number | string | null;
+    currency?: Currency | null;
+    discountPercent?: number | string | null;
+    discountAmount?: number | string | null;
+    taxPercent?: number | string | null;
+    taxAmount?: number | string | null;
+    lineTotal?: number | string | null;
+  };
 };
 
 export type PriceFormState = {
@@ -81,25 +90,76 @@ export default function PriceDrawer({
   const [form, setForm] = useState<PriceFormState>(EMPTY_PRICE_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const calculatedLineTotal = useMemo(() => {
+    const unitPrice = Number(form.unitPrice) || 0;
+    const taxPercent = Number(form.taxPercent) || 0;
+    const taxAmount = Number(form.taxAmount) || 0;
+    const discountPercent = Number(form.discountPercent) || 0;
+    const discountAmount = Number(form.discountAmount) || 0;
+
+    const computedTax = form.taxAmount ? taxAmount : unitPrice * (taxPercent / 100);
+    const computedDiscount = form.discountAmount
+      ? discountAmount
+      : unitPrice * (discountPercent / 100);
+
+    return Math.max(0, unitPrice + computedTax - computedDiscount);
+  }, [
+    form.unitPrice,
+    form.taxPercent,
+    form.taxAmount,
+    form.discountPercent,
+    form.discountAmount,
+  ]);
 
   useEffect(() => {
     if (open && target) {
-      const firstStore = target.stores[0];
+      const seedStore = fixedStoreId
+        ? target.stores.find((s) => s.storeId === fixedStoreId) ?? target.stores[0]
+        : target.stores[0];
+      const initial = target.initial;
       setForm({
         storeIds: fixedStoreId ? [fixedStoreId] : [],
         applyToAllStores: false,
-        unitPrice: firstStore?.salePrice != null ? String(firstStore.salePrice) : "",
+        unitPrice:
+          seedStore?.salePrice != null
+            ? String(seedStore.salePrice)
+            : initial?.unitPrice != null
+              ? String(initial.unitPrice)
+              : "",
         currency:
-          firstStore?.currency === "TRY" ||
-          firstStore?.currency === "USD" ||
-          firstStore?.currency === "EUR"
-            ? firstStore.currency
-            : "TRY",
+          seedStore?.currency === "TRY" ||
+          seedStore?.currency === "USD" ||
+          seedStore?.currency === "EUR"
+            ? seedStore.currency
+            : initial?.currency === "TRY" ||
+                initial?.currency === "USD" ||
+                initial?.currency === "EUR"
+              ? initial.currency
+              : "TRY",
         discountPercent:
-          firstStore?.discountPercent != null ? String(firstStore.discountPercent) : "",
-        discountAmount: "",
-        taxPercent: firstStore?.taxPercent != null ? String(firstStore.taxPercent) : "",
-        taxAmount: "",
+          seedStore?.discountPercent != null
+            ? String(seedStore.discountPercent)
+            : initial?.discountPercent != null
+              ? String(initial.discountPercent)
+              : "",
+        discountAmount:
+          seedStore?.discountAmount != null
+            ? String(seedStore.discountAmount)
+            : initial?.discountAmount != null
+              ? String(initial.discountAmount)
+              : "",
+        taxPercent:
+          seedStore?.taxPercent != null
+            ? String(seedStore.taxPercent)
+            : initial?.taxPercent != null
+              ? String(initial.taxPercent)
+              : "",
+        taxAmount:
+          seedStore?.taxAmount != null
+            ? String(seedStore.taxAmount)
+            : initial?.taxAmount != null
+              ? String(initial.taxAmount)
+              : "",
         lineTotal: "",
       });
       setFormError("");
@@ -133,7 +193,7 @@ export default function PriceDrawer({
     const discountAmount = form.discountAmount ? Number(form.discountAmount) : undefined;
     const taxPercent = form.taxPercent ? Number(form.taxPercent) : undefined;
     const taxAmount = form.taxAmount ? Number(form.taxAmount) : undefined;
-    const lineTotal = form.lineTotal ? Number(form.lineTotal) : unitPrice;
+    const lineTotal = calculatedLineTotal;
 
     const payload: StorePricePayload = {
       unitPrice,
@@ -308,10 +368,10 @@ export default function PriceDrawer({
             type="number"
             min={0}
             step="0.01"
-            value={form.lineTotal}
-            onChange={(e) => onFormChange("lineTotal", e.target.value)}
-            placeholder="Bos birakilirsa birim fiyat kullanilir"
-            className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            value={Number.isFinite(calculatedLineTotal) ? calculatedLineTotal : 0}
+            disabled
+            readOnly
+            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text2 outline-none disabled:cursor-not-allowed"
           />
         </Field>
 

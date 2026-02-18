@@ -125,6 +125,7 @@ export default function ProductsPage() {
   /* Price drawer state */
   const [priceOpen, setPriceOpen] = useState(false);
   const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
+  const [priceProductId, setPriceProductId] = useState<string | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
 
   /* Responsive */
@@ -371,7 +372,10 @@ export default function ProductsPage() {
           purchasePrice: obj.purchasePrice == null ? null : Number(obj.purchasePrice),
           currency: (String(obj.currency ?? "") || null) as InventoryStoreStockItem["currency"],
           taxPercent: obj.taxPercent == null ? null : Number(obj.taxPercent),
+          taxAmount: obj.taxAmount == null ? null : Number(obj.taxAmount),
           discountPercent: obj.discountPercent == null ? null : Number(obj.discountPercent),
+          discountAmount: obj.discountAmount == null ? null : Number(obj.discountAmount),
+          lineTotal: obj.lineTotal == null ? null : Number(obj.lineTotal),
           isStoreOverride: Boolean(obj.isStoreOverride),
         };
       });
@@ -384,13 +388,24 @@ export default function ProductsPage() {
       productName: product.name,
       variantName: variant.name ?? "-",
       stores: variantStores,
+      initial: {
+        unitPrice: variant.unitPrice ?? null,
+        currency: variant.currency ?? product.currency,
+        discountPercent: variant.discountPercent ?? null,
+        discountAmount: variant.discountAmount ?? null,
+        taxPercent: variant.taxPercent ?? null,
+        taxAmount: variant.taxAmount ?? null,
+        lineTotal: variant.lineTotal ?? null,
+      },
     });
+    setPriceProductId(product.id);
     setPriceOpen(true);
   };
 
   const closePriceDrawer = () => {
     setPriceOpen(false);
     setPriceTarget(null);
+    setPriceProductId(null);
   };
 
   /* ── Drawer handlers ── */
@@ -967,7 +982,11 @@ export default function ProductsPage() {
         showStoreScopeControls={!isStoreScopedUser}
         fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
         onClose={closePriceDrawer}
-        onSuccess={() => {}}
+        onSuccess={() => {
+          if (priceProductId) {
+            void fetchTableVariants(priceProductId, variantStatusFilter);
+          }
+        }}
       />
     </div>
   );
