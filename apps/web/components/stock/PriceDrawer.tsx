@@ -10,6 +10,7 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { cn } from "@/lib/cn";
+import { CURRENCY_FILTER_OPTIONS } from "@/components/products/types";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -20,11 +21,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const CURRENCY_OPTIONS = [
-  { value: "TRY", label: "TRY" },
-  { value: "USD", label: "USD" },
-  { value: "EUR", label: "EUR" },
-];
+const CURRENCY_OPTIONS = CURRENCY_FILTER_OPTIONS;
 
 export type PriceTarget = {
   productVariantId: string;

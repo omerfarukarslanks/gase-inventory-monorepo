@@ -1,36 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { getUsers, updateUser, createUser, type User, type Meta, type CreateUserDto } from "@/lib/users";
-import { getStores, type Store } from "@/lib/stores";
+import { getUsers, updateUser, createUser, type User, type Meta } from "@/lib/users";
 import InputField from "@/components/ui/InputField";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
-import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
 import { useDebounceStr } from "@/hooks/useDebounce";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useStores } from "@/hooks/useStores";
+import { getVisiblePages } from "@/lib/pagination";
+import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
 // Basit ikonlar
 const SortAscIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h10" /><path d="M11 16h10" /><path d="M11 20h10" /></svg>;
 const SortDescIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="M11 12h10" /><path d="M11 8h10" /><path d="M11 4h10" /></svg>;
 
 export default function UsersPage() {
-    const router = useRouter();
+    const accessChecked = useAdminGuard();
+    const isMobile = !useMediaQuery();
+    const stores = useStores();
+
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-
-    const STATUS_FILTER_OPTIONS = [
-        { value: "all", label: "Tüm Durumlar" },
-        { value: "true", label: "Aktif" },
-        { value: "false", label: "Pasif" },
-    ];
-    const parseStatusFilter = (value: string): boolean | "all" => {
-        if (value === "all") return "all";
-        return value === "true";
-    };
 
     // Local State
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,20 +66,7 @@ export default function UsersPage() {
     });
 
     const [saving, setSaving] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
-    const [accessChecked, setAccessChecked] = useState(false);
 
-    useEffect(() => {
-        const role = getSessionUserRole();
-        if (isStoreScopedRole(role)) {
-            router.replace("/dashboard");
-            return;
-        }
-        setAccessChecked(true);
-    }, [router]);
-
-    // Stores for selection
-    const [stores, setStores] = useState<Store[]>([]);
     const storeFilterOptions = useMemo(
         () => stores.map((store) => ({ value: store.id, label: store.name })),
         [stores],
@@ -97,33 +79,6 @@ export default function UsersPage() {
         ],
         [],
     );
-
-    useEffect(() => {
-        const mq = window.matchMedia("(min-width: 768px)");
-        const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(!e.matches);
-        update(mq);
-        mq.addEventListener("change", update);
-        return () => mq.removeEventListener("change", update);
-    }, []);
-
-    // Fetch Stores for selection
-    const fetchStoreList = useCallback(async () => {
-        if (!accessChecked) return;
-        if (stores.length > 0) return;
-
-        const token = localStorage.getItem("token");
-        if (!token) return;
-        try {
-            const res = await getStores({ limit: 100, token });
-            setStores(res.data);
-        } catch (e) {
-            console.error("Mağazalar çekilemedi", e);
-        }
-    }, [stores.length, accessChecked]);
-
-    useEffect(() => {
-        fetchStoreList();
-    }, [fetchStoreList]);
 
     // Fetch Users
     const fetchUsers = useCallback(async () => {
@@ -214,23 +169,7 @@ export default function UsersPage() {
     const canGoPrev = currentPage > 1;
     const canGoNext = currentPage < totalPages;
 
-    const getVisiblePages = () => {
-        if (totalPages <= 7) {
-            return Array.from({ length: totalPages }, (_, i) => i + 1);
-        }
-
-        if (currentPage <= 4) {
-            return [1, 2, 3, 4, 5, -1, totalPages];
-        }
-
-        if (currentPage >= totalPages - 3) {
-            return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-        }
-
-        return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages];
-    };
-
-    const pageItems = getVisiblePages();
+    const pageItems = getVisiblePages(currentPage, totalPages);
 
     const openCreate = () => {
         setMode("create");
@@ -382,7 +321,7 @@ export default function UsersPage() {
                         <SearchableDropdown
                             options={STATUS_FILTER_OPTIONS}
                             value={statusFilter === "all" ? "all" : String(statusFilter)}
-                            onChange={(value) => setStatusFilter(parseStatusFilter(value))}
+                            onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
                             placeholder="Tüm Durumlar"
                             showEmptyOption={false}
                             allowClear={false}

@@ -1,21 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import type { DrawerSide } from "@/components/ui/Drawer";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export function AiAssistant() {
   const [open, setOpen] = useState(false);
-  const [side, setSide] = useState<DrawerSide>("right");
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = (e: MediaQueryListEvent | MediaQueryList) =>
-      setSide(e.matches ? "right" : "bottom");
-    update(mq);
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+  const isDesktop = useMediaQuery();
+  const side: DrawerSide = isDesktop ? "right" : "bottom";
 
   return (
     <>

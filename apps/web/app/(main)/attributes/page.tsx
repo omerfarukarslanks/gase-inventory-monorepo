@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
@@ -18,8 +17,10 @@ import {
   type AttributesPaginatedMeta,
   type AttributeValue,
 } from "@/lib/attributes";
-import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
 import { useDebounceStr } from "@/hooks/useDebounce";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { formatDate } from "@/lib/format";
+import { getVisiblePages } from "@/lib/pagination";
 
 type DrawerStep = 1 | 2;
 
@@ -31,13 +32,6 @@ type EditableValue = {
   originalIsActive: boolean;
 };
 
-function formatDate(value?: string) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("tr-TR");
-}
-
 function parseCommaSeparated(input: string): string[] {
   return input
     .split(",")
@@ -46,8 +40,7 @@ function parseCommaSeparated(input: string): string[] {
 }
 
 export default function AttributesPage() {
-  const router = useRouter();
-  const [accessChecked, setAccessChecked] = useState(false);
+  const accessChecked = useAdminGuard();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,15 +69,6 @@ export default function AttributesPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [togglingAttributeIds, setTogglingAttributeIds] = useState<string[]>([]);
   const [togglingValueIds, setTogglingValueIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    const role = getSessionUserRole();
-    if (isStoreScopedRole(role)) {
-      router.replace("/dashboard");
-      return;
-    }
-    setAccessChecked(true);
-  }, [router]);
 
   const fetchAttributes = useCallback(async () => {
     if (!accessChecked) return;
@@ -342,23 +326,7 @@ export default function AttributesPage() {
     setCurrentPage(1);
   };
 
-  const getVisiblePages = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    if (currentPage <= 4) {
-      return [1, 2, 3, 4, 5, -1, totalPages];
-    }
-
-    if (currentPage >= totalPages - 3) {
-      return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-    }
-
-    return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages];
-  };
-
-  const pageItems = getVisiblePages();
+  const pageItems = getVisiblePages(currentPage, totalPages);
 
   if (!accessChecked) return null;
 

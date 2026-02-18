@@ -9,14 +9,8 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-
-/* ── Constants ── */
-
-const CURRENCY_OPTIONS = [
-  { value: "TRY", label: "TRY - Turk Lirasi" },
-  { value: "USD", label: "USD - Amerikan Dolari" },
-  { value: "EUR", label: "EUR - Euro" },
-];
+import { formatPrice } from "@/lib/format";
+import { CURRENCY_OPTIONS } from "@/components/products/types";
 
 /* ── Types ── */
 
@@ -124,10 +118,6 @@ function createEntryFromInitial(
     reason: initial.reason ?? "",
     note: initial.note ?? "",
   };
-}
-
-function formatPrice(val: number): string {
-  return val.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**

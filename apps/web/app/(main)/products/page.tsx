@@ -20,7 +20,8 @@ import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScop
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { getStores, type Store } from "@/lib/stores";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useStores } from "@/hooks/useStores";
 import {
   getVariantStockByStore,
   type InventoryStoreStockItem,
@@ -126,10 +127,10 @@ export default function ProductsPage() {
   const [priceOpen, setPriceOpen] = useState(false);
   const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
   const [priceProductId, setPriceProductId] = useState<string | null>(null);
-  const [stores, setStores] = useState<Store[]>([]);
+  const stores = useStores();
 
   /* Responsive */
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = !useMediaQuery();
   const [scopeReady, setScopeReady] = useState(false);
   const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
   const [scopedStoreId, setScopedStoreId] = useState("");
@@ -143,13 +144,6 @@ export default function ProductsPage() {
     setScopeReady(true);
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(!e.matches);
-    update(mq);
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   /* ── Fetch products ── */
 
@@ -221,13 +215,6 @@ export default function ProductsPage() {
       .catch(() => setAttributeDefinitions([]));
   }, []);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    getStores({ token, page: 1, limit: 100 })
-      .then((res) => setStores(res.data))
-      .catch(() => setStores([]));
-  }, []);
 
   /* ── Pagination ── */
 

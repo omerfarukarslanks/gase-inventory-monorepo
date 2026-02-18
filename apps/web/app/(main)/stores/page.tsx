@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   createStore,
   getStoreById,
@@ -17,8 +16,11 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
-import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
 import { useDebounceStr } from "@/hooks/useDebounce";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { getVisiblePages } from "@/lib/pagination";
+import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
 type StoreForm = {
   name: string;
@@ -39,16 +41,8 @@ const EMPTY_FORM: StoreForm = {
 };
 
 export default function StoresPage() {
-  const router = useRouter();
-  const STATUS_FILTER_OPTIONS = [
-    { value: "all", label: "Tum Durumlar" },
-    { value: "true", label: "Aktif" },
-    { value: "false", label: "Pasif" },
-  ];
-  const parseStatusFilter = (value: string): boolean | "all" => {
-    if (value === "all") return "all";
-    return value === "true";
-  };
+  const accessChecked = useAdminGuard();
+  const isMobile = !useMediaQuery();
 
   const [stores, setStores] = useState<Store[]>([]);
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
@@ -68,26 +62,7 @@ export default function StoresPage() {
   const [formError, setFormError] = useState("");
   const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
-  const [isMobile, setIsMobile] = useState(false);
-  const [accessChecked, setAccessChecked] = useState(false);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
-
-  useEffect(() => {
-    const role = getSessionUserRole();
-    if (isStoreScopedRole(role)) {
-      router.replace("/dashboard");
-      return;
-    }
-    setAccessChecked(true);
-  }, [router]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(!e.matches);
-    update(mq);
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   const fetchStores = useCallback(async () => {
     if (!accessChecked) return;
@@ -160,23 +135,7 @@ export default function StoresPage() {
     setCurrentPage(page);
   };
 
-  const getVisiblePages = () => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-
-    if (currentPage <= 4) {
-      return [1, 2, 3, 4, 5, -1, totalPages];
-    }
-
-    if (currentPage >= totalPages - 3) {
-      return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-    }
-
-    return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages];
-  };
-
-  const pageItems = getVisiblePages();
+  const pageItems = getVisiblePages(currentPage, totalPages);
 
   const onOpenDrawer = () => {
     setFormError("");
@@ -371,7 +330,7 @@ export default function StoresPage() {
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseStatusFilter(value))}
+              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
               placeholder="Tum Durumlar"
               showEmptyOption={false}
               allowClear={false}
