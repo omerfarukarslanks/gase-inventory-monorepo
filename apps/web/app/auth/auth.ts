@@ -1,17 +1,26 @@
 import { apiFetch, BASE_URL } from "../../lib/api";
 
-interface LoginResponse {
+export interface LoginResponse {
   access_token: string;
   user: LoginUserResponse;
 }
 
-interface LoginUserResponse {
+export interface LoginUserResponse {
   email: string;
   id: string;
   name: string;
   role: string;
   surname: string;
   tenantId: string;
+  storeId?: string;
+  storeIds?: string[];
+  userStores?: Array<{
+    storeId?: string;
+    store?: {
+      id?: string;
+      name?: string;
+    };
+  }>;
 }
 
 interface SignupRequest {

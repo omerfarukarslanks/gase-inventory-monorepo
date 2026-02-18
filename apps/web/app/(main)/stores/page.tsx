@@ -18,6 +18,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
+import { useDebounceStr } from "@/hooks/useDebounce";
 
 type StoreForm = {
   name: string;
@@ -36,15 +37,6 @@ const EMPTY_FORM: StoreForm = {
   logo: "",
   description: "",
 };
-
-function useDebounceStr(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 export default function StoresPage() {
   const router = useRouter();

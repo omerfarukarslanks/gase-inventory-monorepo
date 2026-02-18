@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/cn";
 
@@ -10,9 +11,15 @@ type Props = {
 
 export default function ThemeToggle({ fixed = true, className }: Props) {
   const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const currentTheme = theme === "system" ? resolvedTheme : theme;
 
-  if (!resolvedTheme) {
+  if (!mounted || !resolvedTheme) {
     return (
       <button
         className={cn(

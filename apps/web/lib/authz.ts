@@ -8,6 +8,13 @@ export enum UserRole {
 export type SessionUser = {
   role?: string;
   storeId?: string;
+  store?: {
+    id?: string;
+  };
+  stores?: Array<{
+    id?: string;
+    storeId?: string;
+  }>;
   storeIds?: string[];
   userStores?: Array<{
     storeId?: string;
@@ -16,6 +23,15 @@ export type SessionUser = {
     };
   }>;
 };
+
+export type SessionListScope =
+  | {
+      scope: "tenant";
+    }
+  | {
+      scope: "store";
+      storeIds: string[];
+    };
 
 function asRole(role?: string | null): UserRole | null {
   if (!role) return null;
@@ -58,6 +74,17 @@ export function getSessionUserStoreIds(user: SessionUser | null): string[] {
   if (typeof user.storeId === "string" && user.storeId.trim()) {
     ids.add(user.storeId);
   }
+  const singleStoreId = user.store?.id;
+  if (typeof singleStoreId === "string" && singleStoreId.trim()) {
+    ids.add(singleStoreId);
+  }
+
+  if (Array.isArray(user.stores)) {
+    for (const item of user.stores) {
+      const storeId = item?.storeId ?? item?.id;
+      if (typeof storeId === "string" && storeId.trim()) ids.add(storeId);
+    }
+  }
 
   if (Array.isArray(user.storeIds)) {
     for (const storeId of user.storeIds) {
@@ -73,4 +100,16 @@ export function getSessionUserStoreIds(user: SessionUser | null): string[] {
   }
 
   return [...ids];
+}
+
+export function getSessionListScope(user?: SessionUser | null): SessionListScope {
+  const resolvedUser = user ?? getSessionUser();
+  const role = asRole(resolvedUser?.role);
+  if (isStoreScopedRole(role)) {
+    return {
+      scope: "store",
+      storeIds: getSessionUserStoreIds(resolvedUser),
+    };
+  }
+  return { scope: "tenant" };
 }

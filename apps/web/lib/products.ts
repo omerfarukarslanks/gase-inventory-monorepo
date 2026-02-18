@@ -12,8 +12,14 @@ export type ProductVariant = {
   updatedById?: string | null;
   name: string;
   code: string;
-  barcode: string | null;
   isActive?: boolean;
+  currency?: Currency | null;
+  lineTotal?: number | string | null;
+  unitPrice?: number | string | null;
+  taxPercent?: number | string | null;
+  taxAmount?: number | string | null;
+  discountPercent?: number | string | null;
+  discountAmount?: number | string | null;
   attributes?: ProductAttributeInput[];
 };
 
@@ -51,16 +57,21 @@ export type Product = {
   name: string;
   sku: string;
   description: string | null;
-  defaultBarcode: string | null;
   image: string | null;
-  defaultCurrency: Currency;
-  defaultSalePrice: number | string;
-  defaultPurchasePrice: number | string;
-  defaultTaxPercent: number | string;
+  currency: Currency;
+  unitPrice: number | string;
+  purchasePrice: number | string;
+  discountPercent?: number | string | null;
+  discountAmount?: number | string | null;
+  taxPercent?: number | string | null;
+  taxAmount?: number | string | null;
+  lineTotal?: number | string | null;
   isActive?: boolean;
   variantCount?: number;
   variants?: ProductVariant[];
   attributes?: ProductAttributeInput[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type ProductsListMeta = {
@@ -81,32 +92,42 @@ export type CreateVariantDto = {
 };
 
 export type CreateProductRequest = {
+  currency: Currency;
+  purchasePrice: number;
+  unitPrice: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal: number;
   name: string;
   sku: string;
   description?: string;
-  defaultBarcode?: string;
   image?: string;
-  defaultCurrency: Currency;
-  defaultSalePrice: number;
-  defaultPurchasePrice: number;
-  defaultTaxPercent: number;
   attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type UpdateProductRequest = {
+  currency?: Currency;
+  purchasePrice?: number;
+  unitPrice?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal?: number;
   name?: string;
   sku?: string;
   description?: string;
-  defaultBarcode?: string;
   image?: string;
-  defaultCurrency?: Currency;
-  defaultSalePrice?: number;
-  defaultPurchasePrice?: number;
-  defaultTaxPercent?: number;
   isActive?: boolean;
   attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type GetProductsParams = {
@@ -119,13 +140,14 @@ export type GetProductsParams = {
   defaultSalePriceMin?: number;
   defaultSalePriceMax?: number;
   isActive?: boolean | "all";
+  variantIsActive?: boolean | "all";
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
 };
 
 /* ── API Functions ── */
 
-export async function getProducts({
+function buildProductsQuery({
   page = 1,
   limit = 10,
   search,
@@ -135,9 +157,10 @@ export async function getProducts({
   defaultSalePriceMin,
   defaultSalePriceMax,
   isActive,
+  variantIsActive,
   sortBy,
   sortOrder,
-}: GetProductsParams): Promise<ProductsListResponse> {
+}: GetProductsParams): string {
   const query = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -150,10 +173,16 @@ export async function getProducts({
   if (defaultSalePriceMin != null) query.append("defaultSalePriceMin", String(defaultSalePriceMin));
   if (defaultSalePriceMax != null) query.append("defaultSalePriceMax", String(defaultSalePriceMax));
   if (isActive != null) query.append("isActive", String(isActive));
+  if (variantIsActive != null) query.append("variantIsActive", String(variantIsActive));
   if (sortBy) query.append("sortBy", sortBy);
   if (sortOrder) query.append("sortOrder", sortOrder);
 
-  return apiFetch<ProductsListResponse>(`/products?${query.toString()}`);
+  return query.toString();
+}
+
+export async function getProducts(params: GetProductsParams): Promise<ProductsListResponse> {
+  const query = buildProductsQuery(params);
+  return apiFetch<ProductsListResponse>(`/products?${query}`);
 }
 
 export async function getProductById(id: string): Promise<Product> {
