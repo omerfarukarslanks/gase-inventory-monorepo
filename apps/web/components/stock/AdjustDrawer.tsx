@@ -7,6 +7,7 @@ import type { StockEntryInitialEntry } from "@/components/inventory/StockEntryFo
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import StockEntryForm from "@/components/inventory/StockEntryForm";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { cn } from "@/lib/cn";
 
 export type AdjustTarget = {
@@ -27,6 +28,9 @@ type AdjustDrawerProps = {
   initialEntriesByVariant: Record<string, StockEntryInitialEntry[]>;
   isMobile: boolean;
   showStoreSelector?: boolean;
+  showApplyToAllStores?: boolean;
+  applyToAllStores?: boolean;
+  onApplyToAllStoresChange?: (checked: boolean) => void;
   fixedStoreId?: string;
   onClose: () => void;
   onSubmit: (items: InventoryReceiveItem[]) => Promise<void>;
@@ -44,6 +48,9 @@ export default function AdjustDrawer({
   initialEntriesByVariant,
   isMobile,
   showStoreSelector = true,
+  showApplyToAllStores = false,
+  applyToAllStores = false,
+  onApplyToAllStoresChange,
   fixedStoreId,
   onClose,
   onSubmit,
@@ -73,17 +80,29 @@ export default function AdjustDrawer({
         {loading ? (
           <p className="text-sm text-muted">Magaza bilgileri yukleniyor...</p>
         ) : (
-          <StockEntryForm
-            variants={variants}
-            productCurrency={currency}
-            stores={stores}
-            initialEntriesByVariant={initialEntriesByVariant}
-            mode="adjust"
-            showStoreSelector={showStoreSelector}
-            fixedStoreId={fixedStoreId}
-            onSubmit={onSubmit}
-            submitting={submitting}
-          />
+          <>
+            {showApplyToAllStores && (
+              <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">
+                <span className="text-xs font-semibold text-muted">Tum Magazalara Uygula</span>
+                <ToggleSwitch
+                  checked={applyToAllStores}
+                  onChange={(checked) => onApplyToAllStoresChange?.(checked)}
+                  disabled={submitting}
+                />
+              </div>
+            )}
+            <StockEntryForm
+              variants={variants}
+              productCurrency={currency}
+              stores={stores}
+              initialEntriesByVariant={initialEntriesByVariant}
+              mode="adjust"
+              showStoreSelector={showStoreSelector}
+              fixedStoreId={fixedStoreId}
+              onSubmit={onSubmit}
+              submitting={submitting}
+            />
+          </>
         )}
 
         {formError && <p className="text-sm text-error">{formError}</p>}

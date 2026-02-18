@@ -32,7 +32,7 @@ export type InventoryTransferPayload = {
   };
 };
 
-export type InventoryAdjustPayload = {
+export type InventoryAdjustItem = {
   storeId: string;
   productVariantId: string;
   newQuantity: number;
@@ -41,6 +41,25 @@ export type InventoryAdjustPayload = {
     note?: string;
   };
 };
+
+export type InventoryAdjustSinglePayload = {
+  storeId?: string;
+  productVariantId: string;
+  newQuantity: number;
+  applyToAllStores?: boolean;
+  meta?: {
+    reason?: string;
+    note?: string;
+  };
+};
+
+export type InventoryAdjustBulkPayload = {
+  items: InventoryAdjustItem[];
+};
+
+export type InventoryAdjustPayload =
+  | InventoryAdjustSinglePayload
+  | InventoryAdjustBulkPayload;
 
 export type InventorySellPayload = {
   storeId: string;
@@ -190,15 +209,6 @@ export async function adjustInventory(
   return apiFetch<unknown>("/inventory/adjust", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
-}
-
-export async function adjustInventoryBulk(
-  items: InventoryAdjustPayload[],
-): Promise<unknown> {
-  return apiFetch<unknown>("/inventory/adjust/bulk", {
-    method: "POST",
-    body: JSON.stringify({ items }),
   });
 }
 

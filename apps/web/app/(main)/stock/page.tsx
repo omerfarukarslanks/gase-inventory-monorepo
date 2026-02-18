@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
 import {
   adjustInventory,
-  adjustInventoryBulk,
   getTenantStockSummary,
   getVariantStockByStore,
   transferInventory,
-  type InventoryAdjustPayload,
+  type InventoryAdjustItem,
+  type InventoryAdjustSinglePayload,
   type InventoryReceiveItem,
   type InventoryProductStockItem,
   type InventoryStoreStockItem,
@@ -85,6 +85,7 @@ export default function StockPage() {
   const [adjustInitial, setAdjustInitial] = useState<
     Record<string, StockEntryInitialEntry[]>
   >({});
+  const [adjustApplyToAllStores, setAdjustApplyToAllStores] = useState(false);
 
   /* ── Transfer drawer ── */
   const [transferOpen, setTransferOpen] = useState(false);
@@ -285,6 +286,7 @@ export default function StockPage() {
     setAdjustOpen(false);
     setAdjustTarget(null);
     setAdjustInitial({});
+    setAdjustApplyToAllStores(false);
     setAdjustFormError("");
   };
 
@@ -308,18 +310,30 @@ export default function StockPage() {
     setAdjustSubmitting(true);
     setAdjustFormError("");
     try {
-      const adjustItems: InventoryAdjustPayload[] = items.map((item) => ({
+      const adjustItems: InventoryAdjustItem[] = items.map((item) => ({
         storeId: item.storeId,
         productVariantId: item.productVariantId,
         newQuantity: item.quantity,
-        meta: {
-          reason: item.meta?.reason,
-          note: item.meta?.note,
-        },
+        meta: item.meta ? { reason: item.meta.reason, note: item.meta.note } : {},
       }));
 
-      if (adjustItems.length > 1) {
-        await adjustInventoryBulk(adjustItems);
+      if (isStoreScopedUser) {
+        const scopedPayload: InventoryAdjustSinglePayload = {
+          productVariantId: adjustTarget.productVariantId,
+          newQuantity: adjustItems[0]?.newQuantity ?? 0,
+          meta: adjustItems[0]?.meta ?? {},
+        };
+        await adjustInventory(scopedPayload);
+      } else if (adjustApplyToAllStores) {
+        const applyAllPayload: InventoryAdjustSinglePayload = {
+          productVariantId: adjustTarget.productVariantId,
+          newQuantity: adjustItems[0]?.newQuantity ?? 0,
+          applyToAllStores: true,
+          meta: adjustItems[0]?.meta ?? {},
+        };
+        await adjustInventory(applyAllPayload);
+      } else if (adjustItems.length > 1) {
+        await adjustInventory({ items: adjustItems });
       } else {
         await adjustInventory(adjustItems[0]);
       }
@@ -475,7 +489,10 @@ export default function StockPage() {
         stores={stores}
         initialEntriesByVariant={adjustInitial}
         isMobile={isMobile}
-        showStoreSelector={!isStoreScopedUser}
+        showStoreSelector={!isStoreScopedUser && !adjustApplyToAllStores}
+        showApplyToAllStores={!isStoreScopedUser}
+        applyToAllStores={adjustApplyToAllStores}
+        onApplyToAllStoresChange={setAdjustApplyToAllStores}
         fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
         onClose={closeAdjustDrawer}
         onSubmit={submitAdjust}
