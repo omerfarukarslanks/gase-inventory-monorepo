@@ -92,12 +92,13 @@ export default function ProductsPage() {
       form.taxMode === "percent"
         ? unitPrice * ((toNumberOrNull(form.taxPercent) ?? 0) / 100)
         : (toNumberOrNull(form.taxAmount) ?? 0);
+    const subtotalWithTax = unitPrice + taxValue;
     const discountValue =
       form.discountMode === "percent"
-        ? unitPrice * ((toNumberOrNull(form.discountPercent) ?? 0) / 100)
+        ? subtotalWithTax * ((toNumberOrNull(form.discountPercent) ?? 0) / 100)
         : (toNumberOrNull(form.discountAmount) ?? 0);
 
-    return unitPrice + taxValue - discountValue;
+    return subtotalWithTax - discountValue;
   }, [
     form.unitPrice,
     form.taxMode,

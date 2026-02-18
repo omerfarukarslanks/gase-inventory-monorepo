@@ -95,11 +95,12 @@ export default function PriceDrawer({
     const discountAmount = Number(form.discountAmount) || 0;
 
     const computedTax = form.taxAmount ? taxAmount : unitPrice * (taxPercent / 100);
+    const subtotalWithTax = unitPrice + computedTax;
     const computedDiscount = form.discountAmount
       ? discountAmount
-      : unitPrice * (discountPercent / 100);
+      : subtotalWithTax * (discountPercent / 100);
 
-    return Math.max(0, unitPrice + computedTax - computedDiscount);
+    return Math.max(0, subtotalWithTax - computedDiscount);
   }, [
     form.unitPrice,
     form.taxPercent,

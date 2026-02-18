@@ -154,16 +154,8 @@ export default function StockPage() {
     setLoading(true);
     setError("");
     try {
-      if (isStoreScopedUser && !scopedStoreId) {
-        setProducts([]);
-        setTotalPages(1);
-        setError("Kullaniciya ait magaza bulunamadi.");
-        return;
-      }
-
-      const effectiveStoreIds = isStoreScopedUser
-        ? [scopedStoreId]
-        : storeFilterIds.length > 0
+      const effectiveStoreIds =
+        !isStoreScopedUser && storeFilterIds.length > 0
           ? storeFilterIds
           : undefined;
 
@@ -189,7 +181,7 @@ export default function StockPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, storeFilterIds, debouncedSearch, isStoreScopedUser, scopedStoreId, scopeReady]);
+  }, [page, limit, storeFilterIds, debouncedSearch, isStoreScopedUser, scopeReady]);
 
   const fetchVariantStores = useCallback(
     async (variantId: string) => {

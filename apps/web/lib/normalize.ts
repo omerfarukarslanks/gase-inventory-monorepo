@@ -46,11 +46,25 @@ export function normalizeStoreItems(payload: unknown): InventoryStoreStockItem[]
       storeName: pickString(item.storeName, asObject(item.store)?.name, "-"),
       quantity: pickNumber(item.quantity, item.totalQuantity),
       totalQuantity: pickNumber(item.totalQuantity, item.quantity),
-      salePrice: item.salePrice == null ? null : pickNumber(item.salePrice),
+      unitPrice:
+        item.unitPrice == null
+          ? item.salePrice == null
+            ? null
+            : pickNumber(item.salePrice)
+          : pickNumber(item.unitPrice),
+      salePrice:
+        item.salePrice == null
+          ? item.unitPrice == null
+            ? null
+            : pickNumber(item.unitPrice)
+          : pickNumber(item.salePrice),
       purchasePrice: item.purchasePrice == null ? null : pickNumber(item.purchasePrice),
       currency: (pickString(item.currency) || null) as Currency | null,
       taxPercent: item.taxPercent == null ? null : pickNumber(item.taxPercent),
+      taxAmount: item.taxAmount == null ? null : pickNumber(item.taxAmount),
       discountPercent: item.discountPercent == null ? null : pickNumber(item.discountPercent),
+      discountAmount: item.discountAmount == null ? null : pickNumber(item.discountAmount),
+      lineTotal: item.lineTotal == null ? null : pickNumber(item.lineTotal),
       isStoreOverride: Boolean(item.isStoreOverride),
     }));
 }

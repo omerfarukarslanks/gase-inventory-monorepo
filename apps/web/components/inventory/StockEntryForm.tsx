@@ -156,15 +156,16 @@ function calcEntryTotal(entry: StoreEntry, rates: Record<string, number>): numbe
   } else {
     tax = Number(entry.taxAmount) || 0;
   }
+  const subtotalWithTax = subtotal + tax;
 
   let discount = 0;
   if (entry.discountMode === "percent") {
-    discount = subtotal * ((Number(entry.discountPercent) || 0) / 100);
+    discount = subtotalWithTax * ((Number(entry.discountPercent) || 0) / 100);
   } else {
     discount = Number(entry.discountAmount) || 0;
   }
 
-  return subtotal + tax - discount;
+  return subtotalWithTax - discount;
 }
 
 /* ── Component ── */

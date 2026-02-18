@@ -85,6 +85,7 @@ export type InventoryStoreStockItem = {
   storeName: string;
   quantity: number;
   totalQuantity?: number;
+  unitPrice?: number | null;
   salePrice?: number | null;
   purchasePrice?: number | null;
   currency?: Currency | null;
@@ -155,21 +156,28 @@ export async function getTenantStockSummary(params?: {
   storeIds?: string[];
   search?: string;
 }): Promise<InventoryTenantStockResponse> {
-  const query = new URLSearchParams();
+  const payload: {
+    page?: number;
+    limit?: number;
+    storeIds?: string[];
+    search?: string;
+  } = {};
+
   const enablePagination = params?.page != null || params?.limit != null;
   if (enablePagination) {
-    query.set("page", String(params?.page ?? 1));
-    query.set("limit", String(params?.limit ?? 10));
+    payload.page = params?.page ?? 1;
+    payload.limit = params?.limit ?? 10;
   }
-  if (params?.storeIds?.length) {
-    params.storeIds.forEach((storeId) => {
-      if (storeId) query.append("storeIds", storeId);
-    });
-  }
-  if (params?.search) query.set("search", params.search);
 
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-  return apiFetch<InventoryTenantStockResponse>(`/inventory/tenant/stock${suffix}`);
+  if (params?.storeIds?.length) {
+    payload.storeIds = params.storeIds.filter(Boolean);
+  }
+  if (params?.search) payload.search = params.search;
+
+  return apiFetch<InventoryTenantStockResponse>("/inventory/stock/summary", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getVariantStockByStore(
