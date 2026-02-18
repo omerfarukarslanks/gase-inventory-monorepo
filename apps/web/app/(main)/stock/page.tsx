@@ -18,6 +18,7 @@ import {
 } from "@/lib/inventory";
 import type { Currency, ProductVariant } from "@/lib/products";
 import type { StockEntryInitialEntry } from "@/components/inventory/StockEntryForm";
+import { useDebounceStr } from "@/hooks/useDebounce";
 
 import StockFilters from "@/components/stock/StockFilters";
 import StockTable, { type VariantActionParams } from "@/components/stock/StockTable";
@@ -27,17 +28,6 @@ import TransferDrawer, {
   type TransferTarget,
   type TransferFormState,
 } from "@/components/stock/TransferDrawer";
-
-/* ── Hooks ── */
-
-function useDebounceStr(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 /* ── Normalize helpers ── */
 
@@ -242,7 +232,6 @@ export default function StockPage() {
               id: adjustTarget.productVariantId,
               name: adjustTarget.variantName,
               code: adjustTarget.variantName,
-              barcode: null,
             },
           ]
         : [],

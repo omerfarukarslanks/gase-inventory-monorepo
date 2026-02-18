@@ -19,6 +19,7 @@ import {
   type AttributeValue,
 } from "@/lib/attributes";
 import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
+import { useDebounceStr } from "@/hooks/useDebounce";
 
 type DrawerStep = 1 | 2;
 
@@ -29,15 +30,6 @@ type EditableValue = {
   originalName: string;
   originalIsActive: boolean;
 };
-
-function useDebounceStr(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
 
 function formatDate(value?: string) {
   if (!value) return "-";

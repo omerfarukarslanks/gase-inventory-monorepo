@@ -14,19 +14,11 @@ import {
   type ProductVariant,
   type ProductsListMeta,
   type Currency,
-  type CreateVariantDto,
-  type ProductAttributeInput,
 } from "@/lib/products";
 import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
 import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
-import InputField from "@/components/ui/InputField";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
-import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, PriceIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { getStores, type Store } from "@/lib/stores";
 import {
@@ -34,188 +26,25 @@ import {
   type InventoryStoreStockItem,
 } from "@/lib/inventory";
 import PriceDrawer, { type PriceTarget } from "@/components/stock/PriceDrawer";
-
-/* ── Constants ── */
-
-const CURRENCY_OPTIONS = [
-  { value: "TRY", label: "TRY - Turk Lirasi" },
-  { value: "USD", label: "USD - Amerikan Dolari" },
-  { value: "EUR", label: "EUR - Euro" },
-];
-const CURRENCY_FILTER_OPTIONS = [
-  { value: "TRY", label: "TRY" },
-  { value: "USD", label: "USD" },
-  { value: "EUR", label: "EUR" },
-];
-const STATUS_FILTER_OPTIONS = [
-  { value: "all", label: "Tum Durumlar" },
-  { value: "true", label: "Aktif" },
-  { value: "false", label: "Pasif" },
-];
-
-type IsActiveFilter = boolean | "all";
-
-/* ── Types ── */
-
-type ProductForm = {
-  name: string;
-  sku: string;
-  description: string;
-  defaultBarcode: string;
-  image: string;
-  defaultCurrency: Currency;
-  defaultSalePrice: string;
-  defaultPurchasePrice: string;
-  defaultTaxPercent: string;
-  attributes: ProductAttributeInput[];
-};
-
-type VariantForm = {
-  clientKey: string;
-  id?: string;
-  isActive?: boolean;
-  attributes: ProductAttributeInput[];
-};
-
-type FormErrors = Partial<Record<keyof ProductForm, string>>;
-type VariantErrors = {
-  attributes?: string;
-};
-
-type VariantSnapshot = {
-  payload: CreateVariantDto;
-  isActive: boolean;
-};
-
-const EMPTY_PRODUCT_FORM: ProductForm = {
-  name: "",
-  sku: "",
-  description: "",
-  defaultBarcode: "",
-  image: "",
-  defaultCurrency: "TRY",
-  defaultSalePrice: "",
-  defaultPurchasePrice: "",
-  defaultTaxPercent: "",
-  attributes: [],
-};
-
-/* ── Helpers ── */
-
-function useDebounceStr(value: string, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-function createVariantClientKey() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `variant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function formatPrice(val: number | string | null | undefined): string {
-  if (val == null) return "-";
-  const numeric = Number(val);
-  if (Number.isNaN(numeric)) return "-";
-  return numeric.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function areVariantAttributesEqual(a: ProductAttributeInput[], b: ProductAttributeInput[]) {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id) return false;
-    if (a[i].values.length !== b[i].values.length) return false;
-    for (let j = 0; j < a[i].values.length; j++) {
-      if (a[i].values[j] !== b[i].values[j]) return false;
-    }
-  }
-  return true;
-}
-
-function normalizeVariantsResponse(payload: unknown): ProductVariant[] {
-  if (Array.isArray(payload)) return payload as ProductVariant[];
-  if (payload && typeof payload === "object") {
-    const obj = payload as Record<string, unknown>;
-    if (Array.isArray(obj.data)) return obj.data as ProductVariant[];
-    if (Array.isArray(obj.items)) return obj.items as ProductVariant[];
-  }
-  return [];
-}
-
-function VirtualVariantList({
-  variants,
-  togglingVariantIds,
-  onToggleVariantActive,
-  onPrice,
-}: {
-  variants: ProductVariant[];
-  togglingVariantIds: string[];
-  onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
-  onPrice: (variant: ProductVariant) => void;
-}) {
-  const rowHeight = 56;
-  const containerHeight = 240;
-  const overscan = 4;
-  const [scrollTop, setScrollTop] = useState(0);
-
-  const totalHeight = variants.length * rowHeight;
-  const visibleCount = Math.ceil(containerHeight / rowHeight);
-
-  const { startIndex, endIndex } = useMemo(() => {
-    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-    const end = Math.min(variants.length, start + visibleCount + overscan * 2);
-    return { startIndex: start, endIndex: end };
-  }, [scrollTop, rowHeight, overscan, visibleCount, variants.length]);
-
-  const visibleItems = variants.slice(startIndex, endIndex);
-
-  return (
-    <div
-      className="h-[240px] overflow-y-auto rounded-xl border border-border bg-surface2/40"
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-    >
-      <div className="relative" style={{ height: totalHeight }}>
-        <div
-          className="absolute left-0 right-0"
-          style={{ transform: `translateY(${startIndex * rowHeight}px)` }}
-        >
-          {visibleItems.map((variant) => (
-            <div
-              key={variant.id}
-              className="flex h-14 items-center justify-between border-b border-border px-3 text-sm last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-xs text-text2">
-                  {variant.name ?? "Ozellik yok"}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => onPrice(variant)}
-                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
-                  title="Fiyat Duzenle"
-                >
-                  <PriceIcon />
-                </button>
-                <ToggleSwitch
-                  checked={Boolean(variant.isActive)}
-                  onChange={(next) => onToggleVariantActive(variant, next)}
-                  disabled={togglingVariantIds.includes(variant.id)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { useDebounceStr } from "@/hooks/useDebounce";
+import { toNumberOrNull } from "@/lib/format";
+import {
+  EMPTY_PRODUCT_FORM,
+  type ProductForm,
+  type VariantForm,
+  type FormErrors,
+  type VariantErrors,
+  type VariantSnapshot,
+  type IsActiveFilter,
+  createVariantClientKey,
+  areVariantAttributesEqual,
+  normalizeVariantsResponse,
+} from "@/components/products/types";
+import ProductFilters from "@/components/products/ProductFilters";
+import ProductTable from "@/components/products/ProductTable";
+import ProductPagination from "@/components/products/ProductPagination";
+import ProductDrawerStep1 from "@/components/products/ProductDrawerStep1";
+import ProductDrawerStep2 from "@/components/products/ProductDrawerStep2";
 
 /* ── Component ── */
 
@@ -236,6 +65,8 @@ export default function ProductsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [step1ProductInfoOpen, setStep1ProductInfoOpen] = useState(true);
+  const [step1StoreScopeOpen, setStep1StoreScopeOpen] = useState(true);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
 
   /* Drawer state */
@@ -252,6 +83,29 @@ export default function ProductsPage() {
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
   const [originalForm, setOriginalForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
+  const calculatedLineTotal = useMemo(() => {
+    const unitPrice = toNumberOrNull(form.unitPrice);
+    if (unitPrice == null || unitPrice < 0) return null;
+
+    const taxValue =
+      form.taxMode === "percent"
+        ? unitPrice * ((toNumberOrNull(form.taxPercent) ?? 0) / 100)
+        : (toNumberOrNull(form.taxAmount) ?? 0);
+    const discountValue =
+      form.discountMode === "percent"
+        ? unitPrice * ((toNumberOrNull(form.discountPercent) ?? 0) / 100)
+        : (toNumberOrNull(form.discountAmount) ?? 0);
+
+    return unitPrice + taxValue - discountValue;
+  }, [
+    form.unitPrice,
+    form.taxMode,
+    form.taxPercent,
+    form.taxAmount,
+    form.discountMode,
+    form.discountPercent,
+    form.discountAmount,
+  ]);
 
   /* Variants */
   const [variants, setVariants] = useState<VariantForm[]>([]);
@@ -377,25 +231,12 @@ export default function ProductsPage() {
   /* ── Pagination ── */
 
   const totalPages = meta?.totalPages ?? 1;
-  const canGoPrev = currentPage > 1;
-  const canGoNext = currentPage < totalPages;
 
-  const goPrev = () => { if (canGoPrev && !loading) setCurrentPage((p) => p - 1); };
-  const goNext = () => { if (canGoNext && !loading) setCurrentPage((p) => p + 1); };
   const onChangePageSize = (next: number) => { setPageSize(next); setCurrentPage(1); };
-  const goToPage = (page: number) => {
+  const onPageChange = (page: number) => {
     if (loading || page < 1 || page > totalPages || page === currentPage) return;
     setCurrentPage(page);
   };
-
-  const getVisiblePages = () => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    if (currentPage <= 4) return [1, 2, 3, 4, 5, -1, totalPages];
-    if (currentPage >= totalPages - 3) return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
-    return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages];
-  };
-
-  const pageItems = getVisiblePages();
 
   const clearAdvancedFilters = () => {
     setDefaultPurchasePriceMinFilter("");
@@ -404,24 +245,30 @@ export default function ProductsPage() {
     setDefaultSalePriceMaxFilter("");
   };
 
-  const parseIsActiveFilter = (value: string): IsActiveFilter => {
-    if (value === "all") return "all";
-    return value === "true";
-  };
+  /* ── Product toggle ── */
 
   const onToggleProductActive = async (product: Product, next: boolean) => {
     setTogglingProductIds((prev) => [...prev, product.id]);
     try {
       await updateProduct(product.id, {
+        currency: product.currency,
+        unitPrice: Number(product.unitPrice) || 0,
+        purchasePrice: Number(product.purchasePrice) || 0,
+        lineTotal: Number(product.lineTotal) || Number(product.unitPrice) || 0,
+        ...(product.taxPercent != null
+          ? { taxPercent: Number(product.taxPercent) || 0 }
+          : product.taxAmount != null
+            ? { taxAmount: Number(product.taxAmount) || 0 }
+            : {}),
+        ...(product.discountPercent != null
+          ? { discountPercent: Number(product.discountPercent) || 0 }
+          : product.discountAmount != null
+            ? { discountAmount: Number(product.discountAmount) || 0 }
+            : {}),
         name: product.name,
         sku: product.sku,
         description: product.description ?? undefined,
-        defaultBarcode: product.defaultBarcode ?? undefined,
         image: product.image ?? undefined,
-        defaultCurrency: product.defaultCurrency,
-        defaultSalePrice: Number(product.defaultSalePrice) || 0,
-        defaultPurchasePrice: Number(product.defaultPurchasePrice) || 0,
-        defaultTaxPercent: Number(product.defaultTaxPercent) || 0,
         isActive: next,
       });
       await fetchProducts();
@@ -431,6 +278,8 @@ export default function ProductsPage() {
       setTogglingProductIds((prev) => prev.filter((id) => id !== product.id));
     }
   };
+
+  /* ── Variant expansion ── */
 
   const fetchTableVariants = async (
     productId: string,
@@ -557,6 +406,8 @@ export default function ProductsPage() {
     setExpandedVariantKeys([]);
     setOriginalVariantMap({});
     setStep(1);
+    setStep1ProductInfoOpen(true);
+    setStep1StoreScopeOpen(true);
     setDrawerOpen(true);
   };
 
@@ -567,7 +418,25 @@ export default function ProductsPage() {
 
   const onFormChange = (field: keyof ProductForm, value: string) => {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (
+      (field === "unitPrice" ||
+        field === "taxPercent" ||
+        field === "taxAmount" ||
+        field === "discountPercent" ||
+        field === "discountAmount") &&
+      errors.lineTotal
+    ) {
+      setErrors((prev) => ({ ...prev, lineTotal: undefined }));
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const onFormPatch = (patch: Partial<ProductForm>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+  };
+
+  const onClearError = (field: keyof FormErrors) => {
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   /* ── Edit product ── */
@@ -583,20 +452,28 @@ export default function ProductsPage() {
     try {
       const detail = await getProductById(id);
       const formData: ProductForm = {
+        currency: detail.currency ?? "TRY",
+        purchasePrice: detail.purchasePrice != null ? String(detail.purchasePrice) : "",
+        unitPrice: detail.unitPrice != null ? String(detail.unitPrice) : "",
+        discountMode:
+          detail.discountAmount != null && String(detail.discountAmount) !== "" ? "amount" : "percent",
+        discountPercent: detail.discountPercent != null ? String(detail.discountPercent) : "",
+        discountAmount: detail.discountAmount != null ? String(detail.discountAmount) : "",
+        taxMode: detail.taxAmount != null && String(detail.taxAmount) !== "" ? "amount" : "percent",
+        taxPercent: detail.taxPercent != null ? String(detail.taxPercent) : "",
+        taxAmount: detail.taxAmount != null ? String(detail.taxAmount) : "",
         name: detail.name ?? "",
         sku: detail.sku ?? "",
         description: detail.description ?? "",
-        defaultBarcode: detail.defaultBarcode ?? "",
         image: detail.image ?? "",
-        defaultCurrency: detail.defaultCurrency ?? "TRY",
-        defaultSalePrice: detail.defaultSalePrice != null ? String(detail.defaultSalePrice) : "",
-        defaultPurchasePrice: detail.defaultPurchasePrice != null ? String(detail.defaultPurchasePrice) : "",
-        defaultTaxPercent: detail.defaultTaxPercent != null ? String(detail.defaultTaxPercent) : "",
-        attributes: detail.attributes ?? [],
+        storeIds: detail.storeIds ?? [],
+        applyToAllStores: Boolean(detail.applyToAllStores),
       };
       setForm(formData);
       setOriginalForm(formData);
       setVariants([]);
+      setStep1ProductInfoOpen(true);
+      setStep1StoreScopeOpen(true);
 
       setEditingProductId(detail.id);
       setDrawerOpen(true);
@@ -615,16 +492,40 @@ export default function ProductsPage() {
     if (!form.name.trim()) newErrors.name = "Urun adi zorunludur.";
     if (!form.sku.trim()) newErrors.sku = "SKU zorunludur.";
 
-    if (form.defaultSalePrice && isNaN(Number(form.defaultSalePrice)))
-      newErrors.defaultSalePrice = "Gecerli bir fiyat girin.";
+    if (!form.unitPrice || isNaN(Number(form.unitPrice)) || Number(form.unitPrice) < 0)
+      newErrors.unitPrice = "Gecerli bir satis fiyati girin.";
 
-    if (form.defaultPurchasePrice && isNaN(Number(form.defaultPurchasePrice)))
-      newErrors.defaultPurchasePrice = "Gecerli bir fiyat girin.";
+    if (!form.purchasePrice || isNaN(Number(form.purchasePrice)) || Number(form.purchasePrice) < 0)
+      newErrors.purchasePrice = "Gecerli bir alis fiyati girin.";
 
-    if (form.defaultTaxPercent) {
-      const tax = Number(form.defaultTaxPercent);
-      if (isNaN(tax)) newErrors.defaultTaxPercent = "Gecerli bir oran girin.";
-      else if (tax < 0 || tax > 100) newErrors.defaultTaxPercent = "Vergi orani 0-100 arasi olmalidir.";
+    if (form.taxMode === "percent") {
+      if (form.taxPercent && isNaN(Number(form.taxPercent))) {
+        newErrors.taxPercent = "Gecerli bir vergi orani girin.";
+      } else if (form.taxPercent) {
+        const tax = Number(form.taxPercent);
+        if (tax < 0 || tax > 100) newErrors.taxPercent = "Vergi orani 0-100 arasi olmalidir.";
+      }
+    } else if (form.taxAmount && isNaN(Number(form.taxAmount))) {
+      newErrors.taxAmount = "Gecerli bir vergi tutari girin.";
+    }
+
+    if (form.discountMode === "percent") {
+      if (form.discountPercent && isNaN(Number(form.discountPercent))) {
+        newErrors.discountPercent = "Gecerli bir indirim orani girin.";
+      } else if (form.discountPercent) {
+        const discount = Number(form.discountPercent);
+        if (discount < 0 || discount > 100) newErrors.discountPercent = "Indirim orani 0-100 arasi olmalidir.";
+      }
+    } else if (form.discountAmount && isNaN(Number(form.discountAmount))) {
+      newErrors.discountAmount = "Gecerli bir indirim tutari girin.";
+    }
+
+    if (calculatedLineTotal == null || Number.isNaN(calculatedLineTotal) || calculatedLineTotal < 0) {
+      newErrors.lineTotal = "Gecerli bir satir toplami girin.";
+    }
+
+    if (!isStoreScopedUser && !form.applyToAllStores && form.storeIds.length === 0) {
+      newErrors.storeIds = "En az bir magaza secin veya tum magazalara uygulayin.";
     }
 
     setErrors(newErrors);
@@ -655,21 +556,16 @@ export default function ProductsPage() {
   /* ── Step navigation ── */
 
   const isFormChanged = (): boolean => {
-    const simpleKeys = (Object.keys(originalForm) as (keyof ProductForm)[]).filter(
-      (key) => key !== "attributes",
-    );
-    const simpleChanged = simpleKeys.some((key) => form[key] !== originalForm[key]);
-    if (simpleChanged) return true;
-
-    const origAttrs = originalForm.attributes;
-    const currAttrs = form.attributes;
-    if (origAttrs.length !== currAttrs.length) return true;
-    return origAttrs.some(
-      (oa, i) =>
-        oa.id !== currAttrs[i].id ||
-        oa.values.length !== currAttrs[i].values.length ||
-        oa.values.some((v, vi) => v !== currAttrs[i].values[vi]),
-    );
+    const simpleKeys = Object.keys(originalForm) as (keyof ProductForm)[];
+    return simpleKeys.some((key) => {
+      if (key === "storeIds") {
+        const left = originalForm.storeIds;
+        const right = form.storeIds;
+        if (left.length !== right.length) return true;
+        return left.some((id, i) => id !== right[i]);
+      }
+      return form[key] !== originalForm[key];
+    });
   };
 
   const fetchVariants = async (productId: string) => {
@@ -700,6 +596,34 @@ export default function ProductsPage() {
     }
   };
 
+  const buildPricingPayload = () => ({
+    currency: form.currency,
+    unitPrice: Number(form.unitPrice),
+    purchasePrice: Number(form.purchasePrice),
+    lineTotal: calculatedLineTotal ?? 0,
+    ...(form.taxMode === "percent"
+      ? form.taxPercent
+        ? { taxPercent: Number(form.taxPercent) }
+        : {}
+      : form.taxAmount
+        ? { taxAmount: Number(form.taxAmount) }
+        : {}),
+    ...(form.discountMode === "percent"
+      ? form.discountPercent
+        ? { discountPercent: Number(form.discountPercent) }
+        : {}
+      : form.discountAmount
+        ? { discountAmount: Number(form.discountAmount) }
+        : {}),
+  });
+
+  const buildScopePayload = () =>
+    isStoreScopedUser
+      ? { storeIds: [], applyToAllStores: false }
+      : form.applyToAllStores
+        ? { storeIds: [], applyToAllStores: true }
+        : { storeIds: form.storeIds, applyToAllStores: false };
+
   const goToStep2 = async () => {
     if (!validateStep1()) return;
 
@@ -707,38 +631,22 @@ export default function ProductsPage() {
     setFormError("");
 
     try {
+      const productPayload = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        description: form.description.trim() || undefined,
+        image: form.image.trim() || undefined,
+        ...buildPricingPayload(),
+        ...buildScopePayload(),
+      };
+
       if (editingProductId) {
-        /* Degisiklik varsa guncelle, yoksa API'ye gitme */
         if (isFormChanged()) {
-          const productPayload = {
-            name: form.name.trim(),
-            sku: form.sku.trim(),
-            description: form.description.trim() || undefined,
-            defaultBarcode: form.defaultBarcode.trim() || undefined,
-            image: form.image.trim() || undefined,
-            defaultCurrency: form.defaultCurrency,
-            defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
-            defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
-            defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
-            attributes: form.attributes.filter((a) => a.id && a.values.length > 0),
-          };
           await updateProduct(editingProductId, productPayload);
         }
         await fetchVariants(editingProductId);
         setStep(2);
       } else {
-        const productPayload = {
-          name: form.name.trim(),
-          sku: form.sku.trim(),
-          description: form.description.trim() || undefined,
-          defaultBarcode: form.defaultBarcode.trim() || undefined,
-          image: form.image.trim() || undefined,
-          defaultCurrency: form.defaultCurrency,
-          defaultSalePrice: form.defaultSalePrice ? Number(form.defaultSalePrice) : 0,
-          defaultPurchasePrice: form.defaultPurchasePrice ? Number(form.defaultPurchasePrice) : 0,
-          defaultTaxPercent: form.defaultTaxPercent ? Number(form.defaultTaxPercent) : 0,
-          attributes: form.attributes.filter((a) => a.id && a.values.length > 0),
-        };
         const created = await createProduct(productPayload);
         setCreatedProductId(created.id);
         await fetchVariants(created.id);
@@ -756,6 +664,7 @@ export default function ProductsPage() {
   };
 
   const goToStep1 = () => setStep(1);
+
   /* ── Close & reset helper ── */
   const closeAndReset = async () => {
     setDrawerOpen(false);
@@ -793,7 +702,6 @@ export default function ProductsPage() {
 
     const targetProductId = editingProductId ?? createdProductId;
 
-    /* Variant yoksa dogrudan kapat */
     if (preparedVariants.length === 0) {
       await closeAndReset();
       return;
@@ -889,34 +797,6 @@ export default function ProductsPage() {
     );
   };
 
-  const getVariantAttributeOptions = (variantIndex: number, attrIndex: number) => {
-    const base = attributeDefinitions
-      .filter((item) => item.isActive)
-      .map((item) => ({ value: item.id, label: item.name }));
-
-    const selectedId = variants[variantIndex]?.attributes[attrIndex]?.id ?? "";
-    if (!selectedId || base.some((item) => item.value === selectedId)) return base;
-    const selectedDef = attributeDefinitions.find((d) => d.id === selectedId);
-    return [{ value: selectedId, label: selectedDef?.name ?? selectedId }, ...base];
-  };
-
-  const getVariantAttributeValueOptions = (attrId: string, currentValues: string[]) => {
-    const definition = attributeDefinitions.find((item) => item.id === attrId);
-    const base = (definition?.values ?? [])
-      .filter((item) => item.isActive)
-      .map((item) => ({ value: item.id, label: item.name }));
-
-    const selectedSet = new Set(currentValues.filter(Boolean));
-    const extraSelected = [...selectedSet]
-      .filter((value) => !base.some((item) => item.value === value))
-      .map((value) => {
-        const valDef = definition?.values?.find((v) => v.id === value);
-        return { value, label: valDef?.name ?? value };
-      });
-
-    return [...extraSelected, ...base];
-  };
-
   const updateVariantAttribute = (
     variantIndex: number,
     attrIndex: number,
@@ -945,321 +825,57 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">Urunler</h1>
-          <p className="text-sm text-muted">Urun listesi ve yonetimi</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <div className="relative w-full lg:w-64">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-              <SearchIcon />
-            </div>
-            <input
-              type="text"
-              placeholder="Ara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <Button
-            label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          <Button label="Yeni Urun" onClick={onOpenDrawer} variant="primarySoft" className="w-full px-2.5 py-2 lg:w-auto lg:px-3" />
-        </div>
-      </div>
+      <ProductFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        onNewProduct={onOpenDrawer}
+        currencyFilter={currencyFilter}
+        onCurrencyFilterChange={setCurrencyFilter}
+        productStatusFilter={productStatusFilter}
+        onProductStatusFilterChange={setProductStatusFilter}
+        variantStatusFilter={variantStatusFilter}
+        onVariantStatusFilterChange={setVariantStatusFilter}
+        salePriceMin={defaultSalePriceMinFilter}
+        onSalePriceMinChange={setDefaultSalePriceMinFilter}
+        salePriceMax={defaultSalePriceMaxFilter}
+        onSalePriceMaxChange={setDefaultSalePriceMaxFilter}
+        purchasePriceMin={defaultPurchasePriceMinFilter}
+        onPurchasePriceMinChange={setDefaultPurchasePriceMinFilter}
+        purchasePriceMax={defaultPurchasePriceMaxFilter}
+        onPurchasePriceMaxChange={setDefaultPurchasePriceMaxFilter}
+        onClearAdvancedFilters={clearAdvancedFilters}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Para Birimi</label>
-            <SearchableDropdown
-              options={CURRENCY_FILTER_OPTIONS}
-              value={currencyFilter}
-              onChange={(value) => setCurrencyFilter(value as Currency | "")}
-              placeholder="Tüm Para Birimleri"
-              emptyOptionLabel="Tüm Para Birimleri"
-              inputAriaLabel="Para birimi filtresi"
-              clearAriaLabel="Para birimi filtresini temizle"
-              toggleAriaLabel="Para birimi listesini aç"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Ürün Durumu</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={productStatusFilter === "all" ? "all" : String(productStatusFilter)}
-              onChange={(value) => setProductStatusFilter(parseIsActiveFilter(value))}
-              placeholder="Ürün Durumu"
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Ürün durum filtresi"
-              toggleAriaLabel="Ürün durum listesini aç"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Varyant Durumu</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={variantStatusFilter === "all" ? "all" : String(variantStatusFilter)}
-              onChange={(value) => setVariantStatusFilter(parseIsActiveFilter(value))}
-              placeholder="Varyant Durumu"
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Varyant durum filtresi"
-              toggleAriaLabel="Varyant durum listesini aç"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Satış Fiyatı Min</label>
-            <input
-              type="number"
-              value={defaultSalePriceMinFilter}
-              onChange={(e) => setDefaultSalePriceMinFilter(e.target.value)}
-              placeholder="0"
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Satış Fiyatı Max</label>
-            <input
-              type="number"
-              value={defaultSalePriceMaxFilter}
-              onChange={(e) => setDefaultSalePriceMaxFilter(e.target.value)}
-              placeholder="1000"
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Alış Fiyatı Min</label>
-            <input
-              type="number"
-              value={defaultPurchasePriceMinFilter}
-              onChange={(e) => setDefaultPurchasePriceMinFilter(e.target.value)}
-              placeholder="0"
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Alış Fiyatı Max</label>
-            <input
-              type="number"
-              value={defaultPurchasePriceMaxFilter}
-              onChange={(e) => setDefaultPurchasePriceMaxFilter(e.target.value)}
-              placeholder="1000"
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-4">
-            <Button
-              label="Detaylı Filtreleri Temizle"
-              onClick={clearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
+      <ProductTable
+        products={products}
+        loading={loading}
+        error={error}
+        expandedProductIds={expandedProductIds}
+        productVariantsById={productVariantsById}
+        productVariantsLoadingById={productVariantsLoadingById}
+        productVariantsErrorById={productVariantsErrorById}
+        togglingProductIds={togglingProductIds}
+        togglingVariantIds={togglingVariantIds}
+        onToggleExpand={toggleExpandedProduct}
+        onEdit={onEditProduct}
+        onToggleActive={onToggleProductActive}
+        onToggleVariantActive={onToggleVariantActive}
+        onPrice={openPriceDrawer}
+      />
+
+      {meta && !loading && !error && (
+        <ProductPagination
+          page={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          total={meta.total}
+          loading={loading}
+          onPageChange={onPageChange}
+          onPageSizeChange={onChangePageSize}
+        />
       )}
-
-      {/* Table */}
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="p-6 text-sm text-muted">Urunler yukleniyor...</div>
-        ) : error ? (
-          <div className="p-6">
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="w-10 px-2 py-3 text-center"></th>
-                    <th className="px-4 py-3">Urun Adi</th>
-                    <th className="px-4 py-3">SKU</th>
-                    <th className="px-4 py-3">Barkod</th>
-                    <th className="px-4 py-3">Para Birimi</th>
-                    <th className="px-4 py-3 text-right">Satis Fiyati</th>
-                    <th className="px-4 py-3 text-right">Alis Fiyati</th>
-                    <th className="px-4 py-3 text-right">KDV %</th>
-                    <th className="px-4 py-3 text-center">Varyant</th>
-                    <th className="px-4 py-3 text-right">Islemler</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-sm text-muted">
-                        Henuz urun bulunmuyor.
-                      </td>
-                    </tr>
-                  ) : (
-                    products.map((product) => {
-                      const isExpanded = expandedProductIds.includes(product.id);
-                      const tableVariants = productVariantsById[product.id] || [];
-                      const loadingVariants = productVariantsLoadingById[product.id];
-                      const variantsError = productVariantsErrorById[product.id];
-                      return (
-                        [
-                          <tr key={`${product.id}-row`} className="group border-b border-border hover:bg-surface2/50 transition-colors">
-                            <td className="px-2 py-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => toggleExpandedProduct(product.id)}
-                                className="inline-flex h-7 w-7 items-center cursor-pointer justify-center rounded-lg text-muted transition-colors hover:bg-surface2 hover:text-text"
-                                aria-label={isExpanded ? "Varyantları gizle" : "Varyantları göster"}
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className={cn("transition-transform", isExpanded && "rotate-90")}
-                                >
-                                  <path d="m9 18 6-6-6-6" />
-                                </svg>
-                              </button>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                {product.image ? (
-                                  <img
-                                    src={product.image}
-                                    alt={product.name}
-                                    className="h-9 w-9 rounded-lg object-cover border border-border"
-                                  />
-                                ) : (
-                                  <div className="grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface2 text-xs text-muted">
-                                    {product.name.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
-                                <span className="text-sm font-medium text-text">{product.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-text2">{product.sku}</td>
-                            <td className="px-4 py-3 text-sm text-text2">{product.defaultBarcode ?? "-"}</td>
-                            <td className="px-4 py-3">
-                              <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                                {product.defaultCurrency}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultSalePrice)}</td>
-                            <td className="px-4 py-3 text-right text-sm text-text2">{formatPrice(product.defaultPurchasePrice)}</td>
-                            <td className="px-4 py-3 text-right text-sm text-text2">
-                              {product.defaultTaxPercent != null ? `%${product.defaultTaxPercent}` : "-"}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="inline-flex rounded-full bg-surface2 px-2 py-0.5 text-xs font-medium text-text2">
-                                {product.variantCount ?? product.variants?.length ?? 0}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="inline-flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => onEditProduct(product.id)}
-                                  disabled={togglingProductIds.includes(product.id)}
-                                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-                                  aria-label="Urunu duzenle"
-                                  title="Duzenle"
-                                >
-                                  <EditIcon />
-                                </button>
-                                <ToggleSwitch
-                                  checked={Boolean(product.isActive)}
-                                  onChange={(next) => onToggleProductActive(product, next)}
-                                  disabled={togglingProductIds.includes(product.id)}
-                                />
-                              </div>
-                            </td>
-                          </tr>,
-                          isExpanded ? (
-                            <tr key={`${product.id}-expanded`} className="border-b border-border bg-surface/60">
-                              <td colSpan={10} className="px-4 py-3">
-                                {loadingVariants ? (
-                                  <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
-                                    Varyantlar yükleniyor...
-                                  </div>
-                                ) : variantsError ? (
-                                  <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">
-                                    {variantsError}
-                                  </div>
-                                ) : tableVariants.length === 0 ? (
-                                  <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
-                                    Secilen filtrede varyant bulunmuyor.
-                                  </div>
-                                ) : (
-                                  <VirtualVariantList
-                                    variants={tableVariants}
-                                    togglingVariantIds={togglingVariantIds}
-                                    onToggleVariantActive={(variant, next) =>
-                                      onToggleVariantActive(product.id, variant, next)
-                                    }
-                                    onPrice={(variant) => openPriceDrawer(product, variant)}
-                                  />
-                                )}
-                              </td>
-                            </tr>
-                          ) : null,
-                        ]
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {meta && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-                <div className="flex items-center gap-4">
-                  <span>Toplam: {meta.total}</span>
-                  <span>Sayfa: {currentPage}/{totalPages}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="pageSize" className="text-xs text-muted">Satir:</label>
-                  <select
-                    id="pageSize"
-                    value={pageSize}
-                    onChange={(e) => onChangePageSize(Number(e.target.value))}
-                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <Button label="Onceki" onClick={goPrev} disabled={!canGoPrev || loading} variant="pagination" />
-                  {pageItems.map((item, idx) =>
-                    item === -1 ? (
-                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">...</span>
-                    ) : (
-                      <Button
-                        key={`page-${item}`}
-                        label={String(item)}
-                        onClick={() => goToPage(item)}
-                        disabled={loading}
-                        variant={item === currentPage ? "paginationActive" : "pagination"}
-                      />
-                    ),
-                  )}
-                  <Button label="Sonraki" onClick={goNext} disabled={!canGoNext || loading} variant="pagination" />
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </section>
 
       {/* ── Drawer ── */}
       <Drawer
@@ -1311,285 +927,34 @@ export default function ProductsPage() {
           {loadingDetail ? (
             <div className="text-sm text-muted">Urun detayi yukleniyor...</div>
           ) : step === 1 ? (
-            /* ── Step 1: Product Base Info ── */
-            <>
-              {/* Step indicator */}
-              <div className="flex gap-2 mb-2">
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-border" />
-              </div>
-
-              <InputField
-                label="Urun Adi *"
-                type="text"
-                value={form.name}
-                onChange={(v) => onFormChange("name", v)}
-                placeholder="Basic Pantolon"
-                error={errors.name}
-              />
-
-              <InputField
-                label="SKU *"
-                type="text"
-                value={form.sku}
-                onChange={(v) => onFormChange("sku", v)}
-                placeholder="Pantolon-BASIC"
-                error={errors.sku}
-              />
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Aciklama</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => onFormChange("description", e.target.value)}
-                  className="min-h-[80px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-                  placeholder="Pamuklu basic pantolon"
-                />
-              </div>
-
-              <InputField
-                label="Barkod"
-                type="text"
-                value={form.defaultBarcode}
-                onChange={(v) => onFormChange("defaultBarcode", v)}
-                placeholder="1234567890125"
-              />
-
-              <InputField
-                label="Gorsel URL"
-                type="text"
-                value={form.image}
-                onChange={(v) => onFormChange("image", v)}
-                placeholder="https://example.com/image.jpg"
-              />
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Para Birimi</label>
-                <SearchableDropdown
-                  options={CURRENCY_OPTIONS}
-                  value={form.defaultCurrency}
-                  onChange={(v) => onFormChange("defaultCurrency", v || "TRY")}
-                  placeholder="Para birimi secin"
-                  showEmptyOption={false}
-                  allowClear={false}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <InputField
-                  label="Satis Fiyati"
-                  type="text"
-                  value={form.defaultSalePrice}
-                  onChange={(v) => onFormChange("defaultSalePrice", v)}
-                  placeholder="499.90"
-                  error={errors.defaultSalePrice}
-                />
-                <InputField
-                  label="Alis Fiyati"
-                  type="text"
-                  value={form.defaultPurchasePrice}
-                  onChange={(v) => onFormChange("defaultPurchasePrice", v)}
-                  placeholder="200.00"
-                  error={errors.defaultPurchasePrice}
-                />
-              </div>
-
-              <InputField
-                label="KDV Orani (%)"
-                type="text"
-                value={form.defaultTaxPercent}
-                onChange={(v) => onFormChange("defaultTaxPercent", v)}
-                placeholder="20"
-                error={errors.defaultTaxPercent}
-              />
-
-              {/* ── Product Attributes ── */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-muted">Ozellikler</label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        attributes: [...prev.attributes, { id: "", values: [] }],
-                      }))
-                    }
-                    className="text-xs cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors"
-                  >
-                    + Ozellik Ekle
-                  </button>
-                </div>
-
-                {form.attributes.length === 0 ? (
-                  <p className="text-xs text-muted">Henuz ozellik eklenmedi.</p>
-                ) : (
-                  form.attributes.map((attr, ai) => {
-                    const selectedAttrDef = attributeDefinitions.find((d) => d.id === attr.id);
-                    const attrOptions = attributeDefinitions
-                      .filter((d) => d.isActive)
-                      .map((d) => ({ value: d.id, label: d.name }));
-                    const valueOptions = (selectedAttrDef?.values ?? [])
-                      .filter((v) => v.isActive)
-                      .map((v) => ({ value: v.id, label: v.name }));
-
-                    return (
-                      <div key={ai} className="flex items-center gap-2">
-                        <SearchableDropdown
-                          options={attrOptions}
-                          value={attr.id}
-                          onChange={(v) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              attributes: prev.attributes.map((a, i) =>
-                                i === ai ? { id: v, values: [] } : a,
-                              ),
-                            }))
-                          }
-                          placeholder="Ozellik secin"
-                          showEmptyOption={false}
-                          allowClear={false}
-                          className="flex-1"
-                        />
-                        <SearchableMultiSelectDropdown
-                          options={valueOptions}
-                          values={attr.values}
-                          onChange={(values) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              attributes: prev.attributes.map((a, i) =>
-                                i === ai ? { ...a, values } : a,
-                              ),
-                            }))
-                          }
-                          placeholder={attr.id ? "Deger(ler) secin" : "Once ozellik secin"}
-                          className="flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((prev) => ({
-                              ...prev,
-                              attributes: prev.attributes.filter((_, i) => i !== ai),
-                            }))
-                          }
-                          className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors"
-                          aria-label="Ozelligi sil"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {formError && <p className="text-sm text-error">{formError}</p>}
-            </>
+            <ProductDrawerStep1
+              form={form}
+              errors={errors}
+              calculatedLineTotal={calculatedLineTotal}
+              storeOptions={storeOptions}
+              isStoreScopedUser={isStoreScopedUser}
+              productInfoOpen={step1ProductInfoOpen}
+              onToggleProductInfo={() => setStep1ProductInfoOpen((prev) => !prev)}
+              storeScopeOpen={step1StoreScopeOpen}
+              onToggleStoreScope={() => setStep1StoreScopeOpen((prev) => !prev)}
+              formError={formError}
+              onFormChange={onFormChange}
+              onFormPatch={onFormPatch}
+              onClearError={onClearError}
+            />
           ) : step === 2 ? (
-            /* ── Step 2: Variants ── */
-            <>
-              {/* Step indicator */}
-              <div className="flex gap-2 mb-2">
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-                <div className="h-1 flex-1 rounded-full bg-primary" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-text">Varyantlar</h3>
-                  <p className="text-xs text-muted">Urun icin renk, beden gibi varyantlar ekleyin</p>
-                </div>
-              </div>
-
-              {variants.length === 0 ? (
-                <div className="rounded-xl2 border border-dashed border-border p-8 text-center">
-                  <p className="text-sm text-muted">Henuz varyant eklenmedi.</p>
-                  <p className="mt-1 text-xs text-muted">Varyant eklemek zorunlu degildir, dogrudan urun olusturabilirsiniz.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {variants.map((variant, vi) => (
-                    <CollapsiblePanel
-                      key={variant.clientKey}
-                      title={`Varyant #${vi + 1}`}
-                      open={expandedVariantKeys.includes(variant.clientKey)}
-                      onToggle={() => toggleVariantPanel(variant.clientKey)}
-                      toggleAriaLabel={expandedVariantKeys.includes(variant.clientKey) ? "Varyanti daralt" : "Varyanti genislet"}
-                      rightSlot={(
-                        <button
-                          type="button"
-                          onClick={() => removeVariant(vi)}
-                          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors"
-                          aria-label="Varyanti sil"
-                        >
-                          <TrashIcon />
-                        </button>
-                      )}
-                    >
-                      {/* Attributes */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-muted">Ozellikler</label>
-                          <button
-                            type="button"
-                            onClick={() => addAttribute(vi)}
-                            className="text-xs cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors"
-                          >
-                            + Ozellik Ekle
-                          </button>
-                        </div>
-
-                        {variant.attributes.map((attr, ai) => (
-                          <div key={ai} className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <SearchableDropdown
-                                options={getVariantAttributeOptions(vi, ai)}
-                                value={attr.id}
-                                onChange={(v) => updateVariantAttribute(vi, ai, "id", v)}
-                                placeholder="Ozellik secin"
-                                showEmptyOption={false}
-                                allowClear={false}
-                                className="flex-1"
-                              />
-                              <SearchableMultiSelectDropdown
-                                options={getVariantAttributeValueOptions(attr.id, attr.values)}
-                                values={attr.values}
-                                onChange={(values) => updateVariantAttribute(vi, ai, "values", values)}
-                                placeholder={attr.id ? "Deger(ler) secin" : "Once ozellik secin"}
-                                className="flex-1"
-                              />
-                              {variant.attributes.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeAttribute(vi, ai)}
-                                  className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors"
-                                  aria-label="Ozelligi sil"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M18 6 6 18" />
-                                    <path d="m6 6 12 12" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-
-                      {variantErrors[vi]?.attributes && (
-                        <p className="text-xs text-error">{variantErrors[vi].attributes}</p>
-                      )}
-                      </div>
-                    </CollapsiblePanel>
-                  ))}
-                </div>
-              )}
-
-              {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
-            </>
+            <ProductDrawerStep2
+              variants={variants}
+              expandedVariantKeys={expandedVariantKeys}
+              variantErrors={variantErrors}
+              attributeDefinitions={attributeDefinitions}
+              formError={formError}
+              onToggleVariantPanel={toggleVariantPanel}
+              onRemoveVariant={removeVariant}
+              onAddAttribute={addAttribute}
+              onRemoveAttribute={removeAttribute}
+              onUpdateAttribute={updateVariantAttribute}
+            />
           ) : null}
         </form>
       </Drawer>

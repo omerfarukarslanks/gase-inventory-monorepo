@@ -12,7 +12,6 @@ export type ProductVariant = {
   updatedById?: string | null;
   name: string;
   code: string;
-  barcode: string | null;
   isActive?: boolean;
   attributes?: ProductAttributeInput[];
 };
@@ -51,16 +50,21 @@ export type Product = {
   name: string;
   sku: string;
   description: string | null;
-  defaultBarcode: string | null;
   image: string | null;
-  defaultCurrency: Currency;
-  defaultSalePrice: number | string;
-  defaultPurchasePrice: number | string;
-  defaultTaxPercent: number | string;
+  currency: Currency;
+  unitPrice: number | string;
+  purchasePrice: number | string;
+  discountPercent?: number | string | null;
+  discountAmount?: number | string | null;
+  taxPercent?: number | string | null;
+  taxAmount?: number | string | null;
+  lineTotal?: number | string | null;
   isActive?: boolean;
   variantCount?: number;
   variants?: ProductVariant[];
   attributes?: ProductAttributeInput[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type ProductsListMeta = {
@@ -81,32 +85,42 @@ export type CreateVariantDto = {
 };
 
 export type CreateProductRequest = {
+  currency: Currency;
+  purchasePrice: number;
+  unitPrice: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal: number;
   name: string;
   sku: string;
   description?: string;
-  defaultBarcode?: string;
   image?: string;
-  defaultCurrency: Currency;
-  defaultSalePrice: number;
-  defaultPurchasePrice: number;
-  defaultTaxPercent: number;
   attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type UpdateProductRequest = {
+  currency?: Currency;
+  purchasePrice?: number;
+  unitPrice?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal?: number;
   name?: string;
   sku?: string;
   description?: string;
-  defaultBarcode?: string;
   image?: string;
-  defaultCurrency?: Currency;
-  defaultSalePrice?: number;
-  defaultPurchasePrice?: number;
-  defaultTaxPercent?: number;
   isActive?: boolean;
   attributes?: ProductAttributeInput[];
   variants?: CreateVariantDto[];
+  storeIds?: string[];
+  applyToAllStores?: boolean;
 };
 
 export type GetProductsParams = {

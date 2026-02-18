@@ -7,7 +7,6 @@ export type InventoryReceiveItem = {
   storeId: string;
   productVariantId: string;
   quantity: number;
-  reference?: string;
   meta?: {
     reason?: string;
     note?: string;
@@ -27,7 +26,6 @@ export type InventoryTransferPayload = {
   toStoreId: string;
   productVariantId: string;
   quantity: number;
-  reference?: string;
   meta?: {
     reason?: string;
     note?: string;
@@ -38,7 +36,6 @@ export type InventoryAdjustPayload = {
   storeId: string;
   productVariantId: string;
   newQuantity: number;
-  reference?: string;
   meta?: {
     reason?: string;
     note?: string;
@@ -49,7 +46,6 @@ export type InventorySellPayload = {
   storeId: string;
   productVariantId: string;
   quantity: number;
-  reference?: string;
   meta?: {
     posTerminal?: string;
   };

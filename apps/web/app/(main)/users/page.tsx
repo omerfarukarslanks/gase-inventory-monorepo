@@ -11,20 +11,11 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { getSessionUserRole, isStoreScopedRole } from "@/lib/authz";
+import { useDebounceStr } from "@/hooks/useDebounce";
 
 // Basit ikonlar
 const SortAscIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h10" /><path d="M11 16h10" /><path d="M11 20h10" /></svg>;
 const SortDescIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="M11 12h10" /><path d="M11 8h10" /><path d="M11 4h10" /></svg>;
-
-// Debounce hook'unu inline tanımlayalım şimdilik pratik olsun
-function useDebounceStr(value: string, delay: number) {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-}
 
 export default function UsersPage() {
     const router = useRouter();
