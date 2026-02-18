@@ -97,7 +97,7 @@ function VirtualVariantRows({
           {visibleVariants.map((variant) => (
             <div
               key={variant.productVariantId}
-              className="grid h-11 grid-cols-[1.5fr_1fr_0.8fr_1fr] items-center border-b border-border px-3 text-sm last:border-b-0 hover:bg-surface2/40"
+              className="grid h-11 grid-cols-[1.5fr_1fr_0.8fr] items-center border-b border-border px-3 text-sm last:border-b-0 hover:bg-surface2/40"
             >
               <div className="min-w-0">
                 <div className="truncate text-xs font-medium text-text">
@@ -106,7 +106,7 @@ function VirtualVariantRows({
                 <div className="truncate text-[11px] text-muted">{variant.variantCode ?? "-"}</div>
               </div>
               <div className="text-right text-text">{formatNumber(variant.totalQuantity)}</div>
-              <div className="sticky right-0 z-10 flex justify-end gap-1 bg-surface2/40 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+              <div className="sticky right-0 z-10 flex items-center justify-end gap-1 bg-surface2/40 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                 <button
                   type="button"
                   onClick={() => onAdjust(makeParams(variant))}
@@ -152,6 +152,10 @@ export default function StockTable({
   onTransfer,
 }: StockTableProps) {
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
+  const totalStockQuantity = useMemo(
+    () => products.reduce((sum, product) => sum + Number(product.totalQuantity ?? 0), 0),
+    [products],
+  );
 
   const toggleProduct = (productId: string) => {
     setExpandedProductIds((prev) =>
@@ -178,7 +182,9 @@ export default function StockTable({
               <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="w-10 px-2 py-3"></th>
                 <th className="px-4 py-3">Urun</th>
-                <th className="px-4 py-3 text-right">Miktar</th>
+                <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                  Miktar
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -215,7 +221,7 @@ export default function StockTable({
                       <td className="px-4 py-3 text-sm font-medium text-text">
                         {product.productName}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm text-text">
+                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right text-sm text-text shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                         {formatNumber(product.totalQuantity)}
                       </td>
                     </tr>
@@ -224,10 +230,10 @@ export default function StockTable({
                       <tr className="border-b border-border bg-surface/70">
                         <td colSpan={3} className="px-4 py-3">
                           <div className="overflow-hidden rounded-xl border border-border bg-surface2/30">
-                            <div className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr] border-b border-border bg-surface2/60 px-3 py-2 text-[11px] uppercase tracking-wide text-muted">
+                            <div className="grid grid-cols-[1.5fr_1fr_0.8fr] border-b border-border bg-surface2/60 px-3 py-2 text-[11px] uppercase tracking-wide text-muted">
                               <div>Varyant</div>
                               <div className="text-right">Miktar</div>
-                              <div className="sticky right-0 z-10 bg-surface2/60 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                              <div className="sticky right-0 z-10 justify-self-stretch bg-surface2/60 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                                 Islem
                               </div>
                             </div>
@@ -247,6 +253,14 @@ export default function StockTable({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+      {!loading && !error && products.length > 0 && (
+        <div className="border-t border-border bg-surface2/40 px-4 py-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-text2">Toplam Stok</span>
+            <span className="font-semibold text-text">{formatNumber(totalStockQuantity)}</span>
+          </div>
         </div>
       )}
     </section>
