@@ -548,24 +548,38 @@ export default function ProductsPage() {
   };
 
   const validateVariants = (): boolean => {
-    if (variants.length === 0) return true;
+    if (variants.length === 0) {
+      setFormError("En az bir ozellik eklemelisiniz.");
+      return false;
+    }
     const newErrors: Record<number, VariantErrors> = {};
+    let hasAtLeastOneValidAttribute = false;
 
     variants.forEach((v, i) => {
       const e: VariantErrors = {};
 
       const hasEmptyAttr = v.attributes.some((a) => a.id && a.values.length === 0);
       const hasEmptyKey = v.attributes.some((a) => !a.id && a.values.length > 0);
+      const validAttributeCount = v.attributes.filter((a) => a.id && a.values.length > 0).length;
+      if (validAttributeCount > 0) hasAtLeastOneValidAttribute = true;
 
       if (hasEmptyAttr || hasEmptyKey) {
         e.attributes = "Tum ozellik alanlari doldurulmalidir.";
+      } else if (validAttributeCount === 0) {
+        e.attributes = "En az bir ozellik secmelisiniz.";
       }
 
       if (Object.keys(e).length > 0) newErrors[i] = e;
     });
 
+    if (!hasAtLeastOneValidAttribute) {
+      setFormError("En az bir ozellik eklemelisiniz.");
+    } else {
+      setFormError("");
+    }
+
     setVariantErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.keys(newErrors).length === 0 && hasAtLeastOneValidAttribute;
   };
 
   /* ── Step navigation ── */
@@ -605,9 +619,17 @@ export default function ProductsPage() {
       ]);
       setExpandedVariantKeys([clientKey]);
     } catch {
-      setExpandedVariantKeys([]);
+      const clientKey = createVariantClientKey();
       setOriginalVariantMap({});
-      setVariants([]);
+      setVariants([
+        {
+          clientKey,
+          id: undefined,
+          isActive: true,
+          attributes: [{ id: "", values: [] }],
+        },
+      ]);
+      setExpandedVariantKeys([clientKey]);
     }
   };
 

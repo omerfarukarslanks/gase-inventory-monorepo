@@ -99,10 +99,14 @@ function VirtualVariantRows({
               key={variant.productVariantId}
               className="grid h-11 grid-cols-[1.5fr_1fr_0.8fr_1fr] items-center border-b border-border px-3 text-sm last:border-b-0 hover:bg-surface2/40"
             >
-              <div className="truncate text-text">{variant.variantName}</div>
-              <div className="truncate text-text2">{variant.variantCode ?? "-"}</div>
+              <div className="min-w-0">
+                <div className="truncate text-xs font-medium text-text">
+                  {variant.variantName ?? "Ozellik yok"}
+                </div>
+                <div className="truncate text-[11px] text-muted">{variant.variantCode ?? "-"}</div>
+              </div>
               <div className="text-right text-text">{formatNumber(variant.totalQuantity)}</div>
-              <div className="flex justify-end gap-1">
+              <div className="sticky right-0 z-10 flex justify-end gap-1 bg-surface2/40 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                 <button
                   type="button"
                   onClick={() => onAdjust(makeParams(variant))}
@@ -187,7 +191,7 @@ export default function StockTable({
                         <button
                           type="button"
                           onClick={() => toggleProduct(product.productId)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface2 hover:text-text"
+                          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface2 hover:text-text"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -218,14 +222,14 @@ export default function StockTable({
 
                     {expanded && (
                       <tr className="border-b border-border bg-surface/70">
-                        <td></td>
-                        <td colSpan={2} className="px-4 py-3">
+                        <td colSpan={3} className="px-4 py-3">
                           <div className="overflow-hidden rounded-xl border border-border bg-surface2/30">
                             <div className="grid grid-cols-[1.5fr_1fr_0.8fr_1fr] border-b border-border bg-surface2/60 px-3 py-2 text-[11px] uppercase tracking-wide text-muted">
                               <div>Varyant</div>
-                              <div>Kod</div>
                               <div className="text-right">Miktar</div>
-                              <div className="text-right">Islem</div>
+                              <div className="sticky right-0 z-10 bg-surface2/60 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                                Islem
+                              </div>
                             </div>
                             <VirtualVariantRows
                               variants={product.variants ?? []}

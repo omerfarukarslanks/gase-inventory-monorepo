@@ -55,7 +55,9 @@ function VirtualVariantList({
         <div className="text-right">Satış</div>
         <div className="text-right">Vergi</div>
         <div className="text-right">İndirim</div>
-        <div className="text-right">İşlemler</div>
+        <div className="sticky right-0 z-10 bg-surface2/80 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+          İşlemler
+        </div>
       </div>
       <div className="relative" style={{ height: totalHeight }}>
         <div
@@ -87,7 +89,7 @@ function VirtualVariantList({
               <div className="text-right text-xs text-text2">
                 {formatPercentOrAmount(variant.discountPercent, variant.discountAmount)}
               </div>
-              <div className="flex items-center justify-end gap-1">
+              <div className="sticky right-0 z-10 flex items-center justify-end gap-1 bg-surface2/40 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                 <button
                   type="button"
                   onClick={() => onPrice(variant)}
@@ -167,7 +169,9 @@ export default function ProductTable({
                 <th className="px-4 py-3 text-right">Vergi</th>
                 <th className="px-4 py-3 text-right">Indirim</th>
                 <th className="px-4 py-3 text-center">Varyant</th>
-                <th className="px-4 py-3 text-right">Islemler</th>
+                <th className="sticky right-0 z-20 w-[120px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                  Islemler
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -250,7 +254,7 @@ export default function ProductTable({
                           {product.variantCount ?? product.variants?.length ?? 0}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="sticky right-0 z-10 w-[120px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
                           <button
                             type="button"
