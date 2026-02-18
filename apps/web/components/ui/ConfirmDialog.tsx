@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -11,6 +12,7 @@ type Props = {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  loadingLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -22,9 +24,18 @@ export default function ConfirmDialog({
   confirmLabel = "Yes",
   cancelLabel = "No",
   loading = false,
+  loadingLabel = "Processing...",
   onConfirm,
   onClose,
 }: Props) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return createPortal(
     <div
       className={cn(
@@ -48,7 +59,7 @@ export default function ConfirmDialog({
             variant="secondary"
           />
           <Button
-            label={loading ? "Deleting..." : confirmLabel}
+            label={loading ? loadingLabel : confirmLabel}
             onClick={onConfirm}
             disabled={loading}
             variant="dangerSoft"

@@ -25,6 +25,14 @@ export function pickNumber(...values: unknown[]) {
   return 0;
 }
 
+export function pickNumberOrNull(...values: unknown[]): number | null {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (!Number.isNaN(numeric)) return numeric;
+  }
+  return null;
+}
+
 export function normalizeStoreItems(payload: unknown): InventoryStoreStockItem[] {
   const root = asObject(payload);
   const dataNode = asObject(root?.data);
