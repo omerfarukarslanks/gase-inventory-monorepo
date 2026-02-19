@@ -15,6 +15,7 @@ export type SaleLineForm = {
   taxMode: LineMode;
   taxPercent: string;
   taxAmount: string;
+  campaignCode: string;
 };
 
 export type FieldErrors = {
@@ -65,6 +66,7 @@ export function createLineRow(): SaleLineForm {
     taxMode: "percent",
     taxPercent: "",
     taxAmount: "",
+    campaignCode: "",
   };
 }
 

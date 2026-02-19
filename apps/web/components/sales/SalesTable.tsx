@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPrice } from "@/lib/format";
-import { TrashIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem } from "@/lib/sales";
 
 type SalesTableProps = {
@@ -9,6 +9,7 @@ type SalesTableProps = {
   salesLoading: boolean;
   salesError: string;
   onOpenDetail: (saleId: string) => void;
+  onEdit: (sale: SaleListItem) => void;
   onOpenCancel: (sale: SaleListItem) => void;
 };
 
@@ -30,6 +31,7 @@ export default function SalesTable({
   salesLoading,
   salesError,
   onOpenDetail,
+  onEdit,
   onOpenCancel,
 }: SalesTableProps) {
   if (salesError) {
@@ -89,7 +91,19 @@ export default function SalesTable({
                   </td>
                   <td className="px-4 py-3 text-sm text-text2">{sale.name ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-text2">{sale.surname ?? "-"}</td>
-                  <td className="px-4 py-3 text-sm text-text2">{sale.status ?? "-"}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span
+                      className={
+                        sale.status === "CONFIRMED"
+                          ? "inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                          : sale.status === "CANCELLED"
+                            ? "inline-block rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-medium text-error"
+                            : "inline-block rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-muted"
+                      }
+                    >
+                      {sale.status ?? "-"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right text-sm text-text2">
                     {formatPrice(getSaleUnitPrice(sale))}
                   </td>
@@ -97,16 +111,28 @@ export default function SalesTable({
                     {formatPrice(getSaleTotal(sale))}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => onOpenCancel(sale)}
-                      disabled={isCancelled}
-                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label="Satis fisini iptal et"
-                      title={isCancelled ? "Fis zaten iptal edilmis" : "Fisi iptal et"}
-                    >
-                      <TrashIcon />
-                    </button>
+                    {sale.status === "CONFIRMED" && (
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onEdit(sale)}
+                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                          aria-label="Satis fisini duzenle"
+                          title="Fisi duzenle"
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenCancel(sale)}
+                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
+                          aria-label="Satis fisini iptal et"
+                          title="Fisi iptal et"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

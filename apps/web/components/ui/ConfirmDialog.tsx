@@ -15,6 +15,7 @@ type Props = {
   loadingLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
+  children?: React.ReactNode;
 };
 
 export default function ConfirmDialog({
@@ -27,6 +28,7 @@ export default function ConfirmDialog({
   loadingLabel = "Processing...",
   onConfirm,
   onClose,
+  children,
 }: Props) {
   const [mounted, setMounted] = useState(false);
 
@@ -50,6 +52,8 @@ export default function ConfirmDialog({
       >
         <h3 className="text-base font-semibold text-text">{title}</h3>
         <p className="mt-1 text-sm text-muted">{description}</p>
+
+        {children && <div className="mt-3">{children}</div>}
 
         <div className="mt-4 flex items-center justify-end gap-2">
           <Button

@@ -174,12 +174,50 @@ export async function getSales(params: GetSalesParams): Promise<GetSalesResponse
   return apiFetch<GetSalesResponse>(`/sales?${query}`);
 }
 
-export async function cancelSale(id: string): Promise<unknown> {
+export type CancelSaleMeta = {
+  reason?: string;
+  note?: string;
+};
+
+export async function cancelSale(id: string, meta?: CancelSaleMeta): Promise<unknown> {
   return apiFetch<unknown>(`/sales/${id}/cancel`, {
     method: "POST",
+    body: JSON.stringify({ meta }),
   });
 }
 
+export type UpdateSaleLinePayload = {
+  productVariantId: string;
+  quantity: number;
+  currency: Currency;
+  unitPrice: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal: number;
+  campaignCode?: string;
+};
+
+export type UpdateSalePayload = {
+  name: string;
+  surname: string;
+  phoneNumber?: string;
+  email?: string;
+  meta?: {
+    source?: string;
+    note?: string;
+  };
+  lines: UpdateSaleLinePayload[];
+};
+
 export async function getSaleById(id: string): Promise<unknown> {
   return apiFetch<unknown>(`/sales/${id}`);
+}
+
+export async function updateSale(id: string, payload: UpdateSalePayload): Promise<unknown> {
+  return apiFetch<unknown>(`/sales/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }

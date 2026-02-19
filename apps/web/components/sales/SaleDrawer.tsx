@@ -12,6 +12,7 @@ import type { Currency } from "@/lib/products";
 
 type SaleDrawerProps = {
   open: boolean;
+  editMode: boolean;
   submitting: boolean;
   scopeReady: boolean;
   loadingVariants: boolean;
@@ -50,6 +51,7 @@ type SaleDrawerProps = {
 
 export default function SaleDrawer({
   open,
+  editMode,
   submitting,
   scopeReady,
   loadingVariants,
@@ -90,8 +92,8 @@ export default function SaleDrawer({
       open={open}
       onClose={onClose}
       side="top"
-      title="Yeni Satis"
-      description="Satis akisini buradan tamamlayabilirsiniz."
+      title={editMode ? "Satisi Duzenle" : "Yeni Satis"}
+      description={editMode ? "Satis fisini buradan guncelleyebilirsiniz." : "Satis akisini buradan tamamlayabilirsiniz."}
       closeDisabled={submitting}
       className="!max-h-[90vh]"
       footer={
@@ -104,7 +106,7 @@ export default function SaleDrawer({
             disabled={submitting}
           />
           <Button
-            label={submitting ? "Kaydediliyor..." : "Satisi Kaydet"}
+            label={submitting ? "Kaydediliyor..." : editMode ? "Guncelle" : "Satisi Kaydet"}
             onClick={onSubmit}
             loading={submitting}
             variant="primarySolid"

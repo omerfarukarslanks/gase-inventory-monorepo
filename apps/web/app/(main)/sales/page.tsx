@@ -10,7 +10,9 @@ import {
   createSale,
   getSaleById,
   getSales,
+  updateSale,
   type CreateSalePayload,
+  type UpdateSalePayload,
   type SaleDetail,
   type SaleListItem,
 } from "@/lib/sales";
@@ -58,6 +60,8 @@ export default function SalesPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelTargetSale, setCancelTargetSale] = useState<SaleListItem | null>(null);
   const [cancellingSale, setCancellingSale] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNote, setCancelNote] = useState("");
 
   /* ── Sale detail modal ── */
   const [saleDetailOpen, setSaleDetailOpen] = useState(false);
@@ -80,6 +84,7 @@ export default function SalesPage() {
 
   /* ── Sale drawer state ── */
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState("");
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
@@ -304,6 +309,7 @@ export default function SalesPage() {
 
   /* ── Form helpers ── */
   const resetSaleForm = useCallback(() => {
+    setEditingSaleId(null);
     setStoreId(isStoreScopedUser ? scopedStoreId : "");
     setName("");
     setSurname("");
@@ -328,9 +334,57 @@ export default function SalesPage() {
     setSaleDrawerOpen(false);
   };
 
+  const openEditDrawer = async (sale: SaleListItem) => {
+    resetSaleForm();
+    setSuccess("");
+    setFormError("");
+    setSaleDrawerOpen(true);
+    setEditingSaleId(sale.id);
+    setSubmitting(true);
+    try {
+      const response = await getSaleById(sale.id);
+      const detail = normalizeSaleDetail(response);
+      if (!detail) {
+        setFormError("Satis detayi alinamadi.");
+        return;
+      }
+      setName(detail.name ?? "");
+      setSurname(detail.surname ?? "");
+      setPhoneNumber(detail.phoneNumber ?? "");
+      setEmail(detail.email ?? "");
+      setSource(detail.source ?? "");
+      setNote(detail.note ?? "");
+      if (detail.storeId) setStoreId(detail.storeId);
+      setLines(
+        detail.lines.length > 0
+          ? detail.lines.map((line) => ({
+              rowId: `line-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              productVariantId: line.productVariantId ?? "",
+              quantity: line.quantity != null ? String(line.quantity) : "1",
+              currency: line.currency ?? "TRY",
+              unitPrice: line.unitPrice != null ? String(line.unitPrice) : "",
+              discountMode: line.discountAmount != null ? ("amount" as const) : ("percent" as const),
+              discountPercent: line.discountPercent != null ? String(line.discountPercent) : "",
+              discountAmount: line.discountAmount != null ? String(line.discountAmount) : "",
+              taxMode: line.taxAmount != null ? ("amount" as const) : ("percent" as const),
+              taxPercent: line.taxPercent != null ? String(line.taxPercent) : "",
+              taxAmount: line.taxAmount != null ? String(line.taxAmount) : "",
+              campaignCode: line.campaignCode ?? "",
+            }))
+          : [createLineRow()],
+      );
+    } catch {
+      setFormError("Satis detayi yuklenemedi.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   /* ── Cancel handlers ── */
   const openCancelDialog = (sale: SaleListItem) => {
     setCancelTargetSale(sale);
+    setCancelReason("");
+    setCancelNote("");
     setCancelDialogOpen(true);
   };
 
@@ -344,7 +398,10 @@ export default function SalesPage() {
     if (!cancelTargetSale) return;
     setCancellingSale(true);
     try {
-      await cancelSale(cancelTargetSale.id);
+      await cancelSale(cancelTargetSale.id, {
+        reason: cancelReason.trim() || undefined,
+        note: cancelNote.trim() || undefined,
+      });
       setSuccess("Satis fisi iptal edildi.");
       setCancelDialogOpen(false);
       setCancelTargetSale(null);
@@ -409,52 +466,70 @@ export default function SalesPage() {
   };
 
   /* ── Submit ── */
+  const buildLinePayloads = () =>
+    lines.map((line) => ({
+      productVariantId: line.productVariantId,
+      quantity: Number(line.quantity),
+      currency: line.currency,
+      unitPrice: Number(line.unitPrice),
+      ...(line.discountMode === "percent" && line.discountPercent
+        ? { discountPercent: Number(line.discountPercent) }
+        : {}),
+      ...(line.discountMode === "amount" && line.discountAmount
+        ? { discountAmount: Number(line.discountAmount) }
+        : {}),
+      ...(line.taxMode === "percent" && line.taxPercent
+        ? { taxPercent: Number(line.taxPercent) }
+        : {}),
+      ...(line.taxMode === "amount" && line.taxAmount
+        ? { taxAmount: Number(line.taxAmount) }
+        : {}),
+      lineTotal: Math.round(calcLineTotal(line) * 100) / 100,
+      ...(line.campaignCode.trim() ? { campaignCode: line.campaignCode.trim() } : {}),
+    }));
+
   const onSubmit = async () => {
     setFormError("");
     setSuccess("");
     if (!validate()) return;
 
-    const payload: CreateSalePayload = {
-      ...(isStoreScopedUser ? {} : { storeId }),
-      name: name.trim(),
-      surname: surname.trim(),
-      phoneNumber: phoneNumber.trim() || undefined,
-      email: email.trim() || undefined,
-      meta: {
-        source: source.trim() || undefined,
-        note: note.trim() || undefined,
-      },
-      lines: lines.map((line) => ({
-        productVariantId: line.productVariantId,
-        quantity: Number(line.quantity),
-        currency: line.currency,
-        unitPrice: Number(line.unitPrice),
-        ...(line.discountMode === "percent" && line.discountPercent
-          ? { discountPercent: Number(line.discountPercent) }
-          : {}),
-        ...(line.discountMode === "amount" && line.discountAmount
-          ? { discountAmount: Number(line.discountAmount) }
-          : {}),
-        ...(line.taxMode === "percent" && line.taxPercent
-          ? { taxPercent: Number(line.taxPercent) }
-          : {}),
-        ...(line.taxMode === "amount" && line.taxAmount
-          ? { taxAmount: Number(line.taxAmount) }
-          : {}),
-        lineTotal: Math.round(calcLineTotal(line) * 100) / 100,
-      })),
-    };
-
     setSubmitting(true);
     try {
-      await createSale(payload);
-      setSuccess("Satis kaydi olusturuldu.");
+      if (editingSaleId) {
+        const payload: UpdateSalePayload = {
+          name: name.trim(),
+          surname: surname.trim(),
+          phoneNumber: phoneNumber.trim() || undefined,
+          email: email.trim() || undefined,
+          meta: {
+            source: source.trim() || undefined,
+            note: note.trim() || undefined,
+          },
+          lines: buildLinePayloads(),
+        };
+        await updateSale(editingSaleId, payload);
+        setSuccess("Satis kaydi guncellendi.");
+      } else {
+        const payload: CreateSalePayload = {
+          ...(isStoreScopedUser ? {} : { storeId }),
+          name: name.trim(),
+          surname: surname.trim(),
+          phoneNumber: phoneNumber.trim() || undefined,
+          email: email.trim() || undefined,
+          meta: {
+            source: source.trim() || undefined,
+            note: note.trim() || undefined,
+          },
+          lines: buildLinePayloads(),
+        };
+        await createSale(payload);
+        setSuccess("Satis kaydi olusturuldu.");
+      }
       resetSaleForm();
       setSaleDrawerOpen(false);
-      setSalesPage(1);
-      await fetchSalesReceipts(1);
+      await fetchSalesReceipts();
     } catch {
-      setFormError("Satis olusturulamadi. Lutfen tekrar deneyin.");
+      setFormError(editingSaleId ? "Satis guncellenemedi. Lutfen tekrar deneyin." : "Satis olusturulamadi. Lutfen tekrar deneyin.");
     } finally {
       setSubmitting(false);
     }
@@ -502,6 +577,7 @@ export default function SalesPage() {
         salesLoading={salesLoading}
         salesError={salesError}
         onOpenDetail={(id) => void openSaleDetailDialog(id)}
+        onEdit={(sale) => void openEditDrawer(sale)}
         onOpenCancel={openCancelDialog}
       />
 
@@ -523,6 +599,7 @@ export default function SalesPage() {
 
       <SaleDrawer
         open={saleDrawerOpen}
+        editMode={!!editingSaleId}
         submitting={submitting}
         scopeReady={scopeReady}
         loadingVariants={loadingVariants}
@@ -569,7 +646,29 @@ export default function SalesPage() {
         loadingLabel="Iptal ediliyor..."
         onConfirm={confirmCancelSale}
         onClose={closeCancelDialog}
-      />
+      >
+        <div className="space-y-2">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted">Sebep</label>
+            <input
+              type="text"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Orn: Musteri vazgecti"
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted">Not</label>
+            <textarea
+              value={cancelNote}
+              onChange={(e) => setCancelNote(e.target.value)}
+              placeholder="Orn: Telefon ile iptal"
+              className="min-h-18 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+        </div>
+      </ConfirmDialog>
 
       <SaleDetailModal
         open={saleDetailOpen}
