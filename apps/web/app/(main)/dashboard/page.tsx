@@ -1,143 +1,196 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { WeeklySalesChart, CategoryPieChart, MonthlyBarChart } from "@/components/dashboard/Chart";
-import { recentTransactions, lowStockItems } from "@/components/dashboard/data";
+import { RevenueTrendChart, ProductSalesChart } from "@/components/dashboard/Chart";
+import DashboardLowStock from "@/components/dashboard/DashboardLowStock";
+import DashboardCancellations from "@/components/dashboard/DashboardCancellations";
+import {
+  getReportSalesSummary,
+  getReportStockTotal,
+  getReportConfirmedOrders,
+  getReportReturns,
+  getReportRevenueTrend,
+  getReportSalesByProduct,
+  getReportLowStock,
+  getReportCancellations,
+  type SalesSummaryResponse,
+  type StockTotalResponse,
+  type ConfirmedOrdersResponse,
+  type ReturnsResponse,
+  type RevenueTrendItem,
+  type SalesByProductItem,
+  type LowStockItem,
+  type CancellationItem,
+} from "@/lib/reports";
+
+function fmtValue(n: number | undefined | null): string {
+  if (n == null) return "-";
+  if (n >= 1_000_000) return "₺" + (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return "₺" + (n / 1_000).toFixed(1) + "K";
+  return "₺" + n.toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtCount(n: number | undefined | null): string {
+  if (n == null) return "-";
+  return n.toLocaleString("tr-TR");
+}
 
 export default function DashboardPage() {
-    return (
-        <div className="space-y-6">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                <KpiCard
-                    title="Günlük Satış"
-                    value="₺8,490"
-                    hint="Geçen Haftaya Göre"
-                    delta={12.4}
-                    variant="primary"
-                />
-                <KpiCard
-                    title="Stok Miktarı"
-                    value="4,250"
-                    hint="Birim Ürün"
-                    delta={-2.1}
-                    variant="accent"
-                />
-                <KpiCard
-                    title="Aktif Siparişler"
-                    value="14"
-                    hint="Son: 45 dk önce"
-                    delta={5.2}
-                    variant="warning"
-                />
-                <KpiCard
-                    title="İadeler"
-                    value="₺1,240"
-                    hint="Bu hafta"
-                    delta={-8.4}
-                    variant="error"
-                />
-            </div>
+  const [loading, setLoading] = useState(true);
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {/* Main Chart */}
-                <div className="col-span-1 rounded-2xl border border-border bg-surface p-6 shadow-glow lg:col-span-2">
-                    <div className="mb-6 flex items-center justify-between">
-                        <div>
-                            <h3 className="text-lg font-semibold text-text">Haftalık Satış Grafiği</h3>
-                            <p className="text-sm text-muted">Geçen haftayla karşılaştırmalı</p>
-                        </div>
-                        <select className="bg-transparent text-sm font-medium text-text2 outline-none">
-                            <option>Bu Hafta</option>
-                            <option>Geçen Ay</option>
-                        </select>
-                    </div>
-                    <WeeklySalesChart />
-                </div>
+  /* KPI data */
+  const [salesSummary, setSalesSummary] = useState<SalesSummaryResponse | null>(null);
+  const [stockTotal, setStockTotal] = useState<StockTotalResponse | null>(null);
+  const [confirmedOrders, setConfirmedOrders] = useState<ConfirmedOrdersResponse | null>(null);
+  const [returns, setReturns] = useState<ReturnsResponse | null>(null);
 
-                {/* Pie Chart */}
-                <div className="col-span-1 flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-glow">
-                    <h3 className="mb-1 text-lg font-semibold text-text">Kategori Dağılımı</h3>
-                    <p className="mb-6 text-sm text-muted">Stok değerine göre</p>
-                    <div className="flex-1">
-                        <CategoryPieChart />
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-text2">
-                        <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-primary" />
-                            <span>Gıda (%34)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-blue-500" />
-                            <span>İçecek (%22)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-yellow-500" />
-                            <span>Temizlik (%15)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-purple-500" />
-                            <span>Kişisel (%10)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  /* Chart data */
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrendItem[]>([]);
+  const [productSales, setProductSales] = useState<SalesByProductItem[]>([]);
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Recent Transactions */}
-                <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
-                    <h3 className="mb-4 text-lg font-semibold text-text">Son İşlemler</h3>
-                    <div className="space-y-4">
-                        {recentTransactions.map((tx, i) => (
-                            <div key={i} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
-                                <div className="flex items-center gap-3">
-                                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${tx.tip === "İade" ? "bg-red-500/10 text-red-500" :
-                                            tx.tip === "Stok Giriş" ? "bg-blue-500/10 text-blue-500" :
-                                                "bg-green-500/10 text-green-500"
-                                        }`}>
-                                        {tx.tip === "İade" ? "↩" : tx.tip === "Stok Giriş" ? "📥" : "🛒"}
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-medium text-text">{tx.magaza}</div>
-                                        <div className="text-xs text-muted">{tx.zaman}</div>
-                                    </div>
-                                </div>
-                                <div className={`text-sm font-semibold ${tx.tutar < 0 ? "text-red-500" : "text-text"}`}>
-                                    {tx.tutar > 0 ? "+" : ""}
-                                    {tx.tutar.toLocaleString("tr-TR")} ₺
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+  /* Table data */
+  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [cancellations, setCancellations] = useState<CancellationItem[]>([]);
+  const [tablesLoading, setTablesLoading] = useState(true);
 
-                {/* Low Stock Alerts */}
-                <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-text">Kritik Stok Uyarıları</h3>
-                        <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-500">
-                            {lowStockItems.length} Ürün
-                        </span>
-                    </div>
-                    <div className="space-y-3">
-                        {lowStockItems.map((item, i) => (
-                            <div key={i} className="flex items-center justify-between rounded-lg border border-border bg-bg/50 p-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                                    <div>
-                                        <div className="text-sm font-medium text-text">{item.name}</div>
-                                        <div className="text-xs text-muted">{item.magaza}</div>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="text-sm font-bold text-red-500">{item.stok} adet</div>
-                                    <div className="text-[10px] text-muted">Min: {item.min}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setTablesLoading(true);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+    try {
+      const [salesRes, stockRes, ordersRes, returnsRes, trendRes, productRes, lowStockRes, cancelRes] =
+        await Promise.allSettled([
+          getReportSalesSummary({ startDate: weekAgo, endDate: today }),
+          getReportStockTotal({ compareDate: weekAgo }),
+          getReportConfirmedOrders({ startDate: weekAgo, endDate: today, compareDate: weekAgo }),
+          getReportReturns({ startDate: weekAgo, endDate: today }),
+          getReportRevenueTrend({ groupBy: "day", startDate: weekAgo, endDate: today }),
+          getReportSalesByProduct({ startDate: weekAgo, endDate: today, limit: 5 }),
+          getReportLowStock({ threshold: 50, limit: 6 }),
+          getReportCancellations({ startDate: weekAgo, endDate: today, limit: 5 }),
+        ]);
+
+      if (salesRes.status === "fulfilled") setSalesSummary(salesRes.value);
+      if (stockRes.status === "fulfilled") setStockTotal(stockRes.value);
+      if (ordersRes.status === "fulfilled") setConfirmedOrders(ordersRes.value);
+      if (returnsRes.status === "fulfilled") setReturns(returnsRes.value);
+      if (trendRes.status === "fulfilled") setRevenueTrend(trendRes.value.data ?? []);
+      if (productRes.status === "fulfilled") setProductSales(productRes.value.data ?? []);
+      if (lowStockRes.status === "fulfilled") setLowStock(lowStockRes.value.data ?? []);
+      if (cancelRes.status === "fulfilled") setCancellations(cancelRes.value.data ?? []);
+    } catch {
+      // silently handle — individual cards show "-"
+    } finally {
+      setLoading(false);
+      setTablesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchDashboard();
+  }, [fetchDashboard]);
+
+  /* KPI derived values */
+  const salesTotal = salesSummary?.totals?.totalLineTotal;
+  const salesDelta = salesSummary?.totals?.cancelRate != null ? -(salesSummary.totals.cancelRate.toFixed(2)) : 0;
+
+  const stockQty = stockTotal?.totals?.todayTotalQuantity;
+  const stockDelta = stockTotal?.comparison?.changePercent ?? 0;
+
+  const orderInfo = fmtValue(confirmedOrders?.totals?.totalLineTotal) + ` (${fmtCount(confirmedOrders?.totals?.orderCount)})`;
+  const orderDelta = confirmedOrders?.comparison?.changePercent ?? 0;
+
+  const returnInfo = fmtValue(returns?.totals?.totalLineTotal) + ` (${fmtCount(returns?.totals?.orderCount)})`;
+  const returnDelta = returns?.comparison?.changePercent ?? 0;
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Haftalik Satis"
+          value={loading ? "..." : fmtValue(salesTotal)}
+          hint="Son 7 gun"
+          delta={loading ? 0 : salesDelta}
+          variant="primary"
+        />
+        <KpiCard
+          title="Stok Miktari"
+          value={loading ? "..." : fmtCount(stockQty)}
+          hint="Birim Urun"
+          delta={loading ? 0 : stockDelta}
+          variant="accent"
+        />
+        <KpiCard
+          title="Onayli Siparisler"
+          value={loading ? "..." : orderInfo}
+          hint="Son 7 gun"
+          delta={loading ? 0 : orderDelta}
+          variant="warning"
+        />
+        <KpiCard
+          title="Iadeler"
+          value={loading ? "..." : returnInfo}
+          hint="Son 7 gun"
+          delta={loading ? 0 : returnDelta}
+          variant="error"
+        />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-text">Gelir Trendi</h3>
+            <p className="text-sm text-muted">Son 7 gunluk gelir</p>
+          </div>
+          {loading ? (
+            <div className="flex h-65 items-center justify-center text-sm text-muted">Yukleniyor...</div>
+          ) : revenueTrend.length > 0 ? (
+            <RevenueTrendChart data={revenueTrend} />
+          ) : (
+            <div className="flex h-65 items-center justify-center text-sm text-muted">Veri bulunamadi</div>
+          )}
         </div>
-    );
+
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-text">Urun Bazli Satis</h3>
+            <p className="text-sm text-muted">En cok satan 5 urun</p>
+          </div>
+          {loading ? (
+            <div className="flex h-65 items-center justify-center text-sm text-muted">Yukleniyor...</div>
+          ) : productSales.length > 0 ? (
+            <ProductSalesChart data={productSales} />
+          ) : (
+            <div className="flex h-65 items-center justify-center text-sm text-muted">Veri bulunamadi</div>
+          )}
+        </div>
+      </div>
+
+      {/* Tables */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-text">Dusuk Stok Uyarilari</h3>
+            {lowStock.length > 0 && (
+              <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-500">
+                {lowStock.length} Urun
+              </span>
+            )}
+          </div>
+          <DashboardLowStock data={lowStock} loading={tablesLoading} />
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
+          <h3 className="mb-4 text-lg font-semibold text-text">Son Iptaller</h3>
+          <DashboardCancellations data={cancellations} loading={tablesLoading} />
+        </div>
+      </div>
+    </div>
+  );
 }

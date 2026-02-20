@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar
 } from "recharts";
 import { salesWeekly, stockByCategory, monthlyTrend } from "@/components/dashboard/data";
+import type { RevenueTrendItem, SalesByProductItem } from "@/lib/reports";
 
 function fmt(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -87,6 +88,56 @@ export function MonthlyBarChart() {
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="gelir" name="Gelir" fill="rgb(var(--primary))" radius={[6, 6, 0, 0]} barSize={16} />
           <Bar dataKey="gider" name="Gider" fill="rgb(var(--accent))" radius={[6, 6, 0, 0]} barSize={16} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── API-driven charts ── */
+
+export function RevenueTrendChart({ data }: { data: RevenueTrendItem[] }) {
+  const chartData = data.map((item) => ({
+    period: item.period ?? "",
+    revenue: item.totalRevenue ?? 0,
+  }));
+
+  return (
+    <div className="h-[260px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData}>
+          <defs>
+            <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="rgb(var(--primary))" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="rgb(var(--primary))" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" vertical={false} />
+          <XAxis dataKey="period" tick={{ fontSize: 11, fill: "rgb(var(--muted))" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: "rgb(var(--muted))" }} axisLine={false} tickLine={false} tickFormatter={(v) => "₺" + fmt(v)} />
+          <Tooltip content={<CustomTooltip />} />
+          <Area type="monotone" dataKey="revenue" name="Gelir" stroke="rgb(var(--primary))" fill="url(#revenueGrad)" strokeWidth={2.5} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export function ProductSalesChart({ data }: { data: SalesByProductItem[] }) {
+  const chartData = data.slice(0, 5).map((item) => ({
+    name: item.productName ?? item.variantName ?? "-",
+    revenue: item.lineTotal ?? 0,
+  }));
+
+  return (
+    <div className="h-[260px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} layout="vertical" barGap={4}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11, fill: "rgb(var(--muted))" }} axisLine={false} tickLine={false} tickFormatter={(v) => "₺" + fmt(v)} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "rgb(var(--muted))" }} axisLine={false} tickLine={false} width={120} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="revenue" name="Gelir" fill="rgb(var(--primary))" radius={[0, 6, 6, 0]} barSize={20} />
         </BarChart>
       </ResponsiveContainer>
     </div>
