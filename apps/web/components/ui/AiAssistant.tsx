@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Drawer from "@/components/ui/Drawer";
 import type { DrawerSide } from "@/components/ui/Drawer";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import ChatPanel from "@/components/chat/ChatPanel";
 
 export function AiAssistant() {
   const [open, setOpen] = useState(false);
@@ -26,34 +28,30 @@ export function AiAssistant() {
         onClose={() => setOpen(false)}
         side={side}
         title="AI Assistant"
+        description="Hizli analiz ve soru-cevap"
         closeLabel="✕"
         className={side === "bottom" ? "rounded-t-2xl" : ""}
       >
-        <div className="p-4">
-          <div className="text-sm text-muted">Hızlı komutlar</div>
-          <div className="mt-3 grid gap-2">
-            {[
-              "Bu hafta en çok satan 10 ürün?",
-              "Kadıköy mağazası düşük stokları listele",
-              "Bekleyen transferler için öneri oluştur",
-              "İade oranı artmış mı? Sebep analizi",
-            ].map((t) => (
-              <button
-                key={t}
-                className="rounded-xl2 border border-border bg-surface2 p-3 text-left text-sm text-text hover:bg-surface"
-              >
-                {t}
-              </button>
-            ))}
+        <div className="flex h-full min-h-0 flex-col p-4">
+          <div className="mb-2 flex items-center justify-end">
+            <Link
+              href="/chat"
+              onClick={() => setOpen(false)}
+              className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-text transition-colors hover:bg-surface2"
+            >
+              Tam Sayfa Ac
+            </Link>
           </div>
-
-          <textarea
-            className="mt-4 h-28 w-full rounded-xl2 border border-border bg-surface2 p-3 text-sm text-text outline-none focus:ring-2 focus:ring-primary/25"
-            placeholder="Sorunu yaz..."
+          <ChatPanel
+            className="min-h-0"
+            contentClassName={side === "bottom" ? "max-h-[36vh]" : "max-h-[42vh]"}
+            quickPrompts={[
+              "Bu hafta en cok satan 10 urun?",
+              "Low stock urunleri oncelik sirasina gore listele",
+              "Iptal oraninda son 7 gunde degisim var mi?",
+              "Magaza performansi icin ozet cikar",
+            ]}
           />
-          <button className="mt-2 h-11 w-full rounded-xl2 bg-primary text-sm font-semibold text-black hover:bg-primaryHover">
-            Gönder
-          </button>
         </div>
       </Drawer>
     </>

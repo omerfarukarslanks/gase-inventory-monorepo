@@ -12,6 +12,7 @@ const items = [
   { href: "/products", label: "Urunler", icon: "U" },
   { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3" },
   { href: "/sales", label: "Satislar", icon: "TL" },
+  { href: "/chat", label: "AI Chat", icon: "AI" },
 ];
 
 const adminItems = [
