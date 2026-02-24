@@ -6,6 +6,7 @@ import { CURRENCY_OPTIONS, type ProductForm, type FormErrors } from "@/component
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
+import SupplierInfiniteDropdown from "@/components/products/SupplierInfiniteDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import ModeToggle from "@/components/ui/ModeToggle";
@@ -73,6 +74,15 @@ export default function ProductDrawerStep1({
             placeholder="Pantolon-BASIC"
             error={errors.sku}
           />
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Tedarikci</label>
+            <SupplierInfiniteDropdown
+              value={form.supplierId}
+              onChange={(v) => onFormChange("supplierId", v)}
+              placeholder="Tedarikci secin"
+            />
+          </div>
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted">Aciklama</label>

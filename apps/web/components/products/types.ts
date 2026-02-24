@@ -24,6 +24,7 @@ export type ProductForm = {
   image: string;
   storeIds: string[];
   applyToAllStores: boolean;
+  supplierId: string;
 };
 
 export type VariantForm = {
@@ -62,6 +63,7 @@ export const EMPTY_PRODUCT_FORM: ProductForm = {
   image: "",
   storeIds: [],
   applyToAllStores: false,
+  supplierId: "",
 };
 
 export const CURRENCY_OPTIONS = [

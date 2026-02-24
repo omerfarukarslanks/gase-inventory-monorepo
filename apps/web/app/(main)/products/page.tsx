@@ -258,6 +258,7 @@ export default function ProductsPage() {
         sku: product.sku,
         description: product.description ?? undefined,
         image: product.image ?? undefined,
+        supplierId: product.supplierId ?? product.supplier?.id ?? undefined,
         isActive: next,
       });
       await fetchProducts();
@@ -471,6 +472,7 @@ export default function ProductsPage() {
         image: detail.image ?? "",
         storeIds: detail.storeIds ?? [],
         applyToAllStores: Boolean(detail.applyToAllStores),
+        supplierId: detail.supplierId ?? detail.supplier?.id ?? "",
       };
       setForm(formData);
       setOriginalForm(formData);
@@ -661,6 +663,7 @@ export default function ProductsPage() {
         sku: form.sku.trim(),
         description: form.description.trim() || undefined,
         image: form.image.trim() || undefined,
+        supplierId: form.supplierId || undefined,
         ...buildPricingPayload(),
         ...buildScopePayload(),
       };

@@ -18,6 +18,7 @@ const items = [
 const adminItems = [
   { href: "/attributes", label: "Ozellikler", icon: "O" },
   { href: "/stores", label: "Magazalar", icon: "M" },
+  { href: "/suppliers", label: "Tedarikciler", icon: "T" },
   { href: "/users", label: "Kullanicilar", icon: "K" },
   { href: "/reports", label: "Raporlar", icon: "R" },
 ];
@@ -189,7 +190,10 @@ export default function Sidebar({
             .filter(
               (it) =>
                 canSeeTenantManagement ||
-                (it.href !== "/stores" && it.href !== "/users" && it.href !== "/attributes"),
+                (it.href !== "/stores" &&
+                  it.href !== "/users" &&
+                  it.href !== "/attributes" &&
+                  it.href !== "/suppliers"),
             )
             .map((it) => (
             <Link

@@ -72,6 +72,13 @@ export type Product = {
   attributes?: ProductAttributeInput[];
   storeIds?: string[];
   applyToAllStores?: boolean;
+  supplierId?: string | null;
+  supplier?: {
+    id: string;
+    name?: string;
+    surname?: string | null;
+    isActive?: boolean;
+  } | null;
 };
 
 export type ProductsListMeta = {
@@ -108,6 +115,7 @@ export type CreateProductRequest = {
   variants?: CreateVariantDto[];
   storeIds?: string[];
   applyToAllStores?: boolean;
+  supplierId?: string;
 };
 
 export type UpdateProductRequest = {
@@ -128,6 +136,7 @@ export type UpdateProductRequest = {
   variants?: CreateVariantDto[];
   storeIds?: string[];
   applyToAllStores?: boolean;
+  supplierId?: string;
 };
 
 export type GetProductsParams = {
