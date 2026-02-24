@@ -129,6 +129,7 @@ type ProductTableProps = {
   onToggleActive: (product: Product, next: boolean) => void;
   onToggleVariantActive: (productId: string, variant: ProductVariant, next: boolean) => void;
   onPrice: (product: Product, variant: ProductVariant) => void;
+  onProductPrice: (product: Product) => void;
 };
 
 export default function ProductTable({
@@ -146,6 +147,7 @@ export default function ProductTable({
   onToggleActive,
   onToggleVariantActive,
   onPrice,
+  onProductPrice,
 }: ProductTableProps) {
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -169,7 +171,7 @@ export default function ProductTable({
                 <th className="px-4 py-3 text-right">Vergi</th>
                 <th className="px-4 py-3 text-right">Indirim</th>
                 <th className="px-4 py-3 text-center">Varyant</th>
-                <th className="sticky right-0 z-20 w-[120px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                <th className="sticky right-0 z-20 w-[156px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
                   Islemler
                 </th>
               </tr>
@@ -254,8 +256,18 @@ export default function ProductTable({
                           {product.variantCount ?? product.variants?.length ?? 0}
                         </span>
                       </td>
-                      <td className="sticky right-0 z-10 w-[120px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
+                      <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onProductPrice(product)}
+                            disabled={togglingProductIds.includes(product.id)}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                            aria-label="Urun fiyatini duzenle"
+                            title="Fiyat Duzenle"
+                          >
+                            <PriceIcon />
+                          </button>
                           <button
                             type="button"
                             onClick={() => onEdit(product.id)}

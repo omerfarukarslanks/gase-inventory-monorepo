@@ -3,7 +3,11 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { InventoryStoreStockItem } from "@/lib/inventory";
 import type { Currency } from "@/lib/products";
-import { updateStorePrice, type StorePricePayload } from "@/lib/store-prices";
+import {
+  updateProductStorePrice,
+  updateStorePrice,
+  type StorePricePayload,
+} from "@/lib/store-prices";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
@@ -24,9 +28,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 const CURRENCY_OPTIONS = CURRENCY_FILTER_OPTIONS;
 
 export type PriceTarget = {
-  productVariantId: string;
+  mode: "variant" | "product";
+  productId: string;
+  productVariantId?: string;
   productName: string;
-  variantName: string;
+  variantName?: string;
   stores: InventoryStoreStockItem[];
   initial?: {
     unitPrice?: number | string | null;
@@ -208,7 +214,14 @@ export default function PriceDrawer({
     setSubmitting(true);
     setFormError("");
     try {
-      await updateStorePrice(target.productVariantId, payload);
+      if (target.mode === "product") {
+        await updateProductStorePrice(target.productId, payload);
+      } else {
+        if (!target.productVariantId) {
+          throw new Error("Variant id is required for variant price update.");
+        }
+        await updateStorePrice(target.productVariantId, payload);
+      }
       onSuccess("Fiyat guncellendi.");
       handleClose();
     } catch {
@@ -229,7 +242,7 @@ export default function PriceDrawer({
       onClose={handleClose}
       side="right"
       title="Fiyat Duzenle"
-      description={target ? `${target.productName} / ${target.variantName}` : ""}
+      description={target ? `${target.productName}${target.variantName ? ` / ${target.variantName}` : ""}` : ""}
       closeDisabled={submitting}
       className={cn(isMobile ? "!max-w-none" : "!max-w-[480px]")}
       footer={

@@ -64,6 +64,11 @@ function getPaymentMethodLabel(paymentMethod?: string | null) {
   return paymentMethod ?? "-";
 }
 
+function shouldShowAddPaymentButton(remainingAmount?: number | null) {
+  if (remainingAmount == null) return true;
+  return Number(remainingAmount) !== 0;
+}
+
 export default function SalesTable({
   salesReceipts,
   salesLoading,
@@ -130,6 +135,7 @@ export default function SalesTable({
               const payments = paymentsBySaleId[sale.id] ?? [];
               const loadingPayments = Boolean(paymentLoadingBySaleId[sale.id]);
               const paymentsError = paymentErrorBySaleId[sale.id] ?? "";
+              const showAddPaymentButton = shouldShowAddPaymentButton(sale.remainingAmount);
 
               return [
                   <tr key={`${sale.id}-main`} className="border-b border-border hover:bg-surface2/30 transition-colors">
@@ -197,14 +203,16 @@ export default function SalesTable({
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => onAddPayment(sale.id)}
-                          className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                          title="Odeme ekle"
-                        >
-                          <PriceIcon />
-                        </button>
+                        {showAddPaymentButton && (
+                          <button
+                            type="button"
+                            onClick={() => onAddPayment(sale.id)}
+                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                            title="Odeme ekle"
+                          >
+                            <PriceIcon />
+                          </button>
+                        )}
                         {sale.status === "CONFIRMED" && (
                           <>
                             <button

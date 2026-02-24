@@ -373,6 +373,8 @@ export default function ProductsPage() {
     }
 
     setPriceTarget({
+      mode: "variant",
+      productId: product.id,
       productVariantId: variant.id,
       productName: product.name,
       variantName: variant.name ?? "-",
@@ -385,6 +387,26 @@ export default function ProductsPage() {
         taxPercent: variant.taxPercent ?? null,
         taxAmount: variant.taxAmount ?? null,
         lineTotal: variant.lineTotal ?? null,
+      },
+    });
+    setPriceProductId(product.id);
+    setPriceOpen(true);
+  };
+
+  const openProductPriceDrawer = (product: Product) => {
+    setPriceTarget({
+      mode: "product",
+      productId: product.id,
+      productName: product.name,
+      stores: [],
+      initial: {
+        unitPrice: product.unitPrice ?? null,
+        currency: product.currency ?? "TRY",
+        discountPercent: product.discountPercent ?? null,
+        discountAmount: product.discountAmount ?? null,
+        taxPercent: product.taxPercent ?? null,
+        taxAmount: product.taxAmount ?? null,
+        lineTotal: product.lineTotal ?? null,
       },
     });
     setPriceProductId(product.id);
@@ -891,6 +913,7 @@ export default function ProductsPage() {
         onToggleActive={onToggleProductActive}
         onToggleVariantActive={onToggleVariantActive}
         onPrice={openPriceDrawer}
+        onProductPrice={openProductPriceDrawer}
       />
 
       {meta && !loading && !error && (
@@ -996,7 +1019,12 @@ export default function ProductsPage() {
         fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
         onClose={closePriceDrawer}
         onSuccess={() => {
-          if (priceProductId) {
+          if (priceTarget?.mode === "product") {
+            void fetchProducts();
+            if (priceProductId && expandedProductIds.includes(priceProductId)) {
+              void fetchTableVariants(priceProductId, variantStatusFilter);
+            }
+          } else if (priceProductId) {
             void fetchTableVariants(priceProductId, variantStatusFilter);
           }
         }}

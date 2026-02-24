@@ -28,3 +28,13 @@ export async function updateStorePrice(
     body: JSON.stringify(payload),
   });
 }
+
+export async function updateProductStorePrice(
+  productId: string,
+  payload: StorePricePayload,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/store-prices/product/${productId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
