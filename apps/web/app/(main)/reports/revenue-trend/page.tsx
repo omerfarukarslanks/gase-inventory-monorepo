@@ -34,6 +34,8 @@ export default function RevenueTrendPage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -119,6 +121,7 @@ export default function RevenueTrendPage() {
               <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                 <th className="pb-3 pr-4">Donem</th>
                 <th className="pb-3 pr-4">Satis Adedi</th>
+                {hasCurrency && <th className="pb-3 pr-4">PB</th>}
                 <th className="pb-3 pr-4">Toplam Gelir</th>
                 <th className="pb-3 pr-4">Ort. Sepet</th>
                 <th className="pb-3 pr-4">Degisim</th>
@@ -130,6 +133,7 @@ export default function RevenueTrendPage() {
                 <tr key={idx} className="text-text">
                   <td className="py-3 pr-4 font-medium">{item.period ?? "-"}</td>
                   <td className="py-3 pr-4">{item.saleCount ?? 0}</td>
+                  {hasCurrency && <td className="py-3 pr-4">{item.currency ?? "-"}</td>}
                   <td className="py-3 pr-4">{formatPrice(item.totalRevenue)}</td>
                   <td className="py-3 pr-4">{formatPrice(item.averageBasket)}</td>
                   <td className="py-3 pr-4">

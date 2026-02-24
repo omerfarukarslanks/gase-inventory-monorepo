@@ -44,6 +44,8 @@ export default function StorePerformancePage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -166,6 +168,11 @@ export default function StorePerformancePage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                   Iptal
                 </th>
+                {hasCurrency && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    PB
+                  </th>
+                )}
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                   Toplam Gelir
                 </th>
@@ -198,6 +205,11 @@ export default function StorePerformancePage() {
                   <td className="px-4 py-3 text-right text-text">
                     {item.cancelledCount ?? 0}
                   </td>
+                  {hasCurrency && (
+                    <td className="px-4 py-3 text-right text-text">
+                      {item.currency ?? "-"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right font-medium text-text">
                     {formatPrice(item.totalLineTotal)}
                   </td>

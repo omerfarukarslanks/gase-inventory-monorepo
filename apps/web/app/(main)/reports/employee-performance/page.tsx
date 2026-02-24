@@ -41,6 +41,8 @@ export default function EmployeePerformancePage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -146,6 +148,11 @@ export default function EmployeePerformancePage() {
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                   Iptal Orani
                 </th>
+                {hasCurrency && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    PB
+                  </th>
+                )}
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                   Toplam Gelir
                 </th>
@@ -185,6 +192,11 @@ export default function EmployeePerformancePage() {
                       ? item.cancelRate.toFixed(1) + "%"
                       : "-"}
                   </td>
+                  {hasCurrency && (
+                    <td className="px-4 py-3 text-right text-text">
+                      {item.currency ?? "-"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right font-medium text-text">
                     {formatPrice(item.totalRevenue)}
                   </td>

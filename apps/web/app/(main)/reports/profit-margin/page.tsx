@@ -41,6 +41,8 @@ export default function ProfitMarginPage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   const summaryCards = [
     { label: "Toplam Gelir", value: formatPrice(totals?.totalRevenue) },
     { label: "Toplam Maliyet", value: formatPrice(totals?.totalCost) },
@@ -159,6 +161,7 @@ export default function ProfitMarginPage() {
                   <th className="pb-3 pr-4">Varyant</th>
                   <th className="pb-3 pr-4">Kod</th>
                   <th className="pb-3 pr-4">Satilan</th>
+                  {hasCurrency && <th className="pb-3 pr-4">PB</th>}
                   <th className="pb-3 pr-4">Gelir</th>
                   <th className="pb-3 pr-4">Maliyet</th>
                   <th className="pb-3 pr-4">Brut Kar</th>
@@ -174,6 +177,7 @@ export default function ProfitMarginPage() {
                     <td className="py-3 pr-4">{item.variantName ?? "-"}</td>
                     <td className="py-3 pr-4">{item.variantCode ?? "-"}</td>
                     <td className="py-3 pr-4">{item.soldQuantity ?? 0}</td>
+                    {hasCurrency && <td className="py-3 pr-4">{item.currency ?? "-"}</td>}
                     <td className="py-3 pr-4">{formatPrice(item.totalRevenue)}</td>
                     <td className="py-3 pr-4">{formatPrice(item.totalCost)}</td>
                     <td className="py-3 pr-4">{formatPrice(item.grossProfit)}</td>

@@ -111,6 +111,7 @@ export type RevenueTrendQuery = ReportScopeQuery & {
 export type RevenueTrendItem = {
   period?: string;
   saleCount?: number;
+  currency?: string;
   totalRevenue?: number;
   totalUnitPrice?: number;
   averageBasket?: number;
@@ -211,6 +212,7 @@ export type CancellationItem = {
   surname?: string;
   phoneNumber?: string;
   email?: string;
+  currency?: string;
   unitPrice?: number;
   lineTotal?: number;
   cancelledAt?: string;
@@ -240,6 +242,7 @@ export type StorePerformanceItem = {
   storeId?: string;
   storeName?: string;
   storeCode?: string;
+  currency?: string;
   saleCount?: number;
   confirmedCount?: number;
   cancelledCount?: number;
@@ -266,6 +269,51 @@ export async function getReportStorePerformance(params: ReportScopeQuery = {}): 
   return apiFetch<StorePerformanceResponse>(`/reports/stores/performance${q ? `?${q}` : ""}`);
 }
 
+/* ── Supplier Sales Performance ── */
+export type SupplierSalesPerformanceItem = {
+  supplierId?: string;
+  supplierName?: string;
+  supplierSurname?: string;
+  supplierPhoneNumber?: string;
+  supplierEmail?: string;
+  saleCount?: number;
+  productCount?: number;
+  variantCount?: number;
+  quantity?: number;
+  currency?: string;
+  totalUnitPrice?: number;
+  totalDiscount?: number;
+  totalTax?: number;
+  lineTotal?: number;
+  avgUnitPrice?: number;
+};
+
+export type SupplierSalesPerformanceResponse = {
+  scope?: unknown;
+  period?: { startDate?: string; endDate?: string };
+  filters?: { search?: string | null };
+  data?: SupplierSalesPerformanceItem[];
+  totals?: {
+    totalSuppliers?: number;
+    totalSales?: number;
+    totalProducts?: number;
+    totalVariants?: number;
+    totalQuantity?: number;
+    totalUnitPrice?: number;
+    totalDiscount?: number;
+    totalTax?: number;
+    totalLineTotal?: number;
+  };
+  meta?: { total?: number; limit?: number; page?: number; totalPages?: number };
+};
+
+export async function getReportSupplierSalesPerformance(
+  params: ReportScopeQuery = {},
+): Promise<SupplierSalesPerformanceResponse> {
+  const q = buildScopeQuery(params);
+  return apiFetch<SupplierSalesPerformanceResponse>(`/reports/suppliers/sales-performance${q ? `?${q}` : ""}`);
+}
+
 /* ── Product Performance Ranking ── */
 export type ProductRankingItem = {
   rank?: number;
@@ -274,6 +322,7 @@ export type ProductRankingItem = {
   productVariantId?: string;
   variantName?: string;
   variantCode?: string;
+  currency?: string;
   soldQuantity?: number;
   totalRevenue?: number;
   saleCount?: number;
@@ -366,6 +415,7 @@ export type ProfitMarginItem = {
   productVariantId?: string;
   variantName?: string;
   variantCode?: string;
+  currency?: string;
   soldQuantity?: number;
   totalRevenue?: number;
   totalCost?: number;
@@ -391,6 +441,7 @@ export type EmployeePerformanceItem = {
   userName?: string;
   userSurname?: string;
   userEmail?: string;
+  currency?: string;
   saleCount?: number;
   confirmedCount?: number;
   cancelledCount?: number;
@@ -416,6 +467,7 @@ export type TopCustomerItem = {
   name?: string;
   surname?: string;
   email?: string;
+  currency?: string;
   totalOrders?: number;
   confirmedCount?: number;
   cancelledCount?: number;
@@ -437,8 +489,8 @@ export async function getReportTopCustomers(params: ReportScopeQuery = {}): Prom
 }
 
 /* ── Discount Summary ── */
-export type DiscountByCampaign = { campaignCode?: string; totalDiscount?: number; saleCount?: number };
-export type DiscountByStore = { storeId?: string; storeName?: string; totalDiscount?: number; saleCount?: number };
+export type DiscountByCampaign = { campaignCode?: string; currency?: string; totalDiscount?: number; saleCount?: number };
+export type DiscountByStore = { storeId?: string; storeName?: string; currency?: string; totalDiscount?: number; saleCount?: number };
 
 export type DiscountSummaryResponse = {
   totalDiscount?: number;
@@ -459,6 +511,7 @@ export type VatSummaryQuery = ReportScopeQuery & {
 
 export type VatSummaryItem = {
   taxRate?: number;
+  currency?: string;
   transactionCount?: number;
   cancelledCount?: number;
   netSales?: number;
@@ -519,37 +572,6 @@ export async function getReportTurnover(params: TurnoverQuery = {}): Promise<Tur
   return apiFetch<TurnoverResponse>(`/reports/inventory/turnover${q ? `?${q}` : ""}`);
 }
 
-/* ── Transfer Analysis ── */
-export type TransferItem = {
-  transferId?: string;
-  status?: string;
-  createdAt?: string;
-  note?: string;
-  fromStore?: { id?: string; name?: string };
-  toStore?: { id?: string; name?: string };
-  totalQuantity?: number;
-  lineCount?: number;
-};
-
-export type StoreFlow = {
-  storeId?: string;
-  storeName?: string;
-  totalSent?: number;
-  totalReceived?: number;
-  netFlow?: number;
-};
-
-export type TransferAnalysisResponse = {
-  data?: TransferItem[];
-  storeFlows?: StoreFlow[];
-  meta?: { total?: number; limit?: number; page?: number; totalPages?: number };
-};
-
-export async function getReportTransfers(params: ReportScopeQuery = {}): Promise<TransferAnalysisResponse> {
-  const q = buildScopeQuery(params);
-  return apiFetch<TransferAnalysisResponse>(`/reports/transfers/analysis${q ? `?${q}` : ""}`);
-}
-
 /* ── Dead Stock ── */
 export type DeadStockQuery = ReportScopeQuery & { noSaleDays?: number };
 
@@ -559,6 +581,7 @@ export type DeadStockItem = {
   productVariantId?: string;
   variantName?: string;
   variantCode?: string;
+  currency?: string;
   currentStock?: number;
   lastSaleDate?: string;
   noSaleDays?: number;

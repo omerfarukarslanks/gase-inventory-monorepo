@@ -9,6 +9,7 @@ const reportCategories = [
       { href: "/reports/sales-summary", label: "Satis Ozeti", desc: "Genel satis istatistikleri ve ozet" },
       { href: "/reports/cancellations", label: "Iptal Raporlari", desc: "Iptal edilen fislerin detayli listesi" },
       { href: "/reports/product-performance", label: "Urun Performansi", desc: "Urun bazli satis siralamasi" },
+      { href: "/reports/supplier-performance", label: "Tedarikci Performansi", desc: "Tedarikci bazli satis ve ciro analizi" },
     ],
   },
   {
@@ -38,11 +39,8 @@ const reportCategories = [
     ],
   },
   {
-    title: "Musteri & Transfer",
-    items: [
-      { href: "/reports/customers", label: "Musteri Analizi", desc: "En iyi musteriler ve harcama analizi" },
-      { href: "/reports/transfers", label: "Transfer Analizi", desc: "Magazalar arasi transfer ozeti" },
-    ],
+    title: "Musteri",
+    items: [{ href: "/reports/customers", label: "Musteri Analizi", desc: "En iyi musteriler ve harcama analizi" }],
   },
 ];
 

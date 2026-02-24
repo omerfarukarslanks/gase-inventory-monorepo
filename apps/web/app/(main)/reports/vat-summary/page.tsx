@@ -38,6 +38,8 @@ export default function VatSummaryPage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   const summaryCards = [
     { label: "Net Satis", value: formatPrice(totals?.netSales) },
     { label: "KDV Tutari", value: formatPrice(totals?.taxAmount) },
@@ -124,6 +126,7 @@ export default function VatSummaryPage() {
                   <th className="pb-3 pr-4">KDV Orani</th>
                   <th className="pb-3 pr-4">Islem Sayisi</th>
                   <th className="pb-3 pr-4">Iptal Sayisi</th>
+                  {hasCurrency && <th className="pb-3 pr-4">PB</th>}
                   <th className="pb-3 pr-4">Net Satis</th>
                   <th className="pb-3 pr-4">KDV Tutari</th>
                   <th className="pb-3">Brut Toplam</th>
@@ -137,6 +140,7 @@ export default function VatSummaryPage() {
                     </td>
                     <td className="py-3 pr-4">{item.transactionCount ?? 0}</td>
                     <td className="py-3 pr-4">{item.cancelledCount ?? 0}</td>
+                    {hasCurrency && <td className="py-3 pr-4">{item.currency ?? "-"}</td>}
                     <td className="py-3 pr-4">{formatPrice(item.netSales)}</td>
                     <td className="py-3 pr-4">{formatPrice(item.taxAmount)}</td>
                     <td className="py-3">{formatPrice(item.grossTotal)}</td>

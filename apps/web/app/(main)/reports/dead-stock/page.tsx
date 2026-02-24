@@ -34,6 +34,8 @@ export default function DeadStockPage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = data.some((item) => Boolean(item.currency));
+
   const handleFilter = () => {
     const parsed = parseInt(noSaleDaysInput, 10);
     if (!isNaN(parsed) && parsed > 0) {
@@ -109,6 +111,7 @@ export default function DeadStockPage() {
                   <th className="pb-3 pr-4 text-right">Mevcut Stok</th>
                   <th className="pb-3 pr-4">Son Satis</th>
                   <th className="pb-3 pr-4 text-right">Satilmayan Gun</th>
+                  {hasCurrency && <th className="pb-3 pr-4 text-right">PB</th>}
                   <th className="pb-3 pr-4 text-right">Tahmini Deger</th>
                 </tr>
               </thead>
@@ -121,6 +124,7 @@ export default function DeadStockPage() {
                     <td className="py-3 pr-4 text-right text-text">{item.currentStock ?? 0}</td>
                     <td className="py-3 pr-4 text-muted">{formatDate(item.lastSaleDate)}</td>
                     <td className="py-3 pr-4 text-right text-text">{item.noSaleDays ?? 0}</td>
+                    {hasCurrency && <td className="py-3 pr-4 text-right text-text">{item.currency ?? "-"}</td>}
                     <td className="py-3 pr-4 text-right font-medium text-text">{formatPrice(item.estimatedValue)}</td>
                   </tr>
                 ))}

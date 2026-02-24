@@ -44,6 +44,8 @@ export default function DiscountSummaryPage() {
   }, [fetchData]);
 
   const hasData = byCampaign.length > 0 || byStore.length > 0;
+  const campaignHasCurrency = byCampaign.some((item) => Boolean(item.currency));
+  const storeHasCurrency = byStore.some((item) => Boolean(item.currency));
 
   return (
     <div className="space-y-6">
@@ -131,6 +133,7 @@ export default function DiscountSummaryPage() {
                 <thead>
                   <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                     <th className="pb-3 pr-4">Kampanya Kodu</th>
+                    {campaignHasCurrency && <th className="pb-3 pr-4">PB</th>}
                     <th className="pb-3 pr-4">Toplam Indirim</th>
                     <th className="pb-3">Satis Adedi</th>
                   </tr>
@@ -141,6 +144,11 @@ export default function DiscountSummaryPage() {
                       <td className="py-3 pr-4 font-medium">
                         {item.campaignCode ?? "Kampanyasiz"}
                       </td>
+                      {campaignHasCurrency && (
+                        <td className="py-3 pr-4">
+                          {item.currency ?? "-"}
+                        </td>
+                      )}
                       <td className="py-3 pr-4">
                         {formatPrice(item.totalDiscount)}
                       </td>
@@ -162,6 +170,7 @@ export default function DiscountSummaryPage() {
                 <thead>
                   <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                     <th className="pb-3 pr-4">Magaza</th>
+                    {storeHasCurrency && <th className="pb-3 pr-4">PB</th>}
                     <th className="pb-3 pr-4">Toplam Indirim</th>
                     <th className="pb-3">Satis Adedi</th>
                   </tr>
@@ -172,6 +181,11 @@ export default function DiscountSummaryPage() {
                       <td className="py-3 pr-4 font-medium">
                         {item.storeName ?? "-"}
                       </td>
+                      {storeHasCurrency && (
+                        <td className="py-3 pr-4">
+                          {item.currency ?? "-"}
+                        </td>
+                      )}
                       <td className="py-3 pr-4">
                         {formatPrice(item.totalDiscount)}
                       </td>

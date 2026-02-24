@@ -9,6 +9,15 @@ import {
 } from "@/lib/reports";
 import { formatPrice, formatDate } from "@/lib/format";
 
+function getMovementTypeLabel(type?: string | null) {
+  if (type === "ADJUSTMENT") return "Duzeltme";
+  if (type === "TRANSFER_OUT") return "Transfer Cikis";
+  if (type === "TRANSFER_IN") return "Transfer Giris";
+  if (type === "OUT") return "Cikis";
+  if (type === "IN") return "Giris";
+  return type ?? "-";
+}
+
 export default function InventoryMovementsPage() {
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
@@ -22,6 +31,7 @@ export default function InventoryMovementsPage() {
   const [endDateInput, setEndDateInput] = useState(today);
   const [startDate, setStartDate] = useState(monthAgo);
   const [endDate, setEndDate] = useState(today);
+  const hasCurrency = data.some((item) => Boolean(item.currency));
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,7 +115,7 @@ export default function InventoryMovementsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {summaryByType.map((s) => (
                 <div key={s.type} className="rounded-2xl border border-border bg-surface p-4 shadow-glow">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{s.type ?? "-"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">{getMovementTypeLabel(s.type)}</p>
                   <p className="mt-1 text-lg font-bold text-text">{(s.movementCount ?? 0).toLocaleString("tr-TR")} hareket</p>
                   <p className="text-sm text-muted">Toplam: {(s.totalQuantity ?? 0).toLocaleString("tr-TR")} adet</p>
                 </div>
@@ -136,6 +146,7 @@ export default function InventoryMovementsPage() {
                   <th className="pb-3 pr-4">Varyant</th>
                   <th className="pb-3 pr-4">Magaza</th>
                   <th className="pb-3 pr-4 text-right">Miktar</th>
+                  {hasCurrency && <th className="pb-3 pr-4 text-right">PB</th>}
                   <th className="pb-3 pr-4 text-right">Birim Fiyat</th>
                   <th className="pb-3 pr-4 text-right">Toplam</th>
                 </tr>
@@ -146,13 +157,14 @@ export default function InventoryMovementsPage() {
                     <td className="py-3 pr-4 text-muted">{formatDate(item.createdAt)}</td>
                     <td className="py-3 pr-4">
                       <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {item.type ?? "-"}
+                        {getMovementTypeLabel(item.type)}
                       </span>
                     </td>
                     <td className="py-3 pr-4 font-medium text-text">{item.product?.name ?? "-"}</td>
                     <td className="py-3 pr-4 text-text">{item.productVariant?.name ?? "-"}</td>
                     <td className="py-3 pr-4 text-text">{item.store?.name ?? "-"}</td>
                     <td className="py-3 pr-4 text-right text-text">{item.quantity ?? 0}</td>
+                    {hasCurrency && <td className="py-3 pr-4 text-right text-text">{item.currency ?? "-"}</td>}
                     <td className="py-3 pr-4 text-right text-text">{formatPrice(item.unitPrice)}</td>
                     <td className="py-3 pr-4 text-right font-medium text-text">{formatPrice(item.lineTotal)}</td>
                   </tr>

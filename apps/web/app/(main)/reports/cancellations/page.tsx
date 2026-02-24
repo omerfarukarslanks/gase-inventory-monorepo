@@ -33,6 +33,8 @@ export default function CancellationsPage() {
     void fetchData();
   }, [fetchData]);
 
+  const hasCurrency = items.some((item) => Boolean(item.currency));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -111,6 +113,11 @@ export default function CancellationsPage() {
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
                   Magaza
                 </th>
+                {hasCurrency && (
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
+                    PB
+                  </th>
+                )}
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
                   Tutar
                 </th>
@@ -134,6 +141,11 @@ export default function CancellationsPage() {
                   <td className="px-4 py-3 text-text">
                     {item.store?.name ?? "-"}
                   </td>
+                  {hasCurrency && (
+                    <td className="px-4 py-3 text-right text-text">
+                      {item.currency ?? "-"}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right font-medium text-text">
                     {formatPrice(item.lineTotal)}
                   </td>
