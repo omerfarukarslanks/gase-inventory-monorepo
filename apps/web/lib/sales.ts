@@ -1,7 +1,9 @@
 import { apiFetch } from "@/lib/api";
 import type { Currency } from "@/lib/products";
+import { normalizeSalePayment, normalizeSalePaymentsResponse } from "@/lib/sales-normalize";
 
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
+export type PaymentStatus = "ACTIVE" | "CANCELLED" | string;
 
 export type CreateSaleLinePayload = {
   productVariantId: string;
@@ -66,6 +68,7 @@ export type SaleListItem = {
   remainingAmount?: number | null;
   paymentStatus?: string | null;
   customerId?: string;
+  currency?: Currency | null;
   lines?: SaleListLine[];
 };
 
@@ -118,9 +121,28 @@ export type SaleDetail = {
   paidAmount?: number | null;
   remainingAmount?: number | null;
   paymentStatus?: string | null;
+  currency?: Currency | null;
   customerId?: string;
   lines: SaleDetailLine[];
   cancelledAt?: string | null;
+};
+
+export type SalePayment = {
+  id: string;
+  createdAt?: string;
+  createdById?: string | null;
+  updatedAt?: string;
+  updatedById?: string | null;
+  amount?: number | null;
+  paymentMethod?: PaymentMethod | string | null;
+  note?: string | null;
+  paidAt?: string | null;
+  status?: PaymentStatus | null;
+  cancelledAt?: string | null;
+  cancelledById?: string | null;
+  currency?: Currency | string | null;
+  exchangeRate?: number | null;
+  amountInBaseCurrency?: number | null;
 };
 
 export type GetSalesParams = {
@@ -232,5 +254,76 @@ export async function updateSale(id: string, payload: UpdateSalePayload): Promis
   return apiFetch<unknown>(`/sales/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export type CreateSalePaymentPayload = {
+  amount: number;
+  paymentMethod: PaymentMethod;
+  note?: string;
+  paidAt?: string;
+  currency: Currency;
+};
+
+export type UpdateSalePaymentPayload = {
+  amount: number;
+  paymentMethod: PaymentMethod;
+  note?: string;
+  paidAt?: string;
+  currency: Currency;
+};
+
+export async function getSalePayments(saleId: string): Promise<SalePayment[]> {
+  const payload = await apiFetch<unknown>(`/sales/${saleId}/payments`);
+  return normalizeSalePaymentsResponse(payload);
+}
+
+export async function createSalePayment(
+  saleId: string,
+  payload: CreateSalePaymentPayload,
+): Promise<SalePayment> {
+  const result = await apiFetch<unknown>(`/sales/${saleId}/payments`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return (
+    normalizeSalePayment(result) ?? {
+      id: "",
+      amount: payload.amount,
+      paymentMethod: payload.paymentMethod,
+      note: payload.note ?? null,
+      paidAt: payload.paidAt ?? null,
+      currency: payload.currency,
+      status: "ACTIVE",
+      cancelledAt: null,
+    }
+  );
+}
+
+export async function updateSalePayment(
+  saleId: string,
+  paymentId: string,
+  payload: UpdateSalePaymentPayload,
+): Promise<SalePayment> {
+  const result = await apiFetch<unknown>(`/sales/${saleId}/payments/${paymentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  return (
+    normalizeSalePayment(result) ?? {
+      id: paymentId,
+      amount: payload.amount,
+      paymentMethod: payload.paymentMethod,
+      note: payload.note ?? null,
+      currency: payload.currency,
+    }
+  );
+}
+
+export async function deleteSalePayment(saleId: string, paymentId: string): Promise<unknown> {
+  return apiFetch<unknown>(`/sales/${saleId}/payments/${paymentId}`, {
+    method: "DELETE",
   });
 }

@@ -20,10 +20,12 @@ import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getVisiblePages } from "@/lib/pagination";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import type { Currency } from "@/lib/products";
+import { CURRENCY_OPTIONS, STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
 type StoreForm = {
   name: string;
+  currency: Currency;
   code: string;
   address: string;
   slug: string;
@@ -33,6 +35,7 @@ type StoreForm = {
 
 const EMPTY_FORM: StoreForm = {
   name: "",
+  currency: "TRY",
   code: "",
   address: "",
   slug: "",
@@ -63,6 +66,8 @@ export default function StoresPage() {
   const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
+  const normalizeCurrency = (value: string): Currency =>
+    value === "USD" || value === "EUR" ? value : "TRY";
 
   const fetchStores = useCallback(async () => {
     if (!accessChecked) return;
@@ -152,7 +157,7 @@ export default function StoresPage() {
     setDrawerOpen(false);
   };
 
-  const onFormChange = (field: keyof StoreForm, value: string) => {
+  const onFormChange = <K extends keyof StoreForm>(field: K, value: StoreForm[K]) => {
     if (field === "name" && nameError) {
       setNameError("");
     }
@@ -174,6 +179,7 @@ export default function StoresPage() {
       const detail = await getStoreById(id, token);
       setForm({
         name: detail.name ?? "",
+        currency: normalizeCurrency(String(detail.currency ?? "TRY")),
         code: detail.code ?? "",
         address: detail.address ?? "",
         slug: detail.slug ?? "",
@@ -231,6 +237,7 @@ export default function StoresPage() {
         await createStore(
           {
             name: form.name.trim(),
+            currency: form.currency,
             code: form.code.trim() || undefined,
             address: form.address.trim() || undefined,
             slug: form.slug.trim() || undefined,
@@ -518,6 +525,21 @@ export default function StoresPage() {
             onChange={(v) => onFormChange("code", v)}
             placeholder="BES-01"
           />
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Currency</label>
+            <SearchableDropdown
+              options={CURRENCY_OPTIONS}
+              value={form.currency}
+              onChange={(value) => onFormChange("currency", normalizeCurrency(value))}
+              placeholder="Currency seciniz"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Magaza para birimi"
+              toggleAriaLabel="Magaza para birimi listesini ac"
+              disabled={Boolean(editingStoreId)}
+            />
+          </div>
 
           <InputField
             label="Address"

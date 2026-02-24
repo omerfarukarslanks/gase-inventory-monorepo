@@ -9,19 +9,29 @@ import { createCustomer, type CreateCustomerRequest, type Customer } from "@/lib
 import {
   cancelSale,
   createSale,
+  createSalePayment,
+  deleteSalePayment,
   getSaleById,
+  getSalePayments,
   getSales,
+  updateSalePayment,
   updateSale,
   type CreateSalePayload,
   type PaymentMethod,
+  type SalePayment,
   type UpdateSalePayload,
   type SaleDetail,
   type SaleListItem,
 } from "@/lib/sales";
+import type { Currency } from "@/lib/products";
 import { toNumberOrNull } from "@/lib/format";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Drawer from "@/components/ui/Drawer";
+import Button from "@/components/ui/Button";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 
 import {
+  PAYMENT_METHOD_OPTIONS,
   type SaleLineForm,
   type FieldErrors,
   type VariantPreset,
@@ -29,6 +39,7 @@ import {
   createLineRow,
   calcLineTotal,
 } from "@/components/sales/types";
+import { CURRENCY_OPTIONS } from "@/components/products/types";
 import { normalizeSalesResponse, normalizeSaleDetail } from "@/lib/sales-normalize";
 import SalesFilters from "@/components/sales/SalesFilters";
 import SalesTable from "@/components/sales/SalesTable";
@@ -57,6 +68,10 @@ export default function SalesPage() {
   const [salesMaxUnitPriceFilter, setSalesMaxUnitPriceFilter] = useState("");
   const [salesMinLineTotalFilter, setSalesMinLineTotalFilter] = useState("");
   const [salesMaxLineTotalFilter, setSalesMaxLineTotalFilter] = useState("");
+  const [expandedPaymentSaleIds, setExpandedPaymentSaleIds] = useState<string[]>([]);
+  const [paymentsBySaleId, setPaymentsBySaleId] = useState<Record<string, SalePayment[]>>({});
+  const [paymentLoadingBySaleId, setPaymentLoadingBySaleId] = useState<Record<string, boolean>>({});
+  const [paymentErrorBySaleId, setPaymentErrorBySaleId] = useState<Record<string, string>>({});
 
   /* ── Cancel dialog ── */
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -64,6 +79,12 @@ export default function SalesPage() {
   const [cancellingSale, setCancellingSale] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNote, setCancelNote] = useState("");
+  const [paymentDeleteDialogOpen, setPaymentDeleteDialogOpen] = useState(false);
+  const [paymentDeleteTarget, setPaymentDeleteTarget] = useState<{
+    saleId: string;
+    paymentId: string;
+  } | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState(false);
 
   /* ── Sale detail modal ── */
   const [saleDetailOpen, setSaleDetailOpen] = useState(false);
@@ -102,6 +123,15 @@ export default function SalesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState("");
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [paymentDrawerSaleId, setPaymentDrawerSaleId] = useState("");
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethodInput, setPaymentMethodInput] = useState<PaymentMethod>("CASH");
+  const [paymentCurrency, setPaymentCurrency] = useState<Currency>("TRY");
+  const [paymentNoteInput, setPaymentNoteInput] = useState("");
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const [paymentFormError, setPaymentFormError] = useState("");
 
   /* ── Init scope ── */
   useEffect(() => {
@@ -268,6 +298,151 @@ export default function SalesPage() {
     if (loadingVariants || loadingMoreVariants || !variantHasMore) return;
     void fetchVariantPage(variantPage + 1, false);
   }, [loadingVariants, loadingMoreVariants, variantHasMore, variantPage, fetchVariantPage]);
+
+  /* ── Payments ── */
+  const fetchSalePayments = useCallback(async (saleId: string, force = false) => {
+    if (!saleId) return;
+    if (!force && paymentLoadingBySaleId[saleId]) return;
+
+    setPaymentLoadingBySaleId((prev) => ({ ...prev, [saleId]: true }));
+    setPaymentErrorBySaleId((prev) => ({ ...prev, [saleId]: "" }));
+    try {
+      const payments = await getSalePayments(saleId);
+      setPaymentsBySaleId((prev) => ({ ...prev, [saleId]: payments }));
+    } catch {
+      setPaymentErrorBySaleId((prev) => ({
+        ...prev,
+        [saleId]: "Odeme kayitlari yuklenemedi. Lutfen tekrar deneyin.",
+      }));
+    } finally {
+      setPaymentLoadingBySaleId((prev) => ({ ...prev, [saleId]: false }));
+    }
+  }, [paymentLoadingBySaleId]);
+
+  const togglePaymentsCollapse = (saleId: string) => {
+    const isExpanded = expandedPaymentSaleIds.includes(saleId);
+    if (isExpanded) {
+      setExpandedPaymentSaleIds((prev) => prev.filter((id) => id !== saleId));
+      return;
+    }
+
+    setExpandedPaymentSaleIds((prev) => [...prev, saleId]);
+    void fetchSalePayments(saleId, !paymentsBySaleId[saleId]);
+  };
+
+  const normalizePaymentMethod = (value?: string | null): PaymentMethod => {
+    if (value === "CASH" || value === "CARD" || value === "TRANSFER" || value === "OTHER") {
+      return value;
+    }
+    return "OTHER";
+  };
+
+  const normalizeCurrency = (value?: string | null): Currency => {
+    if (value === "TRY" || value === "USD" || value === "EUR") return value;
+    return "TRY";
+  };
+
+  const openAddPaymentDrawer = (saleId: string) => {
+    setPaymentDrawerSaleId(saleId);
+    setEditingPaymentId(null);
+    setPaymentAmount("");
+    setPaymentMethodInput("CASH");
+    setPaymentCurrency("TRY");
+    setPaymentNoteInput("");
+    setPaymentFormError("");
+    setPaymentDrawerOpen(true);
+  };
+
+  const openEditPaymentDrawer = (saleId: string, payment: SalePayment) => {
+    setPaymentDrawerSaleId(saleId);
+    setEditingPaymentId(payment.id);
+    setPaymentAmount(payment.amount != null ? String(payment.amount) : "");
+    setPaymentMethodInput(normalizePaymentMethod(payment.paymentMethod as string | null | undefined));
+    setPaymentCurrency(normalizeCurrency(payment.currency as string | null | undefined));
+    setPaymentNoteInput(payment.note ?? "");
+    setPaymentFormError("");
+    setPaymentDrawerOpen(true);
+  };
+
+  const closePaymentDrawer = () => {
+    if (paymentSubmitting) return;
+    setPaymentDrawerOpen(false);
+    setPaymentFormError("");
+  };
+
+  const submitPayment = async () => {
+    const amount = toNumberOrNull(paymentAmount);
+    if (!paymentDrawerSaleId) {
+      setPaymentFormError("Satis kaydi secilmedi.");
+      return;
+    }
+    if (amount == null || amount < 0) {
+      setPaymentFormError("Gecerli bir tutar girin.");
+      return;
+    }
+
+    setPaymentSubmitting(true);
+    setPaymentFormError("");
+    try {
+      if (editingPaymentId) {
+        await updateSalePayment(paymentDrawerSaleId, editingPaymentId, {
+          amount,
+          paymentMethod: paymentMethodInput,
+          note: paymentNoteInput.trim() || undefined,
+          currency: paymentCurrency,
+        });
+        setSuccess("Odeme kaydi guncellendi.");
+      } else {
+        await createSalePayment(paymentDrawerSaleId, {
+          amount,
+          paymentMethod: paymentMethodInput,
+          note: paymentNoteInput.trim() || undefined,
+          paidAt: new Date().toISOString(),
+          currency: paymentCurrency,
+        });
+        setSuccess("Odeme kaydi eklendi.");
+      }
+
+      setPaymentDrawerOpen(false);
+      setEditingPaymentId(null);
+      setPaymentAmount("");
+      setPaymentNoteInput("");
+      await fetchSalePayments(paymentDrawerSaleId, true);
+      await fetchSalesReceipts();
+    } catch {
+      setPaymentFormError(editingPaymentId ? "Odeme guncellenemedi." : "Odeme olusturulamadi.");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  const openDeletePaymentDialog = (saleId: string, payment: SalePayment) => {
+    setPaymentDeleteTarget({ saleId, paymentId: payment.id });
+    setPaymentDeleteDialogOpen(true);
+  };
+
+  const closeDeletePaymentDialog = () => {
+    if (deletingPayment) return;
+    setPaymentDeleteDialogOpen(false);
+    setPaymentDeleteTarget(null);
+  };
+
+  const confirmDeletePayment = async () => {
+    if (!paymentDeleteTarget) return;
+    setDeletingPayment(true);
+    try {
+      await deleteSalePayment(paymentDeleteTarget.saleId, paymentDeleteTarget.paymentId);
+      setSuccess("Odeme kaydi silindi.");
+      setPaymentDeleteDialogOpen(false);
+      setPaymentDeleteTarget(null);
+      await fetchSalePayments(paymentDeleteTarget.saleId, true);
+      await fetchSalesReceipts();
+    } catch {
+      setSalesError("Odeme kaydi silinemedi. Lutfen tekrar deneyin.");
+    } finally {
+      setDeletingPayment(false);
+    }
+  };
 
   /* ── Line handlers ── */
   const onChangeLine = (rowId: string, patch: Partial<SaleLineForm>) => {
@@ -605,6 +780,14 @@ export default function SalesPage() {
         salesReceipts={salesReceipts}
         salesLoading={salesLoading}
         salesError={salesError}
+        expandedPaymentSaleIds={expandedPaymentSaleIds}
+        paymentsBySaleId={paymentsBySaleId}
+        paymentLoadingBySaleId={paymentLoadingBySaleId}
+        paymentErrorBySaleId={paymentErrorBySaleId}
+        onTogglePayments={togglePaymentsCollapse}
+        onAddPayment={openAddPaymentDrawer}
+        onEditPayment={openEditPaymentDrawer}
+        onDeletePayment={openDeletePaymentDialog}
         onOpenDetail={(id) => void openSaleDetailDialog(id)}
         onEdit={(sale) => void openEditDrawer(sale)}
         onOpenCancel={openCancelDialog}
@@ -676,6 +859,91 @@ export default function SalesPage() {
         onSubmit={onSubmit}
       />
 
+      <Drawer
+        open={paymentDrawerOpen}
+        onClose={closePaymentDrawer}
+        side="right"
+        title={editingPaymentId ? "Odeme Guncelle" : "Odeme Ekle"}
+        description="Satis fisine odeme adimi ekleyin veya duzenleyin."
+        closeDisabled={paymentSubmitting}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              label="Iptal"
+              onClick={closePaymentDrawer}
+              variant="secondary"
+              disabled={paymentSubmitting}
+            />
+            <Button
+              label={paymentSubmitting ? "Kaydediliyor..." : "Kaydet"}
+              onClick={submitPayment}
+              variant="primarySolid"
+              loading={paymentSubmitting}
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4 p-5">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Tutar *</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={paymentAmount}
+              onChange={(e) => {
+                if (paymentFormError) setPaymentFormError("");
+                setPaymentAmount(e.target.value);
+              }}
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Odeme Yontemi *</label>
+            <SearchableDropdown
+              options={PAYMENT_METHOD_OPTIONS}
+              value={paymentMethodInput}
+              onChange={(value) => {
+                if (paymentFormError) setPaymentFormError("");
+                setPaymentMethodInput(normalizePaymentMethod(value));
+              }}
+              placeholder="Odeme yontemi secin"
+              showEmptyOption={false}
+              allowClear={false}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Para Birimi *</label>
+            <SearchableDropdown
+              options={CURRENCY_OPTIONS}
+              value={paymentCurrency}
+              onChange={(value) => {
+                if (paymentFormError) setPaymentFormError("");
+                setPaymentCurrency(normalizeCurrency(value));
+              }}
+              showEmptyOption={false}
+              allowClear={false}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Not</label>
+            <textarea
+              value={paymentNoteInput}
+              onChange={(e) => {
+                if (paymentFormError) setPaymentFormError("");
+                setPaymentNoteInput(e.target.value);
+              }}
+              className="min-h-[88px] w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {paymentFormError && <p className="text-sm text-error">{paymentFormError}</p>}
+        </div>
+      </Drawer>
+
       <ConfirmDialog
         open={cancelDialogOpen}
         title="Satis Fisini Iptal Et"
@@ -709,6 +977,18 @@ export default function SalesPage() {
           </div>
         </div>
       </ConfirmDialog>
+
+      <ConfirmDialog
+        open={paymentDeleteDialogOpen}
+        title="Odeme Kaydini Sil"
+        description="Bu odeme kaydini silmek istiyor musunuz?"
+        confirmLabel="Evet"
+        cancelLabel="Hayir"
+        loading={deletingPayment}
+        loadingLabel="Siliniyor..."
+        onConfirm={confirmDeletePayment}
+        onClose={closeDeletePaymentDialog}
+      />
 
       <SaleDetailModal
         open={saleDetailOpen}

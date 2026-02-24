@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import type { Currency } from "@/lib/products";
 
 export type Store = {
   id: string;
@@ -8,6 +9,7 @@ export type Store = {
   updatedById: string;
   name: string;
   code: string;
+  currency: Currency | null;
   address: string | null;
   isActive: boolean;
   slug: string;
@@ -30,6 +32,7 @@ export type StoresListResponse = {
 
 export type CreateStoreRequest = {
   name: string;
+  currency: Currency;
   code?: string;
   address?: string;
   slug?: string;
@@ -90,6 +93,7 @@ export async function createStore(
 ): Promise<Store> {
   const body = {
     name: payload.name,
+    currency: payload.currency,
     ...(payload.code ? { code: payload.code } : {}),
     ...(payload.address ? { address: payload.address } : {}),
     ...(payload.slug ? { slug: payload.slug } : {}),

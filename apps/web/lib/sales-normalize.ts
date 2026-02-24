@@ -2,11 +2,53 @@ import { asObject, pickString, pickNumberOrNull } from "@/lib/normalize";
 import type { Currency } from "@/lib/products";
 import type {
   GetSalesResponse,
+  SalePayment,
   SaleListItem,
   SaleListLine,
   SaleDetail,
   SaleDetailLine,
 } from "@/lib/sales";
+
+export function normalizeSalePayment(payload: unknown): SalePayment | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const id = pickString(item.id);
+  if (!id) return null;
+
+  return {
+    id,
+    createdAt: pickString(item.createdAt) || undefined,
+    createdById: pickString(item.createdById) || null,
+    updatedAt: pickString(item.updatedAt) || undefined,
+    updatedById: pickString(item.updatedById) || null,
+    amount: pickNumberOrNull(item.amount),
+    paymentMethod: pickString(item.paymentMethod) || null,
+    note: typeof item.note === "string" ? item.note : null,
+    paidAt: pickString(item.paidAt) || null,
+    status: pickString(item.status) || null,
+    cancelledAt: pickString(item.cancelledAt) || null,
+    cancelledById: pickString(item.cancelledById) || null,
+    currency: pickString(item.currency) || null,
+    exchangeRate: pickNumberOrNull(item.exchangeRate),
+    amountInBaseCurrency: pickNumberOrNull(item.amountInBaseCurrency),
+  };
+}
+
+export function normalizeSalePaymentsResponse(payload: unknown): SalePayment[] {
+  const root = asObject(payload);
+  const rawItems = Array.isArray(payload)
+    ? payload
+    : Array.isArray(root?.data)
+      ? root?.data
+      : Array.isArray(root?.items)
+        ? root?.items
+        : [];
+
+  return rawItems
+    .map((item) => normalizeSalePayment(item))
+    .filter((item): item is SalePayment => Boolean(item));
+}
 
 export function normalizeSalesResponse(payload: unknown): GetSalesResponse {
   const root = asObject(payload);
@@ -74,6 +116,7 @@ export function normalizeSalesResponse(payload: unknown): GetSalesResponse {
         remainingAmount: pickNumberOrNull(item.remainingAmount, payment?.remainingAmount),
         paymentStatus: pickString(item.paymentStatus, payment?.status) || null,
         customerId: pickString(item.customerId, customer?.id) || undefined,
+        currency: (pickString(item.currency) || null) as Currency | null,
         lines: lines.length > 0 ? lines : undefined,
       };
     })
@@ -151,6 +194,7 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
     paidAmount: pickNumberOrNull(root.paidAmount, payment?.paidAmount, initialPayment?.amount),
     remainingAmount: pickNumberOrNull(root.remainingAmount, payment?.remainingAmount),
     paymentStatus: pickString(root.paymentStatus, payment?.status) || null,
+    currency: (pickString(root.currency, lines[0]?.currency) || null) as Currency | null,
     customerId: pickString(root.customerId, customer?.id) || undefined,
     lines,
     cancelledAt: pickString(root.cancelledAt) || null,

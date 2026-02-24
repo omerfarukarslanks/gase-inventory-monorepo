@@ -11,6 +11,42 @@ type SaleDetailModalProps = {
   onClose: () => void;
 };
 
+function getSaleStatusLabel(status?: string | null) {
+  if (status === "CONFIRMED") return "Onaylandi";
+  if (status === "CANCELLED") return "Iptal Edildi";
+  if (status === "DRAFT") return "Taslak";
+  return status ?? "-";
+}
+
+function getPaymentStatusLabel(status?: string | null) {
+  if (status === "PARTIAL") return "Kismi Odendi";
+  if (status === "PAID") return "Odendi";
+  if (status === "UNPAID") return "Odenmedi";
+  if (status === "PENDING") return "Beklemede";
+  if (status === "CANCELLED") return "Iptal Edildi";
+  if (status === "UPDATED") return "Guncellendi";
+  if (status === "ACTIVE") return "Aktif";
+  return status ?? "-";
+}
+
+function getCurrencySuffix(currency?: string | null) {
+  if (currency === "USD") return "$";
+  if (currency === "EUR") return "EUR";
+  if (currency === "TRY") return "TL";
+  return currency ?? "";
+}
+
+function formatAmountWithCurrency(
+  value: number | string | null | undefined,
+  currency?: string | null,
+) {
+  const formatted = formatPrice(value);
+  if (formatted === "-") return "-";
+  const suffix = getCurrencySuffix(currency);
+  if (!suffix) return formatted;
+  return `${formatted}${suffix}`;
+}
+
 export default function SaleDetailModal({
   open,
   loading,
@@ -59,17 +95,22 @@ export default function SaleDetailModal({
                 </div>
                 <div className="rounded-xl border border-border bg-surface2/30 p-3">
                   <p className="text-xs font-semibold text-muted">Satis Bilgileri</p>
-                  <p className="mt-1 text-xs text-text2">Durum: {detail.status ?? "-"}</p>
-                  <p className="text-xs text-text2">Odeme Durumu: {detail.paymentStatus ?? "-"}</p>
+                  <p className="mt-1 text-xs text-text2">Durum: {getSaleStatusLabel(detail.status)}</p>
+                  <p className="text-xs text-text2">Odeme Durumu: {getPaymentStatusLabel(detail.paymentStatus)}</p>
                   <p className="text-xs text-text2">Kaynak: {detail.source || "-"}</p>
                   <p className="text-xs text-text2">Magaza: {detail.storeName || "-"}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-surface2/30 p-3">
                   <p className="text-xs font-semibold text-muted">Tutarlar</p>
-                  <p className="mt-1 text-xs text-text2">Birim Toplam: {formatPrice(detail.unitPrice)}</p>
-                  <p className="text-xs font-medium text-text">Satir Toplami: {formatPrice(detail.lineTotal)}</p>
-                  <p className="text-xs text-text2">Odenen: {formatPrice(detail.paidAmount)}</p>
-                  <p className="text-xs text-text2">Kalan: {formatPrice(detail.remainingAmount)}</p>
+                  <p className="mt-1 text-xs font-medium text-text">
+                    Satir Toplami: {formatAmountWithCurrency(detail.lineTotal, detail.currency)}
+                  </p>
+                  <p className="text-xs text-text2">
+                    Odenen: {formatAmountWithCurrency(detail.paidAmount, detail.currency)}
+                  </p>
+                  <p className="text-xs text-text2">
+                    Kalan: {formatAmountWithCurrency(detail.remainingAmount, detail.currency)}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-border bg-surface2/30 p-3">
                   <p className="text-xs font-semibold text-muted">Tarih</p>

@@ -20,6 +20,7 @@ type SearchableDropdownProps = {
   allowClear?: boolean;
   showEmptyOption?: boolean;
   className?: string;
+  disabled?: boolean;
 };
 
 const ChevronIcon = () => (
@@ -68,6 +69,7 @@ export default function SearchableDropdown({
   allowClear = true,
   showEmptyOption = true,
   className = "",
+  disabled = false,
 }: SearchableDropdownProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -89,6 +91,12 @@ export default function SearchableDropdown({
     document.addEventListener("mousedown", onOutsideClick);
     return () => document.removeEventListener("mousedown", onOutsideClick);
   }, []);
+
+  useEffect(() => {
+    if (disabled) {
+      setOpen(false);
+    }
+  }, [disabled]);
 
   useEffect(() => {
     if (!open) {
@@ -119,22 +127,30 @@ export default function SearchableDropdown({
       <div className="relative">
         <button
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={() => {
+            if (disabled) return;
+            setOpen((prev) => !prev);
+          }}
           onKeyDown={(e) => {
+            if (disabled) return;
             if (e.key === "Escape") setOpen(false);
             if (e.key === "ArrowDown") setOpen(true);
           }}
-          className="h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+          className={`h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary ${
+            disabled ? "cursor-not-allowed opacity-60" : ""
+          }`}
           aria-label={inputAriaLabel}
           aria-expanded={open}
           aria-haspopup="listbox"
+          aria-disabled={disabled}
+          disabled={disabled}
         >
           <span className={selectedOption ? "text-text" : "text-muted"}>
             {selectedOption?.label ?? placeholder}
           </span>
         </button>
 
-        {allowClear && value && (
+        {allowClear && value && !disabled && (
           <button
             type="button"
             onClick={() => selectOption("")}
@@ -147,15 +163,21 @@ export default function SearchableDropdown({
 
         <button
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted transition-colors hover:bg-surface2 hover:text-text"
+          onClick={() => {
+            if (disabled) return;
+            setOpen((prev) => !prev);
+          }}
+          className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted transition-colors hover:bg-surface2 hover:text-text ${
+            disabled ? "cursor-not-allowed opacity-50" : ""
+          }`}
           aria-label={toggleAriaLabel}
+          disabled={disabled}
         >
           <ChevronIcon />
         </button>
       </div>
 
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10">
           <div className="px-1 pb-1">
             <input

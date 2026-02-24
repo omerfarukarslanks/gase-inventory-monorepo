@@ -1,49 +1,62 @@
+import { apiFetch } from "@/lib/api";
 import type { Currency } from "@/lib/products";
 
-/* ── Types ── */
-
-type RatesResponse = {
-  base: string;
-  date: string;
-  rates: Record<string, number>;
+type ExchangeRateRow = {
+  currency?: string;
+  rateToTry?: string | number;
 };
 
-type CacheEntry = {
-  rates: Record<string, number>;
+type ExchangeRatesCache = {
+  ratesToTry: Partial<Record<Currency, number>>;
   fetchedAt: number;
 };
 
-/* ── Cache ── */
-
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const ratesCache: Partial<Record<Currency, CacheEntry>> = {};
+let ratesCache: ExchangeRatesCache | null = null;
 
-/* ── API ── */
+function isSupportedCurrency(value: string): value is Currency {
+  return value === "TRY" || value === "USD" || value === "EUR";
+}
 
-export async function fetchExchangeRates(
-  base: Currency,
-): Promise<Record<string, number>> {
-  const cached = ratesCache[base];
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return cached.rates;
+function parseExchangeRates(payload: unknown): Partial<Record<Currency, number>> {
+  const items = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)
+      ? (payload as { data: unknown[] }).data
+      : [];
+
+  const rates: Partial<Record<Currency, number>> = {};
+
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as ExchangeRateRow;
+    if (!row.currency || !isSupportedCurrency(row.currency)) continue;
+
+    const numeric = Number(row.rateToTry);
+    if (!Number.isFinite(numeric) || numeric <= 0) continue;
+
+    rates[row.currency] = numeric;
   }
 
-  const res = await fetch(
-    `https://api.frankfurter.dev/v1/latest?base=${base}`,
-  );
+  return rates;
+}
 
-  if (!res.ok) {
-    throw new Error(`Currency API error: ${res.status}`);
+export async function fetchExchangeRates(_base?: Currency): Promise<Partial<Record<Currency, number>>> {
+  if (ratesCache && Date.now() - ratesCache.fetchedAt < CACHE_TTL_MS) {
+    return ratesCache.ratesToTry;
   }
 
-  const data: RatesResponse = await res.json();
+  const payload = await apiFetch<unknown>("/exchange-rates", {
+    method: "GET",
+  });
+  const ratesToTry = parseExchangeRates(payload);
 
-  ratesCache[base] = {
-    rates: data.rates,
+  ratesCache = {
+    ratesToTry,
     fetchedAt: Date.now(),
   };
 
-  return data.rates;
+  return ratesToTry;
 }
 
 /**
@@ -53,12 +66,12 @@ export async function fetchExchangeRates(
 export async function getRate(from: Currency): Promise<number> {
   if (from === "TRY") return 1;
 
-  const rates = await fetchExchangeRates(from);
-  const tryRate = rates["TRY"];
+  const rates = await fetchExchangeRates();
+  const rateToTry = rates[from];
 
-  if (tryRate == null) {
-    throw new Error(`TRY rate not found for base ${from}`);
+  if (rateToTry == null) {
+    throw new Error(`rateToTry not found for currency ${from}`);
   }
 
-  return tryRate;
+  return rateToTry;
 }
