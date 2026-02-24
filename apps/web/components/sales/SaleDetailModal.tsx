@@ -60,6 +60,7 @@ export default function SaleDetailModal({
                 <div className="rounded-xl border border-border bg-surface2/30 p-3">
                   <p className="text-xs font-semibold text-muted">Satis Bilgileri</p>
                   <p className="mt-1 text-xs text-text2">Durum: {detail.status ?? "-"}</p>
+                  <p className="text-xs text-text2">Odeme Durumu: {detail.paymentStatus ?? "-"}</p>
                   <p className="text-xs text-text2">Kaynak: {detail.source || "-"}</p>
                   <p className="text-xs text-text2">Magaza: {detail.storeName || "-"}</p>
                 </div>
@@ -67,6 +68,8 @@ export default function SaleDetailModal({
                   <p className="text-xs font-semibold text-muted">Tutarlar</p>
                   <p className="mt-1 text-xs text-text2">Birim Toplam: {formatPrice(detail.unitPrice)}</p>
                   <p className="text-xs font-medium text-text">Satir Toplami: {formatPrice(detail.lineTotal)}</p>
+                  <p className="text-xs text-text2">Odenen: {formatPrice(detail.paidAmount)}</p>
+                  <p className="text-xs text-text2">Kalan: {formatPrice(detail.remainingAmount)}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-surface2/30 p-3">
                   <p className="text-xs font-semibold text-muted">Tarih</p>

@@ -1,6 +1,8 @@
 import { apiFetch } from "@/lib/api";
 import type { Currency } from "@/lib/products";
 
+export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
+
 export type CreateSaleLinePayload = {
   productVariantId: string;
   quantity: number;
@@ -16,15 +18,18 @@ export type CreateSaleLinePayload = {
 
 export type CreateSalePayload = {
   storeId?: string;
-  name: string;
-  surname: string;
-  phoneNumber?: string;
-  email?: string;
+  customerId: string;
   meta?: {
     source?: string;
     note?: string;
   };
   lines: CreateSaleLinePayload[];
+  initialPayment: {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    note?: string;
+    paidAt?: string;
+  };
 };
 
 export type SaleListLine = {
@@ -57,6 +62,10 @@ export type SaleListItem = {
   lineTotal?: number | null;
   lineCount?: number;
   total?: number | null;
+  paidAmount?: number | null;
+  remainingAmount?: number | null;
+  paymentStatus?: string | null;
+  customerId?: string;
   lines?: SaleListLine[];
 };
 
@@ -106,6 +115,10 @@ export type SaleDetail = {
   note?: string | null;
   unitPrice?: number | null;
   lineTotal?: number | null;
+  paidAmount?: number | null;
+  remainingAmount?: number | null;
+  paymentStatus?: string | null;
+  customerId?: string;
   lines: SaleDetailLine[];
   cancelledAt?: string | null;
 };

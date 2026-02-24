@@ -63,21 +63,23 @@ export default function SalesTable({
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px]">
+        <table className="w-full min-w-[1180px]">
           <thead className="border-b border-border bg-surface2/70">
             <tr className="text-left text-xs uppercase tracking-wide text-muted">
               <th className="px-4 py-3">Receipt No</th>
               <th className="px-4 py-3">Ad</th>
               <th className="px-4 py-3">Soyad</th>
+              <th className="px-4 py-3">Odeme Durumu</th>
               <th className="px-4 py-3">Durum</th>
               <th className="px-4 py-3 text-right">Birim Fiyat</th>
               <th className="px-4 py-3 text-right">Satir Toplami</th>
+              <th className="px-4 py-3 text-right">Odenen</th>
+              <th className="px-4 py-3 text-right">Kalan</th>
               <th className="px-4 py-3 text-right">Islemler</th>
             </tr>
           </thead>
           <tbody>
             {salesReceipts.map((sale) => {
-              const isCancelled = sale.status === "CANCELLED";
               return (
                 <tr key={sale.id} className="border-b border-border hover:bg-surface2/30 transition-colors">
                   <td className="px-4 py-3 text-sm text-text2">
@@ -91,6 +93,7 @@ export default function SalesTable({
                   </td>
                   <td className="px-4 py-3 text-sm text-text2">{sale.name ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-text2">{sale.surname ?? "-"}</td>
+                  <td className="px-4 py-3 text-sm text-text2">{sale.paymentStatus ?? "-"}</td>
                   <td className="px-4 py-3 text-sm">
                     <span
                       className={
@@ -109,6 +112,12 @@ export default function SalesTable({
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium text-text">
                     {formatPrice(getSaleTotal(sale))}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm text-text2">
+                    {formatPrice(sale.paidAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm text-text2">
+                    {formatPrice(sale.remainingAmount)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {sale.status === "CONFIRMED" && (

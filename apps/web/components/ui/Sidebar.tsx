@@ -19,6 +19,7 @@ const adminItems = [
   { href: "/attributes", label: "Ozellikler", icon: "O" },
   { href: "/stores", label: "Magazalar", icon: "M" },
   { href: "/suppliers", label: "Tedarikciler", icon: "T" },
+  { href: "/customers", label: "Musteriler", icon: "C" },
   { href: "/users", label: "Kullanicilar", icon: "K" },
   { href: "/reports", label: "Raporlar", icon: "R" },
 ];
@@ -193,7 +194,8 @@ export default function Sidebar({
                 (it.href !== "/stores" &&
                   it.href !== "/users" &&
                   it.href !== "/attributes" &&
-                  it.href !== "/suppliers"),
+                  it.href !== "/suppliers" &&
+                  it.href !== "/customers"),
             )
             .map((it) => (
             <Link

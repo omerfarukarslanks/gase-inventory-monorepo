@@ -5,6 +5,7 @@ import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScop
 import { getTenantStockSummary } from "@/lib/inventory";
 import { getPaginationValue, normalizeProducts } from "@/lib/normalize";
 import { useStores } from "@/hooks/useStores";
+import { createCustomer, type CreateCustomerRequest, type Customer } from "@/lib/customers";
 import {
   cancelSale,
   createSale,
@@ -12,6 +13,7 @@ import {
   getSales,
   updateSale,
   type CreateSalePayload,
+  type PaymentMethod,
   type UpdateSalePayload,
   type SaleDetail,
   type SaleListItem,
@@ -86,11 +88,14 @@ export default function SalesPage() {
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
   const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [customerDropdownRefreshKey, setCustomerDropdownRefreshKey] = useState(0);
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [source, setSource] = useState("POS");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("CASH");
+  const [initialPaymentAmount, setInitialPaymentAmount] = useState("");
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<SaleLineForm[]>([createLineRow()]);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -311,11 +316,13 @@ export default function SalesPage() {
   const resetSaleForm = useCallback(() => {
     setEditingSaleId(null);
     setStoreId(isStoreScopedUser ? scopedStoreId : "");
+    setCustomerId("");
     setName("");
     setSurname("");
     setPhoneNumber("");
     setEmail("");
-    setSource("POS");
+    setPaymentMethod("CASH");
+    setInitialPaymentAmount("");
     setNote("");
     setLines([createLineRow()]);
     setErrors({});
@@ -352,7 +359,7 @@ export default function SalesPage() {
       setSurname(detail.surname ?? "");
       setPhoneNumber(detail.phoneNumber ?? "");
       setEmail(detail.email ?? "");
-      setSource(detail.source ?? "");
+      setCustomerId(detail.customerId ?? "");
       setNote(detail.note ?? "");
       if (detail.storeId) setStoreId(detail.storeId);
       setLines(
@@ -444,9 +451,15 @@ export default function SalesPage() {
   /* ── Validation ── */
   const validate = (): boolean => {
     const nextErrors: FieldErrors = {};
-    if (!name.trim()) nextErrors.name = "Ad zorunludur.";
-    if (!surname.trim()) nextErrors.surname = "Soyad zorunludur.";
+    if (!customerId && !editingSaleId) nextErrors.customerId = "Musteri secimi zorunludur.";
     if (!isStoreScopedUser && !storeId) nextErrors.storeId = "Magaza secimi zorunludur.";
+    if (!editingSaleId && !paymentMethod) nextErrors.paymentMethod = "Odeme yontemi zorunludur.";
+    if (!editingSaleId) {
+      const amount = toNumberOrNull(initialPaymentAmount);
+      if (amount == null || amount < 0) {
+        nextErrors.initialPaymentAmount = "Gecerli bir odenen tutar girin.";
+      }
+    }
 
     if (lines.length === 0) {
       nextErrors.lines = "En az bir satis satiri eklemelisiniz.";
@@ -488,6 +501,23 @@ export default function SalesPage() {
       ...(line.campaignCode.trim() ? { campaignCode: line.campaignCode.trim() } : {}),
     }));
 
+  const onSelectCustomer = useCallback((customer: Customer) => {
+    setCustomerId(customer.id);
+    setName(customer.name ?? "");
+    setSurname(customer.surname ?? "");
+    setPhoneNumber(customer.phoneNumber ?? "");
+    setEmail(customer.email ?? "");
+  }, []);
+
+  const onQuickCreateCustomer = useCallback(
+    async (payload: CreateCustomerRequest) => {
+      const created = await createCustomer(payload);
+      setCustomerDropdownRefreshKey((prev) => prev + 1);
+      return created;
+    },
+    [],
+  );
+
   const onSubmit = async () => {
     setFormError("");
     setSuccess("");
@@ -502,7 +532,6 @@ export default function SalesPage() {
           phoneNumber: phoneNumber.trim() || undefined,
           email: email.trim() || undefined,
           meta: {
-            source: source.trim() || undefined,
             note: note.trim() || undefined,
           },
           lines: buildLinePayloads(),
@@ -512,15 +541,15 @@ export default function SalesPage() {
       } else {
         const payload: CreateSalePayload = {
           ...(isStoreScopedUser ? {} : { storeId }),
-          name: name.trim(),
-          surname: surname.trim(),
-          phoneNumber: phoneNumber.trim() || undefined,
-          email: email.trim() || undefined,
+          customerId,
           meta: {
-            source: source.trim() || undefined,
             note: note.trim() || undefined,
           },
           lines: buildLinePayloads(),
+          initialPayment: {
+            amount: Number(initialPaymentAmount),
+            paymentMethod: paymentMethod as PaymentMethod,
+          },
         };
         await createSale(payload);
         setSuccess("Satis kaydi olusturuldu.");
@@ -605,6 +634,19 @@ export default function SalesPage() {
         loadingVariants={loadingVariants}
         isStoreScopedUser={isStoreScopedUser}
         storeOptions={storeOptions}
+        customerId={customerId}
+        onCustomerIdChange={(value) => {
+          setCustomerId(value);
+          if (!value) {
+            setName("");
+            setSurname("");
+            setPhoneNumber("");
+            setEmail("");
+          }
+        }}
+        onCustomerSelected={onSelectCustomer}
+        customerDropdownRefreshKey={customerDropdownRefreshKey}
+        onQuickCreateCustomer={onQuickCreateCustomer}
         variantOptions={variantOptions}
         loadingMoreVariants={loadingMoreVariants}
         variantHasMore={variantHasMore}
@@ -612,15 +654,13 @@ export default function SalesPage() {
         storeId={storeId}
         onStoreIdChange={setStoreId}
         name={name}
-        onNameChange={setName}
         surname={surname}
-        onSurnameChange={setSurname}
         phoneNumber={phoneNumber}
-        onPhoneNumberChange={setPhoneNumber}
         email={email}
-        onEmailChange={setEmail}
-        source={source}
-        onSourceChange={setSource}
+        paymentMethod={paymentMethod}
+        onPaymentMethodChange={setPaymentMethod}
+        initialPaymentAmount={initialPaymentAmount}
+        onInitialPaymentAmountChange={setInitialPaymentAmount}
         note={note}
         onNoteChange={setNote}
         lines={lines}

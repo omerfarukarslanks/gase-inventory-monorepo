@@ -1,5 +1,6 @@
 import type { Currency } from "@/lib/products";
 import { toNumberOrNull } from "@/lib/format";
+import type { PaymentMethod } from "@/lib/sales";
 
 export type LineMode = "percent" | "amount";
 
@@ -19,9 +20,10 @@ export type SaleLineForm = {
 };
 
 export type FieldErrors = {
-  name?: string;
-  surname?: string;
+  customerId?: string;
   storeId?: string;
+  paymentMethod?: string;
+  initialPaymentAmount?: string;
   lines?: string;
 };
 
@@ -51,6 +53,13 @@ export const SALES_STATUS_OPTIONS = [
   { value: "DRAFT", label: "DRAFT" },
   { value: "CONFIRMED", label: "CONFIRMED" },
   { value: "CANCELLED", label: "CANCELLED" },
+];
+
+export const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: "CASH", label: "Nakit" },
+  { value: "CARD", label: "Kart" },
+  { value: "TRANSFER", label: "Havale/EFT" },
+  { value: "OTHER", label: "Diger" },
 ];
 
 export function createLineRow(): SaleLineForm {

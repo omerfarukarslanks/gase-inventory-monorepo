@@ -23,6 +23,9 @@ export function normalizeSalesResponse(payload: unknown): GetSalesResponse {
     .map((item) => asObject(item))
     .filter((item): item is Record<string, unknown> => Boolean(item))
     .map((item) => {
+      const customer = asObject(item.customer);
+      const payment = asObject(item.payment);
+      const initialPayment = asObject(item.initialPayment);
       const lineRaw = Array.isArray(item.lines) ? item.lines : [];
       const lines: SaleListLine[] = lineRaw
         .map((line) => asObject(line))
@@ -59,14 +62,18 @@ export function normalizeSalesResponse(payload: unknown): GetSalesResponse {
         status: pickString(item.status) || undefined,
         storeId: pickString(item.storeId, asObject(item.store)?.id) || undefined,
         storeName: pickString(item.storeName, asObject(item.store)?.name) || undefined,
-        name: pickString(item.name) || undefined,
-        surname: pickString(item.surname) || undefined,
-        phoneNumber: pickString(item.phoneNumber) || null,
-        email: pickString(item.email) || null,
+        name: pickString(item.name, customer?.name) || undefined,
+        surname: pickString(item.surname, customer?.surname) || undefined,
+        phoneNumber: pickString(item.phoneNumber, customer?.phoneNumber) || null,
+        email: pickString(item.email, customer?.email) || null,
         unitPrice: pickNumberOrNull(item.unitPrice, lineRaw[0] && asObject(lineRaw[0])?.unitPrice),
         lineTotal: pickNumberOrNull(item.lineTotal, item.total, item.totalAmount, item.grandTotal),
         lineCount: pickNumberOrNull(item.lineCount, item.totalLines) ?? lines.length,
         total: pickNumberOrNull(item.total, item.lineTotal, item.totalAmount, item.grandTotal),
+        paidAmount: pickNumberOrNull(item.paidAmount, payment?.paidAmount, initialPayment?.amount),
+        remainingAmount: pickNumberOrNull(item.remainingAmount, payment?.remainingAmount),
+        paymentStatus: pickString(item.paymentStatus, payment?.status) || null,
+        customerId: pickString(item.customerId, customer?.id) || undefined,
         lines: lines.length > 0 ? lines : undefined,
       };
     })
@@ -93,6 +100,9 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
   if (!root) return null;
 
   const store = asObject(root.store);
+  const customer = asObject(root.customer);
+  const payment = asObject(root.payment);
+  const initialPayment = asObject(root.initialPayment);
   const meta = asObject(root.meta);
   const rawLines = Array.isArray(root.lines) ? root.lines : [];
   const lines: SaleDetailLine[] = rawLines
@@ -130,14 +140,18 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
     storeId: pickString(root.storeId, store?.id) || undefined,
     storeName: pickString(root.storeName, store?.name) || undefined,
     storeAddress: pickString(store?.address) || null,
-    name: pickString(root.name) || undefined,
-    surname: pickString(root.surname) || undefined,
-    phoneNumber: pickString(root.phoneNumber) || null,
-    email: pickString(root.email) || null,
+    name: pickString(root.name, customer?.name) || undefined,
+    surname: pickString(root.surname, customer?.surname) || undefined,
+    phoneNumber: pickString(root.phoneNumber, customer?.phoneNumber) || null,
+    email: pickString(root.email, customer?.email) || null,
     source: pickString(meta?.source) || null,
     note: pickString(meta?.note) || null,
     unitPrice: pickNumberOrNull(root.unitPrice),
     lineTotal: pickNumberOrNull(root.lineTotal, root.total, root.totalAmount, root.grandTotal),
+    paidAmount: pickNumberOrNull(root.paidAmount, payment?.paidAmount, initialPayment?.amount),
+    remainingAmount: pickNumberOrNull(root.remainingAmount, payment?.remainingAmount),
+    paymentStatus: pickString(root.paymentStatus, payment?.status) || null,
+    customerId: pickString(root.customerId, customer?.id) || undefined,
     lines,
     cancelledAt: pickString(root.cancelledAt) || null,
   };
