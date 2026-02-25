@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type VariantInfiniteDropdownProps = {
-  options: Array<{ value: string; label: string }>;
+  options: Array<{ value: string; label: string; secondaryLabel?: string }>;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
@@ -28,7 +28,7 @@ export default function VariantInfiniteDropdown({
   const [scrollTop, setScrollTop] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const rowHeight = 36;
+  const rowHeight = 52;
   const viewportHeight = 240;
   const overscan = 4;
 
@@ -36,7 +36,9 @@ export default function VariantInfiniteDropdown({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
-    return options.filter((item) => item.label.toLowerCase().includes(q));
+    return options.filter((item) =>
+      `${item.label} ${item.secondaryLabel ?? ""}`.toLowerCase().includes(q),
+    );
   }, [options, query]);
 
   useEffect(() => {
@@ -75,6 +77,10 @@ export default function VariantInfiniteDropdown({
           {selected?.label ?? placeholder}
         </span>
       </button>
+
+      {selected?.secondaryLabel && (
+        <p className="mt-1 text-xs text-muted">{selected.secondaryLabel}</p>
+      )}
 
       {open && (
         <div className="absolute z-30 mt-1 w-full rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10">
@@ -122,7 +128,12 @@ export default function VariantInfiniteDropdown({
                           : "text-text2 hover:bg-surface2 hover:text-text"
                       }`}
                     >
-                      {item.label}
+                      <span className="block truncate">{item.label}</span>
+                      {item.secondaryLabel && (
+                        <span className="mt-0.5 block truncate text-xs text-muted">
+                          {item.secondaryLabel}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

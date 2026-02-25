@@ -5,8 +5,7 @@ import { normalizeSalePayment, normalizeSalePaymentsResponse } from "@/lib/sales
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
 export type PaymentStatus = "ACTIVE" | "CANCELLED" | string;
 
-export type CreateSaleLinePayload = {
-  productVariantId: string;
+type SaleLineCommonPayload = {
   quantity: number;
   currency: Currency;
   unitPrice: number;
@@ -17,6 +16,16 @@ export type CreateSaleLinePayload = {
   lineTotal: number;
   campaignCode?: string;
 };
+
+export type CreateSaleLinePayload =
+  | (SaleLineCommonPayload & {
+      productVariantId: string;
+      productPackageId?: never;
+    })
+  | (SaleLineCommonPayload & {
+      productPackageId: string;
+      productVariantId?: never;
+    });
 
 export type CreateSalePayload = {
   storeId?: string;
@@ -37,7 +46,9 @@ export type CreateSalePayload = {
 export type SaleListLine = {
   id: string;
   productVariantId?: string;
+  productPackageId?: string;
   productVariantName?: string;
+  productPackageName?: string;
   quantity?: number;
   currency?: Currency | null;
   unitPrice?: number | null;
@@ -88,7 +99,9 @@ export type SaleDetailLine = {
   id: string;
   productName?: string;
   productVariantId?: string;
+  productPackageId?: string;
   productVariantName?: string;
+  productPackageName?: string;
   productVariantCode?: string;
   quantity?: number | null;
   currency?: Currency | null;
@@ -221,18 +234,7 @@ export async function cancelSale(id: string, meta?: CancelSaleMeta): Promise<unk
   });
 }
 
-export type UpdateSaleLinePayload = {
-  productVariantId: string;
-  quantity: number;
-  currency: Currency;
-  unitPrice: number;
-  discountPercent?: number;
-  discountAmount?: number;
-  taxPercent?: number;
-  taxAmount?: number;
-  lineTotal: number;
-  campaignCode?: string;
-};
+export type UpdateSaleLinePayload = CreateSaleLinePayload;
 
 export type UpdateSalePayload = {
   name: string;

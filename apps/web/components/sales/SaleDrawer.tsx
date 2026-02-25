@@ -32,7 +32,9 @@ type SaleDrawerProps = {
   onCustomerSelected: (customer: Customer) => void;
   customerDropdownRefreshKey: number;
   onQuickCreateCustomer: (payload: CreateCustomerRequest) => Promise<Customer>;
-  variantOptions: Array<{ value: string; label: string }>;
+  variantOptions: Array<{ value: string; label: string; secondaryLabel?: string }>;
+  variantFieldLabel?: string;
+  variantPlaceholder?: string;
   loadingMoreVariants: boolean;
   variantHasMore: boolean;
   onLoadMoreVariants: () => void;
@@ -107,6 +109,8 @@ export default function SaleDrawer({
   customerDropdownRefreshKey,
   onQuickCreateCustomer,
   variantOptions,
+  variantFieldLabel = "Varyant *",
+  variantPlaceholder = "Varyant secin",
   loadingMoreVariants,
   variantHasMore,
   onLoadMoreVariants,
@@ -466,12 +470,12 @@ export default function SaleDrawer({
 
                   <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                     <div className="lg:col-span-2">
-                      <label className="mb-1 block text-xs font-semibold text-muted">Varyant *</label>
+                      <label className="mb-1 block text-xs font-semibold text-muted">{variantFieldLabel}</label>
                       <VariantInfiniteDropdown
                         options={variantOptions}
                         value={line.productVariantId}
                         onChange={(value) => onApplyVariantPreset(line.rowId, value)}
-                        placeholder="Varyant secin"
+                        placeholder={variantPlaceholder}
                         loading={loadingVariants}
                         loadingMore={loadingMoreVariants}
                         hasMore={variantHasMore}

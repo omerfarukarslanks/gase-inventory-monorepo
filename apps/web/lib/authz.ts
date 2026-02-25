@@ -7,9 +7,11 @@ export enum UserRole {
 
 export type SessionUser = {
   role?: string;
+  storeType?: string;
   storeId?: string;
   store?: {
     id?: string;
+    storeType?: string;
   };
   stores?: Array<{
     id?: string;
@@ -18,11 +20,15 @@ export type SessionUser = {
   storeIds?: string[];
   userStores?: Array<{
     storeId?: string;
+    storeType?: string;
     store?: {
       id?: string;
+      storeType?: string;
     };
   }>;
 };
+
+export type SessionStoreType = "RETAIL" | "WHOLESALE";
 
 export type SessionListScope =
   | {
@@ -54,9 +60,37 @@ export function getSessionUser(): SessionUser | null {
   }
 }
 
+function asStoreType(storeType?: string | null): SessionStoreType | null {
+  if (!storeType) return null;
+  const normalized = storeType.toUpperCase();
+  if (normalized === "WHOLESALE") return "WHOLESALE";
+  if (normalized === "RETAIL") return "RETAIL";
+  return null;
+}
+
 export function getSessionUserRole(): UserRole | null {
   const user = getSessionUser();
   return asRole(user?.role);
+}
+
+export function getSessionUserStoreType(user?: SessionUser | null): SessionStoreType | null {
+  const resolvedUser = user ?? getSessionUser();
+  if (!resolvedUser) return null;
+
+  const direct = asStoreType(resolvedUser.storeType);
+  if (direct) return direct;
+
+  const fromStore = asStoreType(resolvedUser.store?.storeType);
+  if (fromStore) return fromStore;
+
+  if (Array.isArray(resolvedUser.userStores)) {
+    for (const item of resolvedUser.userStores) {
+      const fromUserStore = asStoreType(item?.storeType ?? item?.store?.storeType);
+      if (fromUserStore) return fromUserStore;
+    }
+  }
+
+  return null;
 }
 
 export function canAccessTenantPages(role: UserRole | null): boolean {

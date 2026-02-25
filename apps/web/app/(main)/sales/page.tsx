@@ -1,11 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
+import {
+  getSessionUser,
+  getSessionUserRole,
+  getSessionUserStoreIds,
+  getSessionUserStoreType,
+  isStoreScopedRole,
+} from "@/lib/authz";
 import { getTenantStockSummary } from "@/lib/inventory";
 import { getPaginationValue, normalizeProducts } from "@/lib/normalize";
 import { useStores } from "@/hooks/useStores";
 import { createCustomer, type CreateCustomerRequest, type Customer } from "@/lib/customers";
+import { getProductPackages } from "@/lib/product-packages";
 import {
   cancelSale,
   createSale,
@@ -22,6 +29,7 @@ import {
   type UpdateSalePayload,
   type SaleDetail,
   type SaleListItem,
+  type CreateSaleLinePayload,
 } from "@/lib/sales";
 import type { Currency } from "@/lib/products";
 import { toNumberOrNull } from "@/lib/format";
@@ -46,6 +54,54 @@ import SalesTable from "@/components/sales/SalesTable";
 import SalesPagination from "@/components/sales/SalesPagination";
 import SaleDrawer from "@/components/sales/SaleDrawer";
 import SaleDetailModal from "@/components/sales/SaleDetailModal";
+
+function toFiniteNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function toCurrency(value: unknown): Currency {
+  if (value === "TRY" || value === "USD" || value === "EUR") return value;
+  return "TRY";
+}
+
+function resolvePackageItemStockText(item: unknown): string {
+  if (!item || typeof item !== "object") return "-";
+  const node = item as Record<string, unknown>;
+  const variantNode =
+    node.productVariant && typeof node.productVariant === "object"
+      ? (node.productVariant as Record<string, unknown>)
+      : null;
+
+  const candidates: unknown[] = [
+    node.stock,
+    node.stockQuantity,
+    node.availableStock,
+    node.totalStock,
+    node.currentStock,
+    node.onHand,
+    node.availableQuantity,
+    node.totalQuantity,
+    node.currentQuantity,
+    variantNode?.stockQuantity,
+    variantNode?.availableStock,
+    variantNode?.totalStock,
+    variantNode?.currentStock,
+    variantNode?.availableQuantity,
+    variantNode?.totalQuantity,
+    variantNode?.currentQuantity,
+    variantNode?.onHand,
+  ];
+
+  for (const candidate of candidates) {
+    const numeric = toFiniteNumber(candidate);
+    if (numeric != null) return String(numeric);
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  }
+
+  return "-";
+}
 
 export default function SalesPage() {
   const stores = useStores();
@@ -93,7 +149,9 @@ export default function SalesPage() {
   const [saleDetail, setSaleDetail] = useState<SaleDetail | null>(null);
 
   /* ── Variant options ── */
-  const [variantOptions, setVariantOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [variantOptions, setVariantOptions] = useState<
+    Array<{ value: string; label: string; secondaryLabel?: string }>
+  >([]);
   const [variantPresetsById, setVariantPresetsById] = useState<Record<string, VariantPreset>>({});
   const [loadingVariants, setLoadingVariants] = useState(true);
   const [loadingMoreVariants, setLoadingMoreVariants] = useState(false);
@@ -104,6 +162,7 @@ export default function SalesPage() {
   const [scopeReady, setScopeReady] = useState(false);
   const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
   const [scopedStoreId, setScopedStoreId] = useState("");
+  const [isWholesaleStoreType, setIsWholesaleStoreType] = useState(false);
 
   /* ── Sale drawer state ── */
   const [saleDrawerOpen, setSaleDrawerOpen] = useState(false);
@@ -137,8 +196,10 @@ export default function SalesPage() {
   useEffect(() => {
     const role = getSessionUserRole();
     const user = getSessionUser();
+    const storeType = getSessionUserStoreType(user);
     const storeIds = getSessionUserStoreIds(user);
     setIsStoreScopedUser(isStoreScopedRole(role));
+    setIsWholesaleStoreType(storeType === "WHOLESALE");
     setScopedStoreId(storeIds[0] ?? "");
     if (isStoreScopedRole(role)) {
       setStoreId(storeIds[0] ?? "");
@@ -210,65 +271,128 @@ export default function SalesPage() {
     }
 
     try {
-      const res = await getTenantStockSummary({ page: nextPage, limit: 100 });
-      const nextProducts = normalizeProducts(res);
-      const nextOptions = nextProducts.flatMap((product) =>
-        (product.variants ?? []).map((variant) => ({
-          value: variant.productVariantId,
-          label: `${product.productName} / ${variant.variantName} (${variant.totalQuantity})`,
-        })),
-      );
+      if (isWholesaleStoreType) {
+        const res = await getProductPackages({
+          page: nextPage,
+          limit: 100,
+          isActive: true,
+        });
+        const packages = res.data ?? [];
 
-      setVariantPresetsById((prev) => {
-        const nextMap: Record<string, VariantPreset> = replace ? {} : { ...prev };
-        nextProducts.forEach((product) => {
-          (product.variants ?? []).forEach((variant) => {
-            const storePresets: VariantStorePreset[] = (variant.stores ?? []).map((store) => ({
-              storeId: store.storeId,
-              currency:
-                store.currency === "TRY" || store.currency === "USD" || store.currency === "EUR"
-                  ? store.currency
-                  : "TRY",
-              unitPrice: store.unitPrice ?? store.salePrice ?? null,
-              discountPercent: store.discountPercent ?? null,
-              discountAmount: store.discountAmount ?? null,
-              taxPercent: store.taxPercent ?? null,
-              taxAmount: store.taxAmount ?? null,
-              lineTotal: store.lineTotal ?? null,
-            }));
+        const optionMap = new Map<string, { value: string; label: string; secondaryLabel?: string }>();
+        const presetMap: Record<string, VariantPreset> = {};
 
-            const first = storePresets[0];
-            nextMap[variant.productVariantId] = {
-              currency: first?.currency ?? "TRY",
-              unitPrice: first?.unitPrice ?? null,
-              discountPercent: first?.discountPercent ?? null,
-              discountAmount: first?.discountAmount ?? null,
-              taxPercent: first?.taxPercent ?? null,
-              taxAmount: first?.taxAmount ?? null,
-              lineTotal: first?.lineTotal ?? null,
-              stores: storePresets,
-            };
+        packages.forEach((pkg) => {
+          const stockInfo = (pkg.items ?? [])
+            .map((item) => {
+              const variantName = item.productVariant?.name ?? "Varyant";
+              const variantCode = item.productVariant?.code ?? "-";
+              const stockText = resolvePackageItemStockText(item);
+              return `${variantName} (${variantCode}) Stok: ${stockText}`;
+            })
+            .join(" • ");
+
+          optionMap.set(pkg.id, {
+            value: pkg.id,
+            label: pkg.name,
+            secondaryLabel: stockInfo || "Varyant bilgisi yok",
           });
-        });
-        return nextMap;
-      });
 
-      setVariantOptions((prev) => {
-        const map = new Map<string, { value: string; label: string }>();
-        (replace ? [] : prev).forEach((item) => map.set(item.value, item));
-        nextOptions.forEach((item) => {
-          if (item.value && !map.has(item.value)) map.set(item.value, item);
+          if (!presetMap[pkg.id]) {
+            presetMap[pkg.id] = {
+              currency: toCurrency(pkg.defaultCurrency),
+              unitPrice:
+                toFiniteNumber(pkg.defaultSalePrice) ??
+                toFiniteNumber(pkg.defaultLineTotal) ??
+                null,
+              discountPercent: toFiniteNumber(pkg.defaultDiscountPercent),
+              discountAmount: toFiniteNumber(pkg.defaultDiscountAmount),
+              taxPercent: toFiniteNumber(pkg.defaultTaxPercent),
+              taxAmount: toFiniteNumber(pkg.defaultTaxAmount),
+              lineTotal: toFiniteNumber(pkg.defaultLineTotal),
+              stores: [],
+            };
+          }
         });
-        return Array.from(map.values());
-      });
 
-      const totalPages = getPaginationValue(res, "totalPages");
-      if (totalPages > 0) {
+        setVariantPresetsById((prev) =>
+          replace ? presetMap : { ...prev, ...presetMap },
+        );
+
+        setVariantOptions((prev) => {
+          const map = new Map<string, { value: string; label: string; secondaryLabel?: string }>();
+          (replace ? [] : prev).forEach((item) => map.set(item.value, item));
+          optionMap.forEach((item, key) => {
+            if (!map.has(key)) map.set(key, item);
+          });
+          return Array.from(map.values());
+        });
+
+        const totalPages = res.meta?.totalPages ?? 1;
         setVariantHasMore(nextPage < totalPages);
+        setVariantPage(nextPage);
       } else {
-        setVariantHasMore(nextOptions.length >= 100);
+        const res = await getTenantStockSummary({ page: nextPage, limit: 100 });
+        const nextProducts = normalizeProducts(res);
+        const nextOptions = nextProducts.flatMap((product) =>
+          (product.variants ?? []).map((variant) => ({
+            value: variant.productVariantId,
+            label: product.productName,
+            secondaryLabel: `${variant.variantName} | Stok: ${variant.totalQuantity}`,
+          })),
+        );
+
+        setVariantPresetsById((prev) => {
+          const nextMap: Record<string, VariantPreset> = replace ? {} : { ...prev };
+          nextProducts.forEach((product) => {
+            (product.variants ?? []).forEach((variant) => {
+              const storePresets: VariantStorePreset[] = (variant.stores ?? []).map((store) => ({
+                storeId: store.storeId,
+                currency:
+                  store.currency === "TRY" || store.currency === "USD" || store.currency === "EUR"
+                    ? store.currency
+                    : "TRY",
+                unitPrice: store.unitPrice ?? store.salePrice ?? null,
+                discountPercent: store.discountPercent ?? null,
+                discountAmount: store.discountAmount ?? null,
+                taxPercent: store.taxPercent ?? null,
+                taxAmount: store.taxAmount ?? null,
+                lineTotal: store.lineTotal ?? null,
+              }));
+
+              const first = storePresets[0];
+              nextMap[variant.productVariantId] = {
+                currency: first?.currency ?? "TRY",
+                unitPrice: first?.unitPrice ?? null,
+                discountPercent: first?.discountPercent ?? null,
+                discountAmount: first?.discountAmount ?? null,
+                taxPercent: first?.taxPercent ?? null,
+                taxAmount: first?.taxAmount ?? null,
+                lineTotal: first?.lineTotal ?? null,
+                stores: storePresets,
+              };
+            });
+          });
+          return nextMap;
+        });
+
+        setVariantOptions((prev) => {
+          const map = new Map<string, { value: string; label: string; secondaryLabel?: string }>();
+          (replace ? [] : prev).forEach((item) => map.set(item.value, item));
+          nextOptions.forEach((item) => {
+            if (item.value && !map.has(item.value)) map.set(item.value, item);
+          });
+          return Array.from(map.values());
+        });
+
+        const totalPages = getPaginationValue(res, "totalPages");
+        if (totalPages > 0) {
+          setVariantHasMore(nextPage < totalPages);
+        } else {
+          setVariantHasMore(nextOptions.length >= 100);
+        }
+        setVariantPage(nextPage);
       }
-      setVariantPage(nextPage);
     } catch {
       if (replace) {
         setVariantOptions([]);
@@ -279,11 +403,12 @@ export default function SalesPage() {
       setLoadingVariants(false);
       setLoadingMoreVariants(false);
     }
-  }, []);
+  }, [isWholesaleStoreType]);
 
   useEffect(() => {
+    if (!scopeReady) return;
     void fetchVariantPage(1, true);
-  }, [fetchVariantPage]);
+  }, [fetchVariantPage, scopeReady]);
 
   /* ── Derived ── */
   const storeOptions = useMemo(
@@ -541,7 +666,7 @@ export default function SalesPage() {
         detail.lines.length > 0
           ? detail.lines.map((line) => ({
               rowId: `line-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-              productVariantId: line.productVariantId ?? "",
+              productVariantId: line.productVariantId ?? line.productPackageId ?? "",
               quantity: line.quantity != null ? String(line.quantity) : "1",
               currency: line.currency ?? "TRY",
               unitPrice: line.unitPrice != null ? String(line.unitPrice) : "",
@@ -645,7 +770,9 @@ export default function SalesPage() {
         return !line.productVariantId || quantity == null || quantity <= 0 || unitPrice == null || unitPrice < 0;
       });
       if (invalidLine) {
-        nextErrors.lines = "Tum satirlarda varyant, adet ve birim fiyat alanlari gecerli olmalidir.";
+        nextErrors.lines = isWholesaleStoreType
+          ? "Tum satirlarda paket, adet ve birim fiyat alanlari gecerli olmalidir."
+          : "Tum satirlarda varyant, adet ve birim fiyat alanlari gecerli olmalidir.";
       }
     }
 
@@ -654,27 +781,40 @@ export default function SalesPage() {
   };
 
   /* ── Submit ── */
-  const buildLinePayloads = () =>
-    lines.map((line) => ({
-      productVariantId: line.productVariantId,
-      quantity: Number(line.quantity),
-      currency: line.currency,
-      unitPrice: Number(line.unitPrice),
-      ...(line.discountMode === "percent" && line.discountPercent
-        ? { discountPercent: Number(line.discountPercent) }
-        : {}),
-      ...(line.discountMode === "amount" && line.discountAmount
-        ? { discountAmount: Number(line.discountAmount) }
-        : {}),
-      ...(line.taxMode === "percent" && line.taxPercent
-        ? { taxPercent: Number(line.taxPercent) }
-        : {}),
-      ...(line.taxMode === "amount" && line.taxAmount
-        ? { taxAmount: Number(line.taxAmount) }
-        : {}),
-      lineTotal: Math.round(calcLineTotal(line) * 100) / 100,
-      ...(line.campaignCode.trim() ? { campaignCode: line.campaignCode.trim() } : {}),
-    }));
+  const buildLinePayloads = (): CreateSaleLinePayload[] =>
+    lines.map((line) => {
+      const common = {
+        quantity: Number(line.quantity),
+        currency: line.currency,
+        unitPrice: Number(line.unitPrice),
+        ...(line.discountMode === "percent" && line.discountPercent
+          ? { discountPercent: Number(line.discountPercent) }
+          : {}),
+        ...(line.discountMode === "amount" && line.discountAmount
+          ? { discountAmount: Number(line.discountAmount) }
+          : {}),
+        ...(line.taxMode === "percent" && line.taxPercent
+          ? { taxPercent: Number(line.taxPercent) }
+          : {}),
+        ...(line.taxMode === "amount" && line.taxAmount
+          ? { taxAmount: Number(line.taxAmount) }
+          : {}),
+        lineTotal: Math.round(calcLineTotal(line) * 100) / 100,
+        ...(line.campaignCode.trim() ? { campaignCode: line.campaignCode.trim() } : {}),
+      };
+
+      if (isWholesaleStoreType) {
+        return {
+          productPackageId: line.productVariantId,
+          ...common,
+        };
+      }
+
+      return {
+        productVariantId: line.productVariantId,
+        ...common,
+      };
+    });
 
   const onSelectCustomer = useCallback((customer: Customer) => {
     setCustomerId(customer.id);
@@ -831,6 +971,8 @@ export default function SalesPage() {
         customerDropdownRefreshKey={customerDropdownRefreshKey}
         onQuickCreateCustomer={onQuickCreateCustomer}
         variantOptions={variantOptions}
+        variantFieldLabel={isWholesaleStoreType ? "Paket *" : "Varyant *"}
+        variantPlaceholder={isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
         loadingMoreVariants={loadingMoreVariants}
         variantHasMore={variantHasMore}
         onLoadMoreVariants={loadMoreVariants}

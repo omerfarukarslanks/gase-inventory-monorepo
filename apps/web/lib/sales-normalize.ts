@@ -9,6 +9,28 @@ import type {
   SaleDetailLine,
 } from "@/lib/sales";
 
+function getPackageItemsSummary(items: unknown): string | undefined {
+  if (!Array.isArray(items)) return undefined;
+
+  const parts = items
+    .map((item) => asObject(item))
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .map((item) => {
+      const variantName = pickString(
+        item.variantName,
+        asObject(item.productVariant)?.name,
+        asObject(item.variant)?.name,
+      );
+      if (!variantName) return null;
+      const qty = pickString(item.qtyPerPackage, item.quantity, item.qty);
+      return qty ? `${variantName} (x${qty})` : variantName;
+    })
+    .filter((part): part is string => Boolean(part));
+
+  if (parts.length === 0) return undefined;
+  return parts.join(", ");
+}
+
 export function normalizeSalePayment(payload: unknown): SalePayment | null {
   const item = asObject(payload);
   if (!item) return null;
@@ -72,29 +94,43 @@ export function normalizeSalesResponse(payload: unknown): GetSalesResponse {
       const lines: SaleListLine[] = lineRaw
         .map((line) => asObject(line))
         .filter((line): line is Record<string, unknown> => Boolean(line))
-        .map((line, lineIndex) => ({
-          id: pickString(
-            line.id,
-            line.saleLineId,
-            line.productVariantId,
-            `line-${lineIndex}`,
-          ),
-          productVariantId: pickString(line.productVariantId, line.variantId) || undefined,
-          productVariantName:
-            pickString(
-              line.productVariantName,
-              line.variantName,
-              asObject(line.productVariant)?.name,
-            ) || undefined,
-          quantity: pickNumberOrNull(line.quantity) ?? undefined,
-          currency: (pickString(line.currency) || null) as Currency | null,
-          unitPrice: pickNumberOrNull(line.unitPrice),
-          discountPercent: pickNumberOrNull(line.discountPercent),
-          discountAmount: pickNumberOrNull(line.discountAmount),
-          taxPercent: pickNumberOrNull(line.taxPercent),
-          taxAmount: pickNumberOrNull(line.taxAmount),
-          lineTotal: pickNumberOrNull(line.lineTotal),
-        }));
+        .map((line, lineIndex) => {
+          const packageNode = asObject(line.productPackage);
+          const packageItemsSummary = getPackageItemsSummary(packageNode?.items);
+
+          return {
+            id: pickString(
+              line.id,
+              line.saleLineId,
+              line.productVariantId,
+              line.productPackageId,
+              `line-${lineIndex}`,
+            ),
+            productVariantId: pickString(line.productVariantId, line.variantId) || undefined,
+            productPackageId: pickString(line.productPackageId, line.packageId) || undefined,
+            productVariantName:
+              pickString(
+                line.productVariantName,
+                line.variantName,
+                asObject(line.productVariant)?.name,
+                packageItemsSummary,
+              ) || undefined,
+            productPackageName:
+              pickString(
+                line.productPackageName,
+                line.packageName,
+                packageNode?.name,
+              ) || undefined,
+            quantity: pickNumberOrNull(line.quantity) ?? undefined,
+            currency: (pickString(line.currency) || null) as Currency | null,
+            unitPrice: pickNumberOrNull(line.unitPrice),
+            discountPercent: pickNumberOrNull(line.discountPercent),
+            discountAmount: pickNumberOrNull(line.discountAmount),
+            taxPercent: pickNumberOrNull(line.taxPercent),
+            taxAmount: pickNumberOrNull(line.taxAmount),
+            lineTotal: pickNumberOrNull(line.lineTotal),
+          };
+        });
 
       return {
         id: pickString(item.id),
@@ -153,12 +189,43 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
     .filter((line): line is Record<string, unknown> => Boolean(line))
     .map((line, index) => {
       const variant = asObject(line.productVariant);
+      const packageNode = asObject(line.productPackage);
+      const packageItemsSummary = getPackageItemsSummary(packageNode?.items);
       return {
         id: pickString(line.id, line.saleLineId, `line-${index}`),
-        productName: pickString(line.productName, asObject(line.product)?.name) || undefined,
+        productName:
+          pickString(
+            line.productName,
+            asObject(line.product)?.name,
+            packageNode?.name,
+          ) || undefined,
         productVariantId: pickString(line.productVariantId, variant?.id) || undefined,
-        productVariantName: pickString(line.productVariantName, line.variantName, variant?.name) || undefined,
-        productVariantCode: pickString(line.productVariantCode, line.variantCode, variant?.code) || undefined,
+        productPackageId:
+          pickString(
+            line.productPackageId,
+            packageNode?.id,
+            line.packageId,
+          ) || undefined,
+        productVariantName:
+          pickString(
+            line.productVariantName,
+            line.variantName,
+            variant?.name,
+            packageItemsSummary,
+          ) || undefined,
+        productPackageName:
+          pickString(
+            line.productPackageName,
+            packageNode?.name,
+            line.packageName,
+          ) || undefined,
+        productVariantCode:
+          pickString(
+            line.productVariantCode,
+            line.variantCode,
+            variant?.code,
+            packageNode?.code,
+          ) || undefined,
         quantity: pickNumberOrNull(line.quantity),
         currency: (pickString(line.currency) || null) as Currency | null,
         unitPrice: pickNumberOrNull(line.unitPrice),

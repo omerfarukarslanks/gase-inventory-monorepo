@@ -126,7 +126,9 @@ export default function SalesTable({
               <th className="px-4 py-3 text-right">Para Birimi</th>
               <th className="px-4 py-3 text-right">Toplam</th>
               <th className="px-4 py-3 text-right">Kalan</th>
-              <th className="px-4 py-3 text-right">Islemler</th>
+              <th className="sticky right-0 z-20 w-[156px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                Islemler
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -138,7 +140,10 @@ export default function SalesTable({
               const showAddPaymentButton = shouldShowAddPaymentButton(sale.remainingAmount);
 
               return [
-                  <tr key={`${sale.id}-main`} className="border-b border-border hover:bg-surface2/30 transition-colors">
+                  <tr
+                    key={`${sale.id}-main`}
+                    className="group border-b border-border transition-colors hover:bg-surface2/30"
+                  >
                     <td className="px-4 py-3 text-sm text-text2">
                       <button
                         type="button"
@@ -201,7 +206,7 @@ export default function SalesTable({
                     <td className="px-4 py-3 text-right text-sm text-text2">
                       {formatPrice(sale.remainingAmount)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                       <div className="inline-flex items-center gap-1">
                         {showAddPaymentButton && (
                           <button
