@@ -10,6 +10,7 @@ import { canAccessTenantPages, getSessionUserRole } from "@/lib/authz";
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
   { href: "/products", label: "Urunler", icon: "U" },
+  { href: "/product-packages", label: "Paketler", icon: "PK" },
   { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3" },
   { href: "/sales", label: "Satislar", icon: "TL" },
   { href: "/chat", label: "AI Chat", icon: "AI" },
@@ -28,7 +29,42 @@ type LocalUser = {
   name?: string;
   surname?: string;
   role?: string;
+  storeType?: string;
+  store?: {
+    storeType?: string;
+  };
+  userStores?: Array<{
+    storeType?: string;
+    store?: {
+      storeType?: string;
+    };
+  }>;
 };
+
+function normalizeStoreType(value?: string | null): "RETAIL" | "WHOLESALE" | null {
+  if (!value) return null;
+  const normalized = value.toUpperCase();
+  if (normalized === "WHOLESALE") return "WHOLESALE";
+  if (normalized === "RETAIL") return "RETAIL";
+  return null;
+}
+
+function resolveUserStoreType(user: LocalUser): "RETAIL" | "WHOLESALE" | null {
+  const direct = normalizeStoreType(user.storeType);
+  if (direct) return direct;
+
+  const fromStore = normalizeStoreType(user.store?.storeType);
+  if (fromStore) return fromStore;
+
+  if (Array.isArray(user.userStores)) {
+    for (const item of user.userStores) {
+      const fromUserStore = normalizeStoreType(item?.storeType ?? item?.store?.storeType);
+      if (fromUserStore) return fromUserStore;
+    }
+  }
+
+  return null;
+}
 
 export default function Sidebar({
   collapsed,
@@ -45,6 +81,7 @@ export default function Sidebar({
   const [displayName, setDisplayName] = useState("Kullanici");
   const [displayRole, setDisplayRole] = useState("Admin");
   const [canSeeTenantManagement, setCanSeeTenantManagement] = useState(true);
+  const [canSeePackages, setCanSeePackages] = useState(false);
 
   useEffect(() => {
     try {
@@ -53,16 +90,19 @@ export default function Sidebar({
       if (!rawUser) {
         setDisplayName("Kullanici");
         setDisplayRole("User");
+        setCanSeePackages(false);
         return;
       }
       const parsed = JSON.parse(rawUser) as LocalUser;
       const fullName = [parsed.name, parsed.surname].filter(Boolean).join(" ").trim();
       setDisplayName(fullName || "Kullanici");
       setDisplayRole(parsed.role || "Admin");
+      setCanSeePackages(resolveUserStoreType(parsed) === "WHOLESALE");
     } catch {
       setDisplayName("Kullanici");
       setDisplayRole("User");
       setCanSeeTenantManagement(false);
+      setCanSeePackages(false);
     }
   }, []);
 
@@ -149,7 +189,9 @@ export default function Sidebar({
         </div>
 
         <div className="space-y-1">
-          {items.map((it) => (
+          {items
+            .filter((it) => canSeePackages || it.href !== "/product-packages")
+            .map((it) => (
             <Link
               key={it.href}
               href={it.href}

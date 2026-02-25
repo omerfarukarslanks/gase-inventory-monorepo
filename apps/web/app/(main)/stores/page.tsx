@@ -7,6 +7,7 @@ import {
   getStores,
   updateStore,
   type Store,
+  type StoreType,
   type StoresListMeta,
 } from "@/lib/stores";
 import Drawer from "@/components/ui/Drawer";
@@ -25,6 +26,7 @@ import { CURRENCY_OPTIONS, STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/
 
 type StoreForm = {
   name: string;
+  storeType: StoreType;
   currency: Currency;
   code: string;
   address: string;
@@ -35,6 +37,7 @@ type StoreForm = {
 
 const EMPTY_FORM: StoreForm = {
   name: "",
+  storeType: "RETAIL",
   currency: "TRY",
   code: "",
   address: "",
@@ -66,8 +69,14 @@ export default function StoresPage() {
   const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
+  const STORE_TYPE_OPTIONS = [
+    { value: "RETAIL", label: "Perakende" },
+    { value: "WHOLESALE", label: "Toptan" },
+  ] as const;
   const normalizeCurrency = (value: string): Currency =>
     value === "USD" || value === "EUR" ? value : "TRY";
+  const normalizeStoreType = (value: string): StoreType =>
+    value === "WHOLESALE" ? "WHOLESALE" : "RETAIL";
 
   const fetchStores = useCallback(async () => {
     if (!accessChecked) return;
@@ -179,6 +188,7 @@ export default function StoresPage() {
       const detail = await getStoreById(id, token);
       setForm({
         name: detail.name ?? "",
+        storeType: normalizeStoreType(String(detail.storeType ?? "RETAIL")),
         currency: normalizeCurrency(String(detail.currency ?? "TRY")),
         code: detail.code ?? "",
         address: detail.address ?? "",
@@ -237,6 +247,7 @@ export default function StoresPage() {
         await createStore(
           {
             name: form.name.trim(),
+            storeType: form.storeType,
             currency: form.currency,
             code: form.code.trim() || undefined,
             address: form.address.trim() || undefined,
@@ -525,6 +536,21 @@ export default function StoresPage() {
             onChange={(v) => onFormChange("code", v)}
             placeholder="BES-01"
           />
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Store Type</label>
+            <SearchableDropdown
+              options={[...STORE_TYPE_OPTIONS]}
+              value={form.storeType}
+              onChange={(value) => onFormChange("storeType", normalizeStoreType(value))}
+              placeholder="Store type seciniz"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Magaza tipi"
+              toggleAriaLabel="Magaza tipi listesini ac"
+              disabled={Boolean(editingStoreId)}
+            />
+          </div>
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted">Currency</label>
