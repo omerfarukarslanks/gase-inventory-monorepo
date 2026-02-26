@@ -337,6 +337,45 @@ export async function deleteSalePayment(saleId: string, paymentId: string): Prom
   });
 }
 
+export type AddSaleLinePayload = CreateSaleLinePayload;
+
+export type PatchSaleLinePayload = {
+  quantity?: number;
+  unitPrice?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  taxPercent?: number;
+  taxAmount?: number;
+  lineTotal?: number;
+  currency?: Currency;
+  campaignCode?: string;
+};
+
+export async function addSaleLine(
+  saleId: string,
+  payload: AddSaleLinePayload,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/sales/${saleId}/lines`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateSaleLine(
+  saleId: string,
+  lineId: string,
+  payload: PatchSaleLinePayload,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/sales/${saleId}/lines/${lineId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function removeSaleLine(saleId: string, lineId: string): Promise<void> {
+  await apiFetch<void>(`/sales/${saleId}/lines/${lineId}`, { method: "DELETE" });
+}
+
 export type CreateSaleReturnLine = {
   saleLineId: string;
   quantity: number;

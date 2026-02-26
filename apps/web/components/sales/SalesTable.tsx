@@ -23,6 +23,7 @@ type SalesTableProps = {
   onOpenCancel: (sale: SaleListItem) => void;
   onReturn: (sale: SaleListItem) => void;
   onDownloadReceipt: (saleId: string) => void;
+  onManageLines: (sale: SaleListItem) => void;
   footer?: ReactNode;
 };
 
@@ -174,6 +175,7 @@ export default function SalesTable({
   onOpenCancel,
   onReturn,
   onDownloadReceipt,
+  onManageLines,
   footer,
 }: SalesTableProps) {
   if (salesError) {
@@ -256,6 +258,11 @@ export default function SalesTable({
                     key: "edit",
                     label: "Duzenle",
                     onClick: () => onEdit(sale),
+                  });
+                  actionItems.push({
+                    key: "manage-lines",
+                    label: "Satirlari Yonet",
+                    onClick: () => onManageLines(sale),
                   });
                   actionItems.push({
                     key: "return",

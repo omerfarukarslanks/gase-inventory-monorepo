@@ -12,6 +12,7 @@ import { useStores } from "@/hooks/useStores";
 import { createCustomer, type CreateCustomerRequest, type Customer } from "@/lib/customers";
 import { getProductPackages } from "@/lib/product-packages";
 import {
+  addSaleLine,
   cancelSale,
   createSale,
   createSalePayment,
@@ -21,10 +22,14 @@ import {
   getSaleById,
   getSalePayments,
   getSales,
-  updateSalePayment,
+  removeSaleLine,
   updateSale,
+  updateSaleLine,
+  updateSalePayment,
+  type AddSaleLinePayload,
   type CreateSalePayload,
   type CreateSaleReturnLine,
+  type PatchSaleLinePayload,
   type PaymentMethod,
   type SalePayment,
   type UpdateSalePayload,
@@ -144,6 +149,26 @@ export default function SalesPage() {
     paymentId: string;
   } | null>(null);
   const [deletingPayment, setDeletingPayment] = useState(false);
+
+  /* ── Lines management drawer ── */
+  const [linesDrawerOpen, setLinesDrawerOpen] = useState(false);
+  const [linesDrawerSale, setLinesDrawerSale] = useState<SaleListItem | null>(null);
+  const [managedLines, setManagedLines] = useState<SaleDetailLine[]>([]);
+  const [linesDrawerLoading, setLinesDrawerLoading] = useState(false);
+  const [linesDrawerError, setLinesDrawerError] = useState("");
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editLineForm, setEditLineForm] = useState<{
+    quantity: string; unitPrice: string; currency: string;
+    discountMode: "percent" | "amount"; discountPercent: string; discountAmount: string;
+    taxMode: "percent" | "amount"; taxPercent: string; taxAmount: string; campaignCode: string;
+  }>({ quantity: "", unitPrice: "", currency: "TRY", discountMode: "percent", discountPercent: "", discountAmount: "", taxMode: "percent", taxPercent: "", taxAmount: "", campaignCode: "" });
+  const [lineOpSubmitting, setLineOpSubmitting] = useState(false);
+  const [lineOpError, setLineOpError] = useState("");
+  const [deleteLineTarget, setDeleteLineTarget] = useState<string | null>(null);
+  const [deleteLineDialogOpen, setDeleteLineDialogOpen] = useState(false);
+  const [deletingLine, setDeletingLine] = useState(false);
+  const [addLineExpanded, setAddLineExpanded] = useState(false);
+  const [addLineForm, setAddLineForm] = useState<ReturnType<typeof createLineRow>>(() => createLineRow());
 
   /* ── Return drawer ── */
   const [returnDrawerOpen, setReturnDrawerOpen] = useState(false);
@@ -760,6 +785,165 @@ export default function SalesPage() {
     setSaleDetail(null);
   };
 
+  /* ── Lines management drawer ── */
+  const refreshManagedLines = async (saleId: string) => {
+    const response = await getSaleById(saleId);
+    const detail = normalizeSaleDetail(response);
+    setManagedLines(detail?.lines ?? []);
+  };
+
+  const openManageLinesDrawer = async (sale: SaleListItem) => {
+    setLinesDrawerSale(sale);
+    setManagedLines([]);
+    setLinesDrawerError("");
+    setEditingLineId(null);
+    setLineOpError("");
+    setAddLineExpanded(false);
+    setAddLineForm(createLineRow());
+    setLinesDrawerOpen(true);
+    setLinesDrawerLoading(true);
+    try {
+      await refreshManagedLines(sale.id);
+    } catch {
+      setLinesDrawerError("Satirlar yuklenemedi.");
+    } finally {
+      setLinesDrawerLoading(false);
+    }
+  };
+
+  const closeManageLinesDrawer = () => {
+    if (lineOpSubmitting || deletingLine) return;
+    setLinesDrawerOpen(false);
+    setLinesDrawerSale(null);
+    setManagedLines([]);
+    setEditingLineId(null);
+    setLineOpError("");
+    setAddLineExpanded(false);
+  };
+
+  const startEditLine = (line: SaleDetailLine) => {
+    setEditingLineId(line.id);
+    setLineOpError("");
+    setEditLineForm({
+      quantity: line.quantity != null ? String(line.quantity) : "",
+      unitPrice: line.unitPrice != null ? String(line.unitPrice) : "",
+      currency: (line.currency as string) ?? "TRY",
+      discountMode: line.discountAmount != null ? "amount" : "percent",
+      discountPercent: line.discountPercent != null ? String(line.discountPercent) : "",
+      discountAmount: line.discountAmount != null ? String(line.discountAmount) : "",
+      taxMode: line.taxAmount != null ? "amount" : "percent",
+      taxPercent: line.taxPercent != null ? String(line.taxPercent) : "",
+      taxAmount: line.taxAmount != null ? String(line.taxAmount) : "",
+      campaignCode: line.campaignCode ?? "",
+    });
+  };
+
+  const cancelEditLine = () => {
+    setEditingLineId(null);
+    setLineOpError("");
+  };
+
+  const submitEditLine = async (lineId: string) => {
+    if (!linesDrawerSale) return;
+    const qty = toNumberOrNull(editLineForm.quantity);
+    const unitPrice = toNumberOrNull(editLineForm.unitPrice);
+    if (qty == null || qty <= 0) { setLineOpError("Gecerli bir adet girin."); return; }
+    if (unitPrice == null || unitPrice < 0) { setLineOpError("Gecerli bir birim fiyat girin."); return; }
+
+    const payload: PatchSaleLinePayload = {
+      quantity: qty,
+      unitPrice,
+      currency: editLineForm.currency as Currency,
+      ...(editLineForm.discountMode === "percent" && editLineForm.discountPercent
+        ? { discountPercent: Number(editLineForm.discountPercent) } : {}),
+      ...(editLineForm.discountMode === "amount" && editLineForm.discountAmount
+        ? { discountAmount: Number(editLineForm.discountAmount) } : {}),
+      ...(editLineForm.taxMode === "percent" && editLineForm.taxPercent
+        ? { taxPercent: Number(editLineForm.taxPercent) } : {}),
+      ...(editLineForm.taxMode === "amount" && editLineForm.taxAmount
+        ? { taxAmount: Number(editLineForm.taxAmount) } : {}),
+      ...(editLineForm.campaignCode.trim() ? { campaignCode: editLineForm.campaignCode.trim() } : {}),
+    };
+
+    setLineOpSubmitting(true);
+    setLineOpError("");
+    try {
+      await updateSaleLine(linesDrawerSale.id, lineId, payload);
+      setEditingLineId(null);
+      await refreshManagedLines(linesDrawerSale.id);
+      await fetchSalesReceipts();
+    } catch {
+      setLineOpError("Satir guncellenemedi.");
+    } finally {
+      setLineOpSubmitting(false);
+    }
+  };
+
+  const requestDeleteLine = (lineId: string) => {
+    setDeleteLineTarget(lineId);
+    setDeleteLineDialogOpen(true);
+  };
+
+  const confirmDeleteLine = async () => {
+    if (!linesDrawerSale || !deleteLineTarget) return;
+    setDeletingLine(true);
+    try {
+      await removeSaleLine(linesDrawerSale.id, deleteLineTarget);
+      setDeleteLineDialogOpen(false);
+      setDeleteLineTarget(null);
+      await refreshManagedLines(linesDrawerSale.id);
+      await fetchSalesReceipts();
+    } catch {
+      setLineOpError("Satir silinemedi.");
+      setDeleteLineDialogOpen(false);
+    } finally {
+      setDeletingLine(false);
+    }
+  };
+
+  const submitAddLine = async () => {
+    if (!linesDrawerSale) return;
+    const qty = toNumberOrNull(addLineForm.quantity);
+    const unitPrice = toNumberOrNull(addLineForm.unitPrice);
+    if (!addLineForm.productVariantId) { setLineOpError("Urun/varyant secin."); return; }
+    if (qty == null || qty <= 0) { setLineOpError("Gecerli bir adet girin."); return; }
+    if (unitPrice == null || unitPrice < 0) { setLineOpError("Gecerli bir birim fiyat girin."); return; }
+
+    const common = {
+      quantity: qty,
+      currency: addLineForm.currency,
+      unitPrice,
+      ...(addLineForm.discountMode === "percent" && addLineForm.discountPercent
+        ? { discountPercent: Number(addLineForm.discountPercent) } : {}),
+      ...(addLineForm.discountMode === "amount" && addLineForm.discountAmount
+        ? { discountAmount: Number(addLineForm.discountAmount) } : {}),
+      ...(addLineForm.taxMode === "percent" && addLineForm.taxPercent
+        ? { taxPercent: Number(addLineForm.taxPercent) } : {}),
+      ...(addLineForm.taxMode === "amount" && addLineForm.taxAmount
+        ? { taxAmount: Number(addLineForm.taxAmount) } : {}),
+      lineTotal: Math.round(calcLineTotal(addLineForm) * 100) / 100,
+      ...(addLineForm.campaignCode.trim() ? { campaignCode: addLineForm.campaignCode.trim() } : {}),
+    };
+
+    const payload: AddSaleLinePayload = isWholesaleStoreType
+      ? { productPackageId: addLineForm.productVariantId, ...common }
+      : { productVariantId: addLineForm.productVariantId, ...common };
+
+    setLineOpSubmitting(true);
+    setLineOpError("");
+    try {
+      await addSaleLine(linesDrawerSale.id, payload);
+      setAddLineExpanded(false);
+      setAddLineForm(createLineRow());
+      await refreshManagedLines(linesDrawerSale.id);
+      await fetchSalesReceipts();
+    } catch {
+      setLineOpError("Satir eklenemedi.");
+    } finally {
+      setLineOpSubmitting(false);
+    }
+  };
+
   /* ── Return drawer ── */
   const openReturnDrawer = async (sale: SaleListItem) => {
     setReturnTargetSale(sale);
@@ -1046,6 +1230,7 @@ export default function SalesPage() {
         onOpenCancel={openCancelDialog}
         onReturn={(sale) => void openReturnDrawer(sale)}
         onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
+        onManageLines={(sale) => void openManageLinesDrawer(sale)}
         footer={
           salesMeta && !salesLoading && !salesError ? (
             <SalesPagination
@@ -1371,6 +1556,228 @@ export default function SalesPage() {
           )}
         </div>
       </Drawer>
+
+      {/* ── Lines management drawer ── */}
+      <Drawer
+        open={linesDrawerOpen}
+        onClose={closeManageLinesDrawer}
+        side="right"
+        title="Satirlari Yonet"
+        description={linesDrawerSale ? `Fis: ${linesDrawerSale.receiptNo ?? linesDrawerSale.id}` : ""}
+        closeDisabled={lineOpSubmitting || deletingLine}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button label="Kapat" onClick={closeManageLinesDrawer} variant="secondary" disabled={lineOpSubmitting || deletingLine} />
+          </div>
+        }
+      >
+        <div className="space-y-4 p-5">
+          {linesDrawerLoading ? (
+            <p className="text-sm text-muted">Satirlar yukleniyor...</p>
+          ) : linesDrawerError ? (
+            <p className="text-sm text-error">{linesDrawerError}</p>
+          ) : (
+            <>
+              {/* Current lines */}
+              <div className="space-y-2">
+                {managedLines.length === 0 && (
+                  <p className="text-sm text-muted">Bu satisa ait satir bulunamadi.</p>
+                )}
+                {managedLines.map((line) => {
+                  const isEditing = editingLineId === line.id;
+                  const lineName = line.productVariantName ?? line.productPackageName ?? line.productName ?? line.id;
+                  return (
+                    <div key={line.id} className="rounded-xl border border-border bg-surface2/30 p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-text">{lineName}</p>
+                          <p className="text-xs text-muted">
+                            Adet: {line.quantity ?? "-"} · Birim: {line.unitPrice != null ? line.unitPrice : "-"} · Toplam: {line.lineTotal != null ? line.lineTotal : "-"}
+                          </p>
+                        </div>
+                        {!isEditing && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            <button type="button" onClick={() => startEditLine(line)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                              title="Duzenle">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                            <button type="button" onClick={() => requestDeleteLine(line.id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
+                              title="Sil">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {isEditing && (
+                        <div className="space-y-3 border-t border-border pt-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted">Adet *</label>
+                              <input type="number" min={1} step={1} value={editLineForm.quantity}
+                                onChange={(e) => { setLineOpError(""); setEditLineForm((f) => ({ ...f, quantity: e.target.value })); }}
+                                className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted">Birim Fiyat *</label>
+                              <input type="number" min={0} step="0.01" value={editLineForm.unitPrice}
+                                onChange={(e) => { setLineOpError(""); setEditLineForm((f) => ({ ...f, unitPrice: e.target.value })); }}
+                                className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted">
+                                {editLineForm.discountMode === "percent" ? "Indirim %" : "Indirim Tutari"}
+                                <button type="button" onClick={() => setEditLineForm((f) => ({ ...f, discountMode: f.discountMode === "percent" ? "amount" : "percent" }))}
+                                  className="ml-1 text-primary hover:underline">
+                                  ({editLineForm.discountMode === "percent" ? "tutara gec" : "%'ye gec"})
+                                </button>
+                              </label>
+                              {editLineForm.discountMode === "percent" ? (
+                                <input type="number" min={0} max={100} step="0.01" value={editLineForm.discountPercent}
+                                  onChange={(e) => setEditLineForm((f) => ({ ...f, discountPercent: e.target.value }))}
+                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                              ) : (
+                                <input type="number" min={0} step="0.01" value={editLineForm.discountAmount}
+                                  onChange={(e) => setEditLineForm((f) => ({ ...f, discountAmount: e.target.value }))}
+                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted">
+                                {editLineForm.taxMode === "percent" ? "Vergi %" : "Vergi Tutari"}
+                                <button type="button" onClick={() => setEditLineForm((f) => ({ ...f, taxMode: f.taxMode === "percent" ? "amount" : "percent" }))}
+                                  className="ml-1 text-primary hover:underline">
+                                  ({editLineForm.taxMode === "percent" ? "tutara gec" : "%'ye gec"})
+                                </button>
+                              </label>
+                              {editLineForm.taxMode === "percent" ? (
+                                <input type="number" min={0} max={100} step="0.01" value={editLineForm.taxPercent}
+                                  onChange={(e) => setEditLineForm((f) => ({ ...f, taxPercent: e.target.value }))}
+                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                              ) : (
+                                <input type="number" min={0} step="0.01" value={editLineForm.taxAmount}
+                                  onChange={(e) => setEditLineForm((f) => ({ ...f, taxAmount: e.target.value }))}
+                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs font-semibold text-muted">Kampanya Kodu</label>
+                            <input type="text" value={editLineForm.campaignCode}
+                              onChange={(e) => setEditLineForm((f) => ({ ...f, campaignCode: e.target.value }))}
+                              className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button label={lineOpSubmitting ? "Kaydediliyor..." : "Kaydet"} onClick={() => void submitEditLine(line.id)} variant="primarySolid" loading={lineOpSubmitting} />
+                            <Button label="Vazgec" onClick={cancelEditLine} variant="secondary" disabled={lineOpSubmitting} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add new line section */}
+              <div className="rounded-xl border border-border">
+                <button type="button"
+                  onClick={() => { setAddLineExpanded((v) => !v); setLineOpError(""); }}
+                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-surface2/40 rounded-xl transition-colors">
+                  <span>Satir Ekle</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className={addLineExpanded ? "rotate-180 transition-transform" : "transition-transform"}>
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
+                </button>
+                {addLineExpanded && (
+                  <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-muted">{isWholesaleStoreType ? "Paket *" : "Varyant *"}</label>
+                      <SearchableDropdown
+                        options={variantOptions}
+                        value={addLineForm.productVariantId}
+                        onChange={(val) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, productVariantId: val ?? "" })); }}
+                        placeholder={isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">Adet *</label>
+                        <input type="number" min={1} step={1} value={addLineForm.quantity}
+                          onChange={(e) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, quantity: e.target.value })); }}
+                          className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">Birim Fiyat *</label>
+                        <input type="number" min={0} step="0.01" value={addLineForm.unitPrice}
+                          onChange={(e) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, unitPrice: e.target.value })); }}
+                          className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">
+                          {addLineForm.discountMode === "percent" ? "Indirim %" : "Indirim Tutari"}
+                          <button type="button" onClick={() => setAddLineForm((f) => ({ ...f, discountMode: f.discountMode === "percent" ? "amount" : "percent" }))}
+                            className="ml-1 text-primary hover:underline">
+                            ({addLineForm.discountMode === "percent" ? "tutara gec" : "%'ye gec"})
+                          </button>
+                        </label>
+                        {addLineForm.discountMode === "percent" ? (
+                          <input type="number" min={0} max={100} step="0.01" value={addLineForm.discountPercent}
+                            onChange={(e) => setAddLineForm((f) => ({ ...f, discountPercent: e.target.value }))}
+                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                        ) : (
+                          <input type="number" min={0} step="0.01" value={addLineForm.discountAmount}
+                            onChange={(e) => setAddLineForm((f) => ({ ...f, discountAmount: e.target.value }))}
+                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">
+                          {addLineForm.taxMode === "percent" ? "Vergi %" : "Vergi Tutari"}
+                          <button type="button" onClick={() => setAddLineForm((f) => ({ ...f, taxMode: f.taxMode === "percent" ? "amount" : "percent" }))}
+                            className="ml-1 text-primary hover:underline">
+                            ({addLineForm.taxMode === "percent" ? "tutara gec" : "%'ye gec"})
+                          </button>
+                        </label>
+                        {addLineForm.taxMode === "percent" ? (
+                          <input type="number" min={0} max={100} step="0.01" value={addLineForm.taxPercent}
+                            onChange={(e) => setAddLineForm((f) => ({ ...f, taxPercent: e.target.value }))}
+                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                        ) : (
+                          <input type="number" min={0} step="0.01" value={addLineForm.taxAmount}
+                            onChange={(e) => setAddLineForm((f) => ({ ...f, taxAmount: e.target.value }))}
+                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                        )}
+                      </div>
+                    </div>
+                    <Button label={lineOpSubmitting ? "Ekleniyor..." : "Satiri Ekle"} onClick={() => void submitAddLine()} variant="primarySolid" loading={lineOpSubmitting} />
+                  </div>
+                )}
+              </div>
+
+              {lineOpError && <p className="text-sm text-error">{lineOpError}</p>}
+            </>
+          )}
+        </div>
+      </Drawer>
+
+      <ConfirmDialog
+        open={deleteLineDialogOpen}
+        title="Satiri Sil"
+        description="Bu satir silinecek. Bu islem geri alinamaz."
+        confirmLabel="Evet, Sil"
+        cancelLabel="Vazgec"
+        loading={deletingLine}
+        loadingLabel="Siliniyor..."
+        onConfirm={() => void confirmDeleteLine()}
+        onClose={() => { if (deletingLine) return; setDeleteLineDialogOpen(false); setDeleteLineTarget(null); }}
+      />
     </div>
   );
 }
