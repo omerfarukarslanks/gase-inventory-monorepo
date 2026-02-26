@@ -1049,7 +1049,11 @@ export default function SalesPage() {
   const validate = (): boolean => {
     const nextErrors: FieldErrors = {};
     if (!customerId) nextErrors.customerId = "Musteri secimi zorunludur.";
-    if (!isStoreScopedUser && !storeId) nextErrors.storeId = "Magaza secimi zorunludur.";
+
+    if (!editingSaleId && !isStoreScopedUser && !storeId) {
+      nextErrors.storeId = "Magaza secimi zorunludur.";
+    }
+
     if (!editingSaleId && !paymentMethod) nextErrors.paymentMethod = "Odeme yontemi zorunludur.";
     if (!editingSaleId) {
       const amount = toNumberOrNull(initialPaymentAmount);
@@ -1058,18 +1062,20 @@ export default function SalesPage() {
       }
     }
 
-    if (lines.length === 0) {
-      nextErrors.lines = "En az bir satis satiri eklemelisiniz.";
-    } else {
-      const invalidLine = lines.some((line) => {
-        const quantity = toNumberOrNull(line.quantity);
-        const unitPrice = toNumberOrNull(line.unitPrice);
-        return !line.productVariantId || quantity == null || quantity <= 0 || unitPrice == null || unitPrice < 0;
-      });
-      if (invalidLine) {
-        nextErrors.lines = isWholesaleStoreType
-          ? "Tum satirlarda paket, adet ve birim fiyat alanlari gecerli olmalidir."
-          : "Tum satirlarda varyant, adet ve birim fiyat alanlari gecerli olmalidir.";
+    if (!editingSaleId) {
+      if (lines.length === 0) {
+        nextErrors.lines = "En az bir satis satiri eklemelisiniz.";
+      } else {
+        const invalidLine = lines.some((line) => {
+          const quantity = toNumberOrNull(line.quantity);
+          const unitPrice = toNumberOrNull(line.unitPrice);
+          return !line.productVariantId || quantity == null || quantity <= 0 || unitPrice == null || unitPrice < 0;
+        });
+        if (invalidLine) {
+          nextErrors.lines = isWholesaleStoreType
+            ? "Tum satirlarda paket, adet ve birim fiyat alanlari gecerli olmalidir."
+            : "Tum satirlarda varyant, adet ve birim fiyat alanlari gecerli olmalidir.";
+        }
       }
     }
 
@@ -1139,12 +1145,8 @@ export default function SalesPage() {
     try {
       if (editingSaleId) {
         const payload: UpdateSalePayload = {
-          ...(isStoreScopedUser ? {} : { storeId }),
           customerId,
-          meta: {
-            note: note.trim() || undefined,
-          },
-          lines: buildLinePayloads(),
+          ...(note.trim() ? { meta: { note: note.trim() } } : {}),
         };
         await updateSale(editingSaleId, payload);
         setSuccess("Satis kaydi guncellendi.");

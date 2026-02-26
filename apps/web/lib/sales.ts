@@ -246,7 +246,7 @@ export type UpdateSalePayload = {
     source?: string;
     note?: string;
   };
-  lines: UpdateSaleLinePayload[];
+  lines?: UpdateSaleLinePayload[];
   initialPayment?: {
     amount: number;
     paymentMethod: PaymentMethod;

@@ -203,7 +203,11 @@ export default function SaleDrawer({
       onClose={onClose}
       side="top"
       title={editMode ? "Satisi Duzenle" : "Yeni Satis"}
-      description={editMode ? "Satis fisini buradan guncelleyebilirsiniz." : "Satis akisini buradan tamamlayabilirsiniz."}
+      description={
+        editMode
+          ? "Bu ekranda sadece musteri ve not bilgisi guncellenir."
+          : "Satis akisini buradan tamamlayabilirsiniz."
+      }
       closeDisabled={submitting}
       className="!max-h-[90vh]"
       footer={
@@ -221,7 +225,7 @@ export default function SaleDrawer({
             loading={submitting}
             variant="primarySolid"
             className="px-3 py-1.5"
-            disabled={!scopeReady || loadingVariants}
+            disabled={!scopeReady || (!editMode && loadingVariants)}
           />
         </div>
       }
@@ -229,7 +233,7 @@ export default function SaleDrawer({
       <div className="space-y-4 p-5">
         <section className="rounded-xl2 border border-border bg-surface p-4">
           <div className="grid gap-3 md:grid-cols-2">
-            {!isStoreScopedUser && (
+            {!editMode && !isStoreScopedUser && (
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted">Magaza *</label>
                 <SearchableDropdown
@@ -444,153 +448,155 @@ export default function SaleDrawer({
           </div>
         </section>
 
-        <section className="rounded-xl2 border border-border bg-surface p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-text">Satis Satirlari</h2>
-            <Button label="+ Satir Ekle" onClick={onAddLine} variant="secondary" className="px-3 py-1.5" />
-          </div>
-
-          {loadingVariants ? (
-            <p className="text-sm text-muted">Varyantlar yukleniyor...</p>
-          ) : (
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div key={line.rowId} className="rounded-xl border border-border bg-surface2/40 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted">Satir #{index + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveLine(line.rowId)}
-                      className="text-xs cursor-pointer text-error hover:text-error/80"
-                      disabled={lines.length <= 1}
-                    >
-                      Kaldir
-                    </button>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="lg:col-span-2">
-                      <label className="mb-1 block text-xs font-semibold text-muted">{variantFieldLabel}</label>
-                      <VariantInfiniteDropdown
-                        options={variantOptions}
-                        value={line.productVariantId}
-                        onChange={(value) => onApplyVariantPreset(line.rowId, value)}
-                        placeholder={variantPlaceholder}
-                        loading={loadingVariants}
-                        loadingMore={loadingMoreVariants}
-                        hasMore={variantHasMore}
-                        onLoadMore={onLoadMoreVariants}
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Adet *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={line.quantity}
-                        onChange={(e) => onChangeLine(line.rowId, { quantity: e.target.value })}
-                        className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Para Birimi *</label>
-                      <SearchableDropdown
-                        options={CURRENCY_OPTIONS}
-                        value={line.currency}
-                        onChange={(value) => onChangeLine(line.rowId, { currency: (value || "TRY") as Currency })}
-                        showEmptyOption={false}
-                        allowClear={false}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Birim Fiyat *</label>
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={line.unitPrice}
-                        onChange={(e) => onChangeLine(line.rowId, { unitPrice: e.target.value })}
-                        className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Indirim</label>
-                      <div className="flex items-center gap-2">
-                        <ModeToggle
-                          mode={line.discountMode}
-                          onToggle={(mode) =>
-                            onChangeLine(line.rowId, {
-                              discountMode: mode,
-                              discountPercent: "",
-                              discountAmount: "",
-                            })
-                          }
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={line.discountMode === "percent" ? line.discountPercent : line.discountAmount}
-                          onChange={(e) =>
-                            onChangeLine(
-                              line.rowId,
-                              line.discountMode === "percent"
-                                ? { discountPercent: e.target.value }
-                                : { discountAmount: e.target.value },
-                            )
-                          }
-                          className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Vergi</label>
-                      <div className="flex items-center gap-2">
-                        <ModeToggle
-                          mode={line.taxMode}
-                          onToggle={(mode) =>
-                            onChangeLine(line.rowId, {
-                              taxMode: mode,
-                              taxPercent: "",
-                              taxAmount: "",
-                            })
-                          }
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={line.taxMode === "percent" ? line.taxPercent : line.taxAmount}
-                          onChange={(e) =>
-                            onChangeLine(
-                              line.rowId,
-                              line.taxMode === "percent"
-                                ? { taxPercent: e.target.value }
-                                : { taxAmount: e.target.value },
-                            )
-                          }
-                          className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Satir Toplami (Otomatik)</label>
-                      <div className="flex h-10 items-center rounded-xl border border-border bg-surface px-3 text-sm text-text2">
-                        {formatPrice(calcLineTotal(line))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {!editMode && (
+          <section className="rounded-xl2 border border-border bg-surface p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text">Satis Satirlari</h2>
+              <Button label="+ Satir Ekle" onClick={onAddLine} variant="secondary" className="px-3 py-1.5" />
             </div>
-          )}
 
-          {errors.lines && <p className="mt-2 text-xs text-error">{errors.lines}</p>}
-        </section>
+            {loadingVariants ? (
+              <p className="text-sm text-muted">Varyantlar yukleniyor...</p>
+            ) : (
+              <div className="space-y-3">
+                {lines.map((line, index) => (
+                  <div key={line.rowId} className="rounded-xl border border-border bg-surface2/40 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted">Satir #{index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveLine(line.rowId)}
+                        className="text-xs cursor-pointer text-error hover:text-error/80"
+                        disabled={lines.length <= 1}
+                      >
+                        Kaldir
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <div className="lg:col-span-2">
+                        <label className="mb-1 block text-xs font-semibold text-muted">{variantFieldLabel}</label>
+                        <VariantInfiniteDropdown
+                          options={variantOptions}
+                          value={line.productVariantId}
+                          onChange={(value) => onApplyVariantPreset(line.rowId, value)}
+                          placeholder={variantPlaceholder}
+                          loading={loadingVariants}
+                          loadingMore={loadingMoreVariants}
+                          hasMore={variantHasMore}
+                          onLoadMore={onLoadMoreVariants}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Adet *</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={line.quantity}
+                          onChange={(e) => onChangeLine(line.rowId, { quantity: e.target.value })}
+                          className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Para Birimi *</label>
+                        <SearchableDropdown
+                          options={CURRENCY_OPTIONS}
+                          value={line.currency}
+                          onChange={(value) => onChangeLine(line.rowId, { currency: (value || "TRY") as Currency })}
+                          showEmptyOption={false}
+                          allowClear={false}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Birim Fiyat *</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={line.unitPrice}
+                          onChange={(e) => onChangeLine(line.rowId, { unitPrice: e.target.value })}
+                          className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Indirim</label>
+                        <div className="flex items-center gap-2">
+                          <ModeToggle
+                            mode={line.discountMode}
+                            onToggle={(mode) =>
+                              onChangeLine(line.rowId, {
+                                discountMode: mode,
+                                discountPercent: "",
+                                discountAmount: "",
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={line.discountMode === "percent" ? line.discountPercent : line.discountAmount}
+                            onChange={(e) =>
+                              onChangeLine(
+                                line.rowId,
+                                line.discountMode === "percent"
+                                  ? { discountPercent: e.target.value }
+                                  : { discountAmount: e.target.value },
+                              )
+                            }
+                            className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Vergi</label>
+                        <div className="flex items-center gap-2">
+                          <ModeToggle
+                            mode={line.taxMode}
+                            onToggle={(mode) =>
+                              onChangeLine(line.rowId, {
+                                taxMode: mode,
+                                taxPercent: "",
+                                taxAmount: "",
+                              })
+                            }
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={line.taxMode === "percent" ? line.taxPercent : line.taxAmount}
+                            onChange={(e) =>
+                              onChangeLine(
+                                line.rowId,
+                                line.taxMode === "percent"
+                                  ? { taxPercent: e.target.value }
+                                  : { taxAmount: e.target.value },
+                              )
+                            }
+                            className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-semibold text-muted">Satir Toplami (Otomatik)</label>
+                        <div className="flex h-10 items-center rounded-xl border border-border bg-surface px-3 text-sm text-text2">
+                          {formatPrice(calcLineTotal(line))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {errors.lines && <p className="mt-2 text-xs text-error">{errors.lines}</p>}
+          </section>
+        )}
 
         {(formError || success) && (
           <div className="rounded-xl border border-border bg-surface p-3">
