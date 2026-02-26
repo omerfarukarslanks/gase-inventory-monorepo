@@ -167,6 +167,7 @@ export type GetSalesParams = {
   name?: string;
   surname?: string;
   status?: string[];
+  paymentStatus?: string;
   minUnitPrice?: number;
   maxUnitPrice?: number;
   minLineTotal?: number;
@@ -182,6 +183,7 @@ function buildSalesQuery({
   name,
   surname,
   status,
+  paymentStatus,
   minUnitPrice,
   maxUnitPrice,
   minLineTotal,
@@ -202,6 +204,7 @@ function buildSalesQuery({
   (status ?? []).forEach((statusValue) => {
     if (statusValue) query.append("status", statusValue);
   });
+  if (paymentStatus) query.append("paymentStatus", paymentStatus);
   if (minUnitPrice != null) query.append("minUnitPrice", String(minUnitPrice));
   if (maxUnitPrice != null) query.append("maxUnitPrice", String(maxUnitPrice));
   if (minLineTotal != null) query.append("minLineTotal", String(minLineTotal));

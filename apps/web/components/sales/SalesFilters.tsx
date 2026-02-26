@@ -1,9 +1,10 @@
 "use client";
 
 import Button from "@/components/ui/Button";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { SALES_STATUS_OPTIONS } from "@/components/sales/types";
+import { PAYMENT_STATUS_OPTIONS, SALES_STATUS_OPTIONS } from "@/components/sales/types";
 
 type SalesFiltersProps = {
   showAdvancedFilters: boolean;
@@ -21,6 +22,8 @@ type SalesFiltersProps = {
   onSurnameFilterChange: (value: string) => void;
   statusFilters: string[];
   onStatusFiltersChange: (values: string[]) => void;
+  paymentStatusFilter: string;
+  onPaymentStatusFilterChange: (value: string) => void;
   minUnitPriceFilter: string;
   onMinUnitPriceFilterChange: (value: string) => void;
   maxUnitPriceFilter: string;
@@ -50,6 +53,8 @@ export default function SalesFilters({
   onSurnameFilterChange,
   statusFilters,
   onStatusFiltersChange,
+  paymentStatusFilter,
+  onPaymentStatusFilterChange,
   minUnitPriceFilter,
   onMinUnitPriceFilterChange,
   maxUnitPriceFilter,
@@ -141,6 +146,19 @@ export default function SalesFilters({
                 onResetPage();
               }}
               placeholder="Durum secin"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted">Odeme Durumu</label>
+            <SearchableDropdown
+              options={PAYMENT_STATUS_OPTIONS}
+              value={paymentStatusFilter}
+              onChange={(value) => {
+                onPaymentStatusFilterChange(value);
+                onResetPage();
+              }}
+              placeholder="Odeme durumu secin"
+              emptyOptionLabel="Tum Odeme Durumlari"
             />
           </div>
           <div>

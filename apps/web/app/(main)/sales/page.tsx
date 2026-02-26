@@ -122,6 +122,7 @@ export default function SalesPage() {
   const [salesNameFilter, setSalesNameFilter] = useState("");
   const [salesSurnameFilter, setSalesSurnameFilter] = useState("");
   const [salesStatusFilters, setSalesStatusFilters] = useState<string[]>([]);
+  const [salesPaymentStatusFilter, setSalesPaymentStatusFilter] = useState("");
   const [salesMinUnitPriceFilter, setSalesMinUnitPriceFilter] = useState("");
   const [salesMaxUnitPriceFilter, setSalesMaxUnitPriceFilter] = useState("");
   const [salesMinLineTotalFilter, setSalesMinLineTotalFilter] = useState("");
@@ -232,6 +233,7 @@ export default function SalesPage() {
           name: salesNameFilter || undefined,
           surname: salesSurnameFilter || undefined,
           status: salesStatusFilters.length > 0 ? salesStatusFilters : undefined,
+          paymentStatus: salesPaymentStatusFilter || undefined,
           minUnitPrice: salesMinUnitPriceFilter ? Number(salesMinUnitPriceFilter) : undefined,
           maxUnitPrice: salesMaxUnitPriceFilter ? Number(salesMaxUnitPriceFilter) : undefined,
           minLineTotal: salesMinLineTotalFilter ? Number(salesMinLineTotalFilter) : undefined,
@@ -259,6 +261,7 @@ export default function SalesPage() {
       salesNameFilter,
       salesSurnameFilter,
       salesStatusFilters,
+      salesPaymentStatusFilter,
       salesMinUnitPriceFilter,
       salesMaxUnitPriceFilter,
       salesMinLineTotalFilter,
@@ -1011,6 +1014,8 @@ export default function SalesPage() {
         onSurnameFilterChange={setSalesSurnameFilter}
         statusFilters={salesStatusFilters}
         onStatusFiltersChange={setSalesStatusFilters}
+        paymentStatusFilter={salesPaymentStatusFilter}
+        onPaymentStatusFilterChange={setSalesPaymentStatusFilter}
         minUnitPriceFilter={salesMinUnitPriceFilter}
         onMinUnitPriceFilterChange={setSalesMinUnitPriceFilter}
         maxUnitPriceFilter={salesMaxUnitPriceFilter}

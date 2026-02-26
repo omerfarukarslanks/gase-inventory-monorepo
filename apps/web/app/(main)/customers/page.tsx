@@ -4,9 +4,11 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import {
   createCustomer,
   getCustomerById,
+  getCustomerBalance,
   getCustomers,
   updateCustomer,
   type Customer,
+  type CustomerBalance,
   type CustomersListMeta,
   type CustomerGender,
 } from "@/lib/customers";
@@ -15,13 +17,14 @@ import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, PriceIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getVisiblePages } from "@/lib/pagination";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import { formatPrice } from "@/lib/format";
 
 type CustomerForm = {
   name: string;
@@ -55,6 +58,13 @@ const EMPTY_FORM: CustomerForm = {
   birthDate: "",
 };
 
+function formatCount(value: number | string | null | undefined): string {
+  if (value == null) return "-";
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return "-";
+  return numeric.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
+}
+
 export default function CustomersPage() {
   const accessChecked = useAdminGuard();
   const isMobile = !useMediaQuery();
@@ -79,6 +89,12 @@ export default function CustomersPage() {
   const [surnameError, setSurnameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [form, setForm] = useState<CustomerForm>(EMPTY_FORM);
+  const [balanceDrawerOpen, setBalanceDrawerOpen] = useState(false);
+  const [selectedBalanceCustomerId, setSelectedBalanceCustomerId] = useState<string | null>(null);
+  const [selectedBalanceCustomerName, setSelectedBalanceCustomerName] = useState("");
+  const [customerBalance, setCustomerBalance] = useState<CustomerBalance | null>(null);
+  const [customerBalanceLoading, setCustomerBalanceLoading] = useState(false);
+  const [customerBalanceError, setCustomerBalanceError] = useState("");
 
   const debouncedSearch = useDebounceStr(searchTerm, 500);
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -301,6 +317,49 @@ export default function CustomersPage() {
     }
   };
 
+  const loadCustomerBalance = useCallback(async (customerId: string) => {
+    setCustomerBalanceLoading(true);
+    setCustomerBalanceError("");
+    try {
+      const balance = await getCustomerBalance(customerId);
+      setCustomerBalance(balance);
+    } catch {
+      setCustomerBalance(null);
+      setCustomerBalanceError("Cari bakiye bilgisi yuklenemedi. Lutfen tekrar deneyin.");
+    } finally {
+      setCustomerBalanceLoading(false);
+    }
+  }, []);
+
+  const onOpenBalanceDrawer = async (customer: Customer) => {
+    const fullName = [customer.name, customer.surname].filter(Boolean).join(" ").trim();
+    setSelectedBalanceCustomerId(customer.id);
+    setSelectedBalanceCustomerName(fullName || "Musteri");
+    setCustomerBalance(null);
+    setCustomerBalanceError("");
+    setBalanceDrawerOpen(true);
+    await loadCustomerBalance(customer.id);
+  };
+
+  const onCloseBalanceDrawer = () => {
+    if (customerBalanceLoading) return;
+    setBalanceDrawerOpen(false);
+  };
+
+  const balanceNumeric = Number(customerBalance?.balance ?? 0);
+  const balanceToneClass =
+    Number.isNaN(balanceNumeric) || balanceNumeric === 0
+      ? "text-text"
+      : balanceNumeric > 0
+        ? "text-error"
+        : "text-primary";
+  const balanceStatusLabel =
+    Number.isNaN(balanceNumeric) || balanceNumeric === 0
+      ? "Bakiye Kapali"
+      : balanceNumeric > 0
+        ? "Musteri Borclu"
+        : "Musteri Alacakli";
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -383,7 +442,7 @@ export default function CustomersPage() {
                     <th className="px-4 py-3">Cinsiyet</th>
                     <th className="px-4 py-3">Dogum Tarihi</th>
                     <th className="px-4 py-3">Durum</th>
-                    <th className="px-4 py-3 text-right">Islemler</th>
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -419,8 +478,18 @@ export default function CustomersPage() {
                             {customer.isActive ? "Aktif" : "Pasif"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => void onOpenBalanceDrawer(customer)}
+                              disabled={togglingCustomerIds.includes(customer.id)}
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                              aria-label="Musteri cari bakiyesi"
+                              title="Cari Bakiye"
+                            >
+                              <PriceIcon />
+                            </button>
                             <button
                               type="button"
                               onClick={() => onEditCustomer(customer.id)}
@@ -646,6 +715,86 @@ export default function CustomersPage() {
             </>
           )}
         </form>
+      </Drawer>
+
+      <Drawer
+        open={balanceDrawerOpen}
+        onClose={onCloseBalanceDrawer}
+        side="right"
+        title="Musteri Cari Bakiyesi"
+        description={customerBalance?.customerName || selectedBalanceCustomerName}
+        closeDisabled={customerBalanceLoading}
+        className={cn(isMobile && "!max-w-none")}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              label={customerBalanceLoading ? "Yukleniyor..." : "Yenile"}
+              type="button"
+              onClick={() => {
+                if (!selectedBalanceCustomerId) return;
+                void loadCustomerBalance(selectedBalanceCustomerId);
+              }}
+              disabled={!selectedBalanceCustomerId}
+              variant="secondary"
+            />
+            <Button
+              label="Kapat"
+              type="button"
+              onClick={onCloseBalanceDrawer}
+              disabled={customerBalanceLoading}
+              variant="primarySolid"
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4 p-5">
+          {customerBalanceLoading ? (
+            <div className="text-sm text-muted">Cari bakiye bilgisi yukleniyor...</div>
+          ) : customerBalanceError ? (
+            <p className="rounded-xl border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
+              {customerBalanceError}
+            </p>
+          ) : customerBalance ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-surface2/50 p-3">
+                  <p className="text-xs font-semibold text-muted">Toplam Satis</p>
+                  <p className="mt-1 text-lg font-semibold text-text">
+                    {formatCount(customerBalance.totalSalesCount)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface2/50 p-3">
+                  <p className="text-xs font-semibold text-muted">Toplam Satis Tutari</p>
+                  <p className="mt-1 text-lg font-semibold text-text">
+                    {formatPrice(customerBalance.totalSaleAmount)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface2/50 p-3">
+                  <p className="text-xs font-semibold text-muted">Toplam Tahsilat</p>
+                  <p className="mt-1 text-lg font-semibold text-text">
+                    {formatPrice(customerBalance.totalPaidAmount)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface2/50 p-3">
+                  <p className="text-xs font-semibold text-muted">Toplam Iade</p>
+                  <p className="mt-1 text-lg font-semibold text-text">
+                    {formatPrice(customerBalance.totalReturnAmount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl2 border border-primary/30 bg-primary/10 p-4">
+                <p className="text-xs font-semibold text-muted">Cari Durum</p>
+                <p className={cn("mt-1 text-2xl font-bold", balanceToneClass)}>
+                  {formatPrice(customerBalance.balance)}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-muted">{balanceStatusLabel}</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted">Cari bakiye bilgisi bulunamadi.</p>
+          )}
+        </div>
       </Drawer>
     </div>
   );

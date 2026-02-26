@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { SearchIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import {
   createAttribute,
   createAttributeValues,
@@ -425,7 +425,7 @@ export default function AttributesPage() {
                   <th className="px-4 py-3">Durum</th>
                   <th className="px-4 py-3 text-center">Deger Sayisi</th>
                   <th className="px-4 py-3">Guncelleme</th>
-                  <th className="px-4 py-3 text-right">Islemler</th>
+                  <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,7 +435,7 @@ export default function AttributesPage() {
 
                   return (
                     <Fragment key={attribute.id}>
-                      <tr className="border-b border-border last:border-b-0 hover:bg-surface2/40 transition-colors">
+                      <tr className="group border-b border-border last:border-b-0 hover:bg-surface2/40 transition-colors">
                         <td className="px-4 py-3 text-sm font-medium text-text">
                           <button
                             type="button"
@@ -477,14 +477,16 @@ export default function AttributesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-text2">{formatDate(attribute.updatedAt)}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/40">
                           <div className="inline-flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => openEditDrawer(attribute)}
-                              className="rounded-lg border border-border bg-surface2 px-2.5 py-1.5 text-xs font-medium text-text2 hover:border-primary/40 hover:text-primary transition-colors"
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
+                              aria-label="Ozellik duzenle"
+                              title="Duzenle"
                             >
-                              Duzenle
+                              <EditIcon />
                             </button>
                             <ToggleSwitch
                               checked={attribute.isActive}
@@ -510,12 +512,12 @@ export default function AttributesPage() {
                                     <tr className="text-left text-[11px] uppercase tracking-wide text-muted">
                                       <th className="px-3 py-2">Deger Adi</th>
                                       <th className="px-3 py-2">Durum</th>
-                                      <th className="px-3 py-2 text-right">Islemler</th>
+                                      <th className="sticky right-0 z-20 bg-surface2/70 px-3 py-2 text-right">Islemler</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {values.map((value) => (
-                                      <tr key={value.id} className="border-b border-border last:border-b-0 hover:bg-surface2/30 transition-colors">
+                                      <tr key={value.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/30 transition-colors">
                                         <td className="px-3 py-2 text-sm text-text">{value.name}</td>
                                         <td className="px-3 py-2">
                                           <span
@@ -528,7 +530,7 @@ export default function AttributesPage() {
                                             {value.isActive ? "Aktif" : "Pasif"}
                                           </span>
                                         </td>
-                                        <td className="px-3 py-2 text-right">
+                                        <td className="sticky right-0 z-10 bg-surface px-3 py-2 text-right group-hover:bg-surface2/30">
                                           <ToggleSwitch
                                             checked={value.isActive}
                                             onChange={(next) =>

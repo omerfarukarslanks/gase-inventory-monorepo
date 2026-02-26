@@ -385,7 +385,7 @@ export default function StoresPage() {
                     <th className="px-4 py-3">Address</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Slug</th>
-                    <th className="px-4 py-3 text-right">Islemler</th>
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -403,7 +403,7 @@ export default function StoresPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
                           <button
                             type="button"

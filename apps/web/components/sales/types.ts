@@ -55,6 +55,14 @@ export const SALES_STATUS_OPTIONS = [
   { value: "CANCELLED", label: "CANCELLED" },
 ];
 
+export const PAYMENT_STATUS_OPTIONS = [
+  { value: "PAID", label: "Odendi" },
+  { value: "PARTIAL", label: "Kismi Odendi" },
+  { value: "UNPAID", label: "Odenmedi" },
+  { value: "PENDING", label: "Beklemede" },
+  { value: "CANCELLED", label: "Iptal Edildi" },
+];
+
 export const PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "CASH", label: "Nakit" },
   { value: "CARD", label: "Kart" },

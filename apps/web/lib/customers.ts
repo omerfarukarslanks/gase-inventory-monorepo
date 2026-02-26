@@ -70,6 +70,16 @@ export type UpdateCustomerRequest = {
   isActive?: boolean;
 };
 
+export type CustomerBalance = {
+  customerId: string;
+  customerName: string;
+  totalSalesCount: number;
+  totalSaleAmount: number | string;
+  totalPaidAmount: number | string;
+  totalReturnAmount: number | string;
+  balance: number | string;
+};
+
 export async function getCustomers({
   page = 1,
   limit = 10,
@@ -110,4 +120,8 @@ export async function updateCustomer(
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export async function getCustomerBalance(id: string): Promise<CustomerBalance> {
+  return apiFetch<CustomerBalance>(`/customers/${id}/balance`);
 }

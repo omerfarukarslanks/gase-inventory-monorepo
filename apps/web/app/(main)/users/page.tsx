@@ -361,7 +361,7 @@ export default function UsersPage() {
                                     </div>
                                 </th>
                                 <th className="px-6 py-4 font-semibold text-muted">Mağaza</th>
-                                <th className="px-6 py-4 font-semibold text-right">İşlemler</th>
+                                <th className="sticky right-0 z-20 bg-surface2/70 px-6 py-4 text-right font-semibold">İşlemler</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -390,7 +390,7 @@ export default function UsersPage() {
                                                 ? user.userStores.map((userStore) => userStore.store.name).join(", ")
                                                 : "-"}
                                         </td>
-                                        <td className="px-6 py-3 text-right">
+                                        <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
                                             <div className="inline-flex items-center gap-2">
                                                 <button
                                                     onClick={() => openEdit(user)}
