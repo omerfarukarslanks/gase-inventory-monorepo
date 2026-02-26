@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { formatDate, formatPrice } from "@/lib/format";
 import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
@@ -22,6 +23,7 @@ type SalesTableProps = {
   onOpenCancel: (sale: SaleListItem) => void;
   onReturn: (sale: SaleListItem) => void;
   onDownloadReceipt: (saleId: string) => void;
+  footer?: ReactNode;
 };
 
 function getSaleTotal(sale: SaleListItem) {
@@ -89,6 +91,7 @@ export default function SalesTable({
   onOpenCancel,
   onReturn,
   onDownloadReceipt,
+  footer,
 }: SalesTableProps) {
   if (salesError) {
     return (
@@ -96,6 +99,7 @@ export default function SalesTable({
         <div className="p-6">
           <p className="text-sm text-error">{salesError}</p>
         </div>
+        {footer}
       </section>
     );
   }
@@ -104,6 +108,7 @@ export default function SalesTable({
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         <div className="p-6 text-sm text-muted">Satis fisleri yukleniyor...</div>
+        {footer}
       </section>
     );
   }
@@ -112,6 +117,7 @@ export default function SalesTable({
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         <div className="p-6 text-sm text-muted">Gosterilecek satis fisi bulunamadi.</div>
+        {footer}
       </section>
     );
   }
@@ -345,6 +351,7 @@ export default function SalesTable({
           </tbody>
         </table>
       </div>
+      {footer}
     </section>
   );
 }

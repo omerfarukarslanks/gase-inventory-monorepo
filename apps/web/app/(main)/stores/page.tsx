@@ -431,15 +431,15 @@ export default function StoresPage() {
             {meta && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
                 <div className="flex items-center gap-4">
-                  <span>Total: {meta.total}</span>
+                  <span>Toplam: {meta.total}</span>
                   <span>
-                    Page: {currentPage}/{totalPages}
+                    Sayfa: {currentPage}/{totalPages}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <label htmlFor="pageSize" className="text-xs text-muted">
-                    Rows:
+                    Satır:
                   </label>
                   <select
                     id="pageSize"
@@ -453,7 +453,7 @@ export default function StoresPage() {
                   </select>
 
                   <Button
-                    label="Previous"
+                    label="Onceki"
                     onClick={goPrev}
                     disabled={!canGoPrev || loading}
                     variant="pagination"
@@ -476,7 +476,7 @@ export default function StoresPage() {
                   )}
 
                   <Button
-                    label="Next"
+                    label="Sonraki"
                     onClick={goNext}
                     disabled={!canGoNext || loading}
                     variant="pagination"

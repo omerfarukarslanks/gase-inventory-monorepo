@@ -42,6 +42,7 @@ export default function StockPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [storeFilterIds, setStoreFilterIds] = useState<string[]>([]);
   const debouncedSearch = useDebounceStr(searchTerm, 400);
@@ -165,6 +166,7 @@ export default function StockPage() {
         search: debouncedSearch || undefined,
       });
       setProducts(normalizeProducts(res));
+      setTotal(getPaginationValue(res, "total"));
 
       const nextTotalPages = getPaginationValue(res, "totalPages");
       if (nextTotalPages > 0) {
@@ -176,6 +178,7 @@ export default function StockPage() {
       }
     } catch {
       setProducts([]);
+      setTotal(0);
       setError("Stok ozeti yuklenemedi. Lutfen tekrar deneyin.");
     } finally {
       setLoading(false);
@@ -455,18 +458,22 @@ export default function StockPage() {
         getVariantStores={getVariantStores}
         onAdjust={openAdjustDrawer}
         onTransfer={openTransferDrawer}
-      />
-
-      <StockPagination
-        page={page}
-        totalPages={totalPages}
-        limit={limit}
-        loading={loading}
-        onPageChange={setPage}
-        onLimitChange={(next) => {
-          setLimit(next);
-          setPage(1);
-        }}
+        footer={
+          !loading && !error ? (
+            <StockPagination
+              page={page}
+              totalPages={totalPages}
+              limit={limit}
+              total={total}
+              loading={loading}
+              onPageChange={setPage}
+              onLimitChange={(next) => {
+                setLimit(next);
+                setPage(1);
+              }}
+            />
+          ) : null
+        }
       />
 
       <AdjustDrawer

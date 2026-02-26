@@ -21,6 +21,7 @@ import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { formatDate } from "@/lib/format";
 import { getVisiblePages } from "@/lib/pagination";
+import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
 type DrawerStep = 1 | 2;
 
@@ -54,6 +55,7 @@ export default function AttributesPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const debouncedSearch = useDebounceStr(searchTerm, 300);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -352,6 +354,12 @@ export default function AttributesPage() {
             />
           </div>
           <Button
+            label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
+            onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            variant="secondary"
+            className="w-full px-3 py-2 lg:w-auto"
+          />
+          <Button
             label="Yeni Ozellik"
             onClick={openCreateDrawer}
             variant="primarySolid"
@@ -360,29 +368,31 @@ export default function AttributesPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 rounded-xl2 border border-border bg-surface p-3">
-        <div className="w-[220px]">
-          <SearchableDropdown
-            options={[
-              { value: "all", label: "Tum Durumlar" },
-              { value: "true", label: "Aktif" },
-              { value: "false", label: "Pasif" },
-            ]}
-            value={statusFilter === "all" ? "all" : String(statusFilter)}
-            onChange={(v) => {
-              if (v === "all") setStatusFilter("all");
-              else setStatusFilter(v === "true");
-            }}
-            placeholder="Durum secin"
-            showEmptyOption={false}
-            allowClear={false}
-          />
+      {showAdvancedFilters && (
+        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Durum</label>
+            <SearchableDropdown
+              options={STATUS_FILTER_OPTIONS}
+              value={statusFilter === "all" ? "all" : String(statusFilter)}
+              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
+              placeholder="Tum Durumlar"
+              showEmptyOption={false}
+              allowClear={false}
+              inputAriaLabel="Ozellik durum filtresi"
+              toggleAriaLabel="Ozellik durum listesini ac"
+            />
+          </div>
+          <div className="md:col-span-2 lg:col-span-3">
+            <Button
+              label="Filtreleri Temizle"
+              onClick={() => setStatusFilter("all")}
+              variant="secondary"
+              className="w-full sm:w-auto"
+            />
+          </div>
         </div>
-        <div className="text-xs text-muted">
-          Toplam: <span className="font-semibold text-text">{meta?.total ?? 0}</span>
-        </div>
-      </div>
+      )}
 
       {/* Alerts */}
       {success && (
@@ -555,65 +565,64 @@ export default function AttributesPage() {
             </table>
           </div>
         )}
+
+        {meta && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
+            <div className="flex items-center gap-4">
+              <span>Toplam: {meta.total}</span>
+              <span>
+                Sayfa: {currentPage}/{totalPages}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="attributesPageSize" className="text-xs text-muted">
+                Satir:
+              </label>
+              <select
+                id="attributesPageSize"
+                value={pageSize}
+                onChange={(e) => onChangePageSize(Number(e.target.value))}
+                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+
+              <Button
+                label="Onceki"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={!canGoPrev || loading}
+                variant="pagination"
+              />
+
+              {pageItems.map((item, idx) =>
+                item === -1 ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={`page-${item}`}
+                    label={String(item)}
+                    onClick={() => handlePageChange(item)}
+                    disabled={loading}
+                    variant={item === currentPage ? "paginationActive" : "pagination"}
+                  />
+                ),
+              )}
+
+              <Button
+                label="Sonraki"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={!canGoNext || loading}
+                variant="pagination"
+              />
+            </div>
+          </div>
+        )}
       </section>
-
-      {/* Pagination */}
-      {meta && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border border-border rounded-xl2 bg-surface px-4 py-3 text-xs text-muted">
-          <div className="flex items-center gap-4">
-            <span>Toplam: {meta.total}</span>
-            <span>
-              Sayfa: {currentPage}/{totalPages}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label htmlFor="attributesPageSize" className="text-xs text-muted">
-              Satir:
-            </label>
-            <select
-              id="attributesPageSize"
-              value={pageSize}
-              onChange={(e) => onChangePageSize(Number(e.target.value))}
-              className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-            </select>
-
-            <Button
-              label="Onceki"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={!canGoPrev || loading}
-              variant="pagination"
-            />
-
-            {pageItems.map((item, idx) =>
-              item === -1 ? (
-                <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
-                  ...
-                </span>
-              ) : (
-                <Button
-                  key={`page-${item}`}
-                  label={String(item)}
-                  onClick={() => handlePageChange(item)}
-                  disabled={loading}
-                  variant={item === currentPage ? "paginationActive" : "pagination"}
-                />
-              ),
-            )}
-
-            <Button
-              label="Sonraki"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={!canGoNext || loading}
-              variant="pagination"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Drawer */}
       <Drawer

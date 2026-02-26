@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useMemo } from "react";
+import { Fragment, useState, useMemo, type ReactNode } from "react";
 import type {
   InventoryProductStockItem,
   InventoryVariantStockItem,
@@ -141,6 +141,7 @@ type StockTableProps = {
   getVariantStores: (variant: InventoryVariantStockItem) => InventoryStoreStockItem[];
   onAdjust: (params: VariantActionParams) => void;
   onTransfer: (params: VariantActionParams) => void;
+  footer?: ReactNode;
 };
 
 export default function StockTable({
@@ -150,6 +151,7 @@ export default function StockTable({
   getVariantStores,
   onAdjust,
   onTransfer,
+  footer,
 }: StockTableProps) {
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
   const totalStockQuantity = useMemo(
@@ -263,6 +265,7 @@ export default function StockTable({
           </div>
         </div>
       )}
+      {footer}
     </section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Product, ProductVariant } from "@/lib/products";
 import { formatPrice } from "@/lib/format";
 import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
@@ -130,6 +130,7 @@ type ProductTableProps = {
   onToggleVariantActive: (productId: string, variant: ProductVariant, next: boolean) => void;
   onPrice: (product: Product, variant: ProductVariant) => void;
   onProductPrice: (product: Product) => void;
+  footer?: ReactNode;
 };
 
 export default function ProductTable({
@@ -148,6 +149,7 @@ export default function ProductTable({
   onToggleVariantActive,
   onPrice,
   onProductPrice,
+  footer,
 }: ProductTableProps) {
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -322,6 +324,7 @@ export default function ProductTable({
           </table>
         </div>
       )}
+      {footer}
     </section>
   );
 }

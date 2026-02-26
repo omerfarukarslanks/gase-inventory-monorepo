@@ -1046,16 +1046,19 @@ export default function SalesPage() {
         onOpenCancel={openCancelDialog}
         onReturn={(sale) => void openReturnDrawer(sale)}
         onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
-      />
-
-      <SalesPagination
-        page={salesPage}
-        totalPages={salesTotalPages}
-        limit={salesLimit}
-        total={salesTotal}
-        loading={salesLoading}
-        onPageChange={setSalesPage}
-        onLimitChange={setSalesLimit}
+        footer={
+          salesMeta && !salesLoading && !salesError ? (
+            <SalesPagination
+              page={salesPage}
+              totalPages={salesTotalPages}
+              limit={salesLimit}
+              total={salesTotal}
+              loading={salesLoading}
+              onPageChange={setSalesPage}
+              onLimitChange={setSalesLimit}
+            />
+          ) : null
+        }
       />
 
       {success && (

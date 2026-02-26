@@ -932,19 +932,20 @@ export default function ProductsPage() {
         onToggleVariantActive={onToggleVariantActive}
         onPrice={openPriceDrawer}
         onProductPrice={openProductPriceDrawer}
+        footer={
+          meta && !loading && !error ? (
+            <ProductPagination
+              page={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              total={meta.total}
+              loading={loading}
+              onPageChange={onPageChange}
+              onPageSizeChange={onChangePageSize}
+            />
+          ) : null
+        }
       />
-
-      {meta && !loading && !error && (
-        <ProductPagination
-          page={currentPage}
-          totalPages={totalPages}
-          pageSize={pageSize}
-          total={meta.total}
-          loading={loading}
-          onPageChange={onPageChange}
-          onPageSizeChange={onChangePageSize}
-        />
-      )}
 
       {/* ── Drawer ── */}
       <Drawer
