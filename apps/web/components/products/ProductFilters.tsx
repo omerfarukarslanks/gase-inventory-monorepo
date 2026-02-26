@@ -9,7 +9,7 @@ import {
 } from "@/components/products/types";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import { SearchIcon } from "@/components/ui/icons/TableIcons";
+import SearchInput from "@/components/ui/SearchInput";
 
 type ProductFiltersProps = {
   searchTerm: string;
@@ -64,18 +64,12 @@ export default function ProductFilters({
           <p className="text-sm text-muted">Urun listesi ve yonetimi</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <div className="relative w-full lg:w-64">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-              <SearchIcon />
-            </div>
-            <input
-              type="text"
-              placeholder="Ara..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          <SearchInput
+            value={searchTerm}
+            onChange={onSearchChange}
+            placeholder="Ara..."
+            containerClassName="w-full lg:w-64"
+          />
           <Button
             label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
             onClick={onToggleAdvancedFilters}

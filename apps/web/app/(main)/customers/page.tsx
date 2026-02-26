@@ -14,15 +14,17 @@ import {
 } from "@/lib/customers";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import IconButton from "@/components/ui/IconButton";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import SearchInput from "@/components/ui/SearchInput";
+import TablePagination from "@/components/ui/TablePagination";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, PriceIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { getVisiblePages } from "@/lib/pagination";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { formatPrice } from "@/lib/format";
 
@@ -136,30 +138,11 @@ export default function CustomersPage() {
   }, [fetchCustomers]);
 
   const totalPages = meta?.totalPages ?? 1;
-  const canGoPrev = currentPage > 1;
-  const canGoNext = currentPage < totalPages;
-
-  const goPrev = () => {
-    if (!canGoPrev || loading) return;
-    setCurrentPage((prev) => prev - 1);
-  };
-
-  const goNext = () => {
-    if (!canGoNext || loading) return;
-    setCurrentPage((prev) => prev + 1);
-  };
 
   const onChangePageSize = (nextPageSize: number) => {
     setPageSize(nextPageSize);
     setCurrentPage(1);
   };
-
-  const goToPage = (page: number) => {
-    if (loading || page < 1 || page > totalPages || page === currentPage) return;
-    setCurrentPage(page);
-  };
-
-  const pageItems = getVisiblePages(currentPage, totalPages);
 
   const onOpenDrawer = () => {
     setFormError("");
@@ -368,18 +351,12 @@ export default function CustomersPage() {
           <p className="text-sm text-muted">Musteri listesi ve yonetimi</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <div className="relative w-full lg:w-64">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-              <SearchIcon />
-            </div>
-            <input
-              type="text"
-              placeholder="Ara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          <SearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Ara..."
+            containerClassName="w-full lg:w-64"
+          />
           <Button
             label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
@@ -480,26 +457,22 @@ export default function CustomersPage() {
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
+                            <IconButton
                               onClick={() => void onOpenBalanceDrawer(customer)}
                               disabled={togglingCustomerIds.includes(customer.id)}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
                               aria-label="Musteri cari bakiyesi"
                               title="Cari Bakiye"
                             >
                               <PriceIcon />
-                            </button>
-                            <button
-                              type="button"
+                            </IconButton>
+                            <IconButton
                               onClick={() => onEditCustomer(customer.id)}
                               disabled={togglingCustomerIds.includes(customer.id)}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
                               aria-label="Musteri duzenle"
                               title="Duzenle"
                             >
                               <EditIcon />
-                            </button>
+                            </IconButton>
                             <ToggleSwitch
                               checked={Boolean(customer.isActive)}
                               onChange={(next) => onToggleCustomerActive(customer, next)}
@@ -515,60 +488,16 @@ export default function CustomersPage() {
             </div>
 
             {meta && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-                <div className="flex items-center gap-4">
-                  <span>Toplam: {meta.total}</span>
-                  <span>
-                    Sayfa: {currentPage}/{totalPages}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label htmlFor="customerPageSize" className="text-xs text-muted">
-                    Satir:
-                  </label>
-                  <select
-                    id="customerPageSize"
-                    value={pageSize}
-                    onChange={(e) => onChangePageSize(Number(e.target.value))}
-                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-
-                  <Button
-                    label="Onceki"
-                    onClick={goPrev}
-                    disabled={!canGoPrev || loading}
-                    variant="pagination"
-                  />
-
-                  {pageItems.map((item, idx) =>
-                    item === -1 ? (
-                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={`page-${item}`}
-                        label={String(item)}
-                        onClick={() => goToPage(item)}
-                        disabled={loading}
-                        variant={item === currentPage ? "paginationActive" : "pagination"}
-                      />
-                    ),
-                  )}
-
-                  <Button
-                    label="Sonraki"
-                    onClick={goNext}
-                    disabled={!canGoNext || loading}
-                    variant="pagination"
-                  />
-                </div>
-              </div>
+              <TablePagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={meta.total}
+                pageSize={pageSize}
+                pageSizeId="customers-page-size"
+                loading={loading}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={onChangePageSize}
+              />
             )}
           </>
         )}

@@ -5,14 +5,16 @@ import { getUsers, updateUser, createUser, type User, type Meta } from "@/lib/us
 import InputField from "@/components/ui/InputField";
 import Button from "@/components/ui/Button";
 import Drawer from "@/components/ui/Drawer";
+import IconButton from "@/components/ui/IconButton";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import SearchInput from "@/components/ui/SearchInput";
+import TablePagination from "@/components/ui/TablePagination";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
-import { getVisiblePages } from "@/lib/pagination";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
 // Basit ikonlar
@@ -166,10 +168,6 @@ export default function UsersPage() {
     };
 
     const totalPages = meta ? meta.totalPages : 1;
-    const canGoPrev = currentPage > 1;
-    const canGoNext = currentPage < totalPages;
-
-    const pageItems = getVisiblePages(currentPage, totalPages);
 
     const openCreate = () => {
         setMode("create");
@@ -274,18 +272,12 @@ export default function UsersPage() {
                     <p className="text-sm text-muted">Sisteme kayıtlı kullanıcıları yönetin.</p>
                 </div>
                 <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-                    <div className="relative w-full lg:w-64">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-                            <SearchIcon />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Ara..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                    </div>
+                    <SearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Ara..."
+                        containerClassName="w-full lg:w-64"
+                    />
                     <Button
                         label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
                         onClick={() => setShowAdvancedFilters((prev) => !prev)}
@@ -392,13 +384,14 @@ export default function UsersPage() {
                                         </td>
                                         <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
                                             <div className="inline-flex items-center gap-2">
-                                                <button
+                                                <IconButton
                                                     onClick={() => openEdit(user)}
                                                     disabled={togglingUserIds.includes(user.id)}
-                                                    className="inline-flex h-8 w-8 items-center cursor-pointer justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                                                    aria-label="Kullanici duzenle"
+                                                    title="Duzenle"
                                                 >
                                                     <EditIcon />
-                                                </button>
+                                                </IconButton>
                                                 <ToggleSwitch
                                                     checked={Boolean(user.isActive)}
                                                     onChange={(next) => onToggleUserActive(user, next)}
@@ -415,60 +408,16 @@ export default function UsersPage() {
 
                 {/* Pagination */}
                 {meta && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-                        <div className="flex items-center gap-4">
-                            <span>Toplam: {meta.total}</span>
-                            <span>
-                                Sayfa: {currentPage}/{totalPages}
-                            </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <label htmlFor="pageSize" className="text-xs text-muted">
-                                Satır:
-                            </label>
-                            <select
-                                id="pageSize"
-                                value={limit}
-                                onChange={(e) => onChangePageSize(Number(e.target.value))}
-                                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-                            >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
-                                <option value={50}>50</option>
-                            </select>
-
-                            <Button
-                                label="Önceki"
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={!canGoPrev || loading}
-                                variant="pagination"
-                            />
-
-                            {pageItems.map((item, idx) =>
-                                item === -1 ? (
-                                    <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
-                                        ...
-                                    </span>
-                                ) : (
-                                    <Button
-                                        key={`page-${item}`}
-                                        label={String(item)}
-                                        onClick={() => handlePageChange(item)}
-                                        disabled={loading}
-                                        variant={item === currentPage ? "paginationActive" : "pagination"}
-                                    />
-                                ),
-                            )}
-
-                            <Button
-                                label="Sonraki"
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={!canGoNext || loading}
-                                variant="pagination"
-                            />
-                        </div>
-                    </div>
+                    <TablePagination
+                        page={currentPage}
+                        totalPages={totalPages}
+                        total={meta.total}
+                        pageSize={limit}
+                        pageSizeId="users-page-size"
+                        loading={loading}
+                        onPageChange={handlePageChange}
+                        onPageSizeChange={onChangePageSize}
+                    />
                 )}
             </div>
 

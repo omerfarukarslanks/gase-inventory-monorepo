@@ -13,15 +13,17 @@ import {
 import { getProducts, getProductVariants, type Product } from "@/lib/products";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
+import SearchInput from "@/components/ui/SearchInput";
+import TablePagination from "@/components/ui/TablePagination";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { formatPrice, toNumberOrNull } from "@/lib/format";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { getVisiblePages } from "@/lib/pagination";
 import {
   STATUS_FILTER_OPTIONS,
   parseIsActiveFilter,
@@ -236,16 +238,6 @@ export default function ProductPackagesPage() {
 
   /* ── Pagination ── */
   const totalPages = meta?.totalPages ?? 1;
-  const canGoPrev = currentPage > 1;
-  const canGoNext = currentPage < totalPages;
-  const goPrev = () => {
-    if (!canGoPrev || loading) return;
-    setCurrentPage((p) => p - 1);
-  };
-  const goNext = () => {
-    if (!canGoNext || loading) return;
-    setCurrentPage((p) => p + 1);
-  };
   const onChangePageSize = (s: number) => {
     setPageSize(s);
     setCurrentPage(1);
@@ -254,7 +246,6 @@ export default function ProductPackagesPage() {
     if (loading || page < 1 || page > totalPages || page === currentPage) return;
     setCurrentPage(page);
   };
-  const pageItems = getVisiblePages(currentPage, totalPages);
 
   /* ── Helpers ── */
   const resetItemSearch = () => {
@@ -458,18 +449,12 @@ export default function ProductPackagesPage() {
           <p className="text-sm text-muted">Toptan satis paket tanimlari ve yonetimi</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <div className="relative w-full lg:w-64">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">
-              <SearchIcon />
-            </div>
-            <input
-              type="text"
-              placeholder="Ara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-surface pl-10 pr-4 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
+          <SearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Ara..."
+            containerClassName="w-full lg:w-64"
+          />
           <Button
             label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
             onClick={() => setShowAdvancedFilters((p) => !p)}
@@ -621,15 +606,14 @@ export default function ProductPackagesPage() {
                           </td>
                           <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                             <div className="inline-flex items-center gap-1">
-                              <button
-                                type="button"
+                              <IconButton
                                 onClick={() => onEditPackage(pkg.id)}
                                 disabled={togglingIds.includes(pkg.id)}
-                                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                                aria-label="Paket duzenle"
                                 title="Duzenle"
                               >
                                 <EditIcon />
-                              </button>
+                              </IconButton>
                               <ToggleSwitch
                                 checked={Boolean(pkg.isActive)}
                                 onChange={(next) => onToggleActive(pkg, next)}
@@ -684,56 +668,16 @@ export default function ProductPackagesPage() {
             </div>
 
             {meta && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-                <div className="flex items-center gap-4">
-                  <span>Toplam: {meta.total}</span>
-                  <span>
-                    Sayfa: {currentPage}/{totalPages}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="pkgPageSize" className="text-xs text-muted">
-                    Satir:
-                  </label>
-                  <select
-                    id="pkgPageSize"
-                    value={pageSize}
-                    onChange={(e) => onChangePageSize(Number(e.target.value))}
-                    className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                  <Button
-                    label="Onceki"
-                    onClick={goPrev}
-                    disabled={!canGoPrev || loading}
-                    variant="pagination"
-                  />
-                  {pageItems.map((item, idx) =>
-                    item === -1 ? (
-                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={`page-${item}`}
-                        label={String(item)}
-                        onClick={() => goToPage(item)}
-                        disabled={loading}
-                        variant={item === currentPage ? "paginationActive" : "pagination"}
-                      />
-                    ),
-                  )}
-                  <Button
-                    label="Sonraki"
-                    onClick={goNext}
-                    disabled={!canGoNext || loading}
-                    variant="pagination"
-                  />
-                </div>
-              </div>
+              <TablePagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={meta.total}
+                pageSize={pageSize}
+                pageSizeId="product-packages-page-size"
+                loading={loading}
+                onPageChange={goToPage}
+                onPageSizeChange={onChangePageSize}
+              />
             )}
           </>
         )}
