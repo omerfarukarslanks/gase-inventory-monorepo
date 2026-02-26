@@ -131,3 +131,28 @@ export async function updateProductPackage(
     body: JSON.stringify(payload),
   });
 }
+
+export async function deleteProductPackage(id: string): Promise<void> {
+  await apiFetch<void>(`/product-packages/${id}`, { method: "DELETE" });
+}
+
+export type ProductPackageStockResponse = {
+  packageId: string;
+  storeId: string;
+  availablePackages: number;
+  limitingVariants?: Array<{
+    productVariantId: string;
+    variantName?: string;
+    requiredPerPackage: number;
+    availableStock: number;
+  }>;
+};
+
+export async function getProductPackageStock(
+  packageId: string,
+  storeId: string,
+): Promise<ProductPackageStockResponse> {
+  return apiFetch<ProductPackageStockResponse>(
+    `/product-packages/${packageId}/stock/${storeId}`,
+  );
+}

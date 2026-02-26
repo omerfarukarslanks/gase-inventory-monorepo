@@ -271,3 +271,25 @@ export async function deleteProductVariant(
     method: "DELETE",
   });
 }
+
+export type VariantLookupResult = {
+  id: string;
+  name: string;
+  code: string;
+  isActive?: boolean;
+  product?: {
+    id: string;
+    name: string;
+    sku: string;
+    currency?: Currency;
+    unitPrice?: number | string | null;
+    purchasePrice?: number | string | null;
+  };
+};
+
+export async function lookupVariantByBarcode(
+  barcode: string,
+): Promise<VariantLookupResult> {
+  const query = new URLSearchParams({ barcode });
+  return apiFetch<VariantLookupResult>(`/products/variants/lookup?${query.toString()}`);
+}

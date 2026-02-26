@@ -17,17 +17,21 @@ import {
   cancelSale,
   createSale,
   createSalePayment,
+  createSaleReturn,
   deleteSalePayment,
+  downloadSaleReceipt,
   getSaleById,
   getSalePayments,
   getSales,
   updateSalePayment,
   updateSale,
   type CreateSalePayload,
+  type CreateSaleReturnLine,
   type PaymentMethod,
   type SalePayment,
   type UpdateSalePayload,
   type SaleDetail,
+  type SaleDetailLine,
   type SaleListItem,
   type CreateSaleLinePayload,
 } from "@/lib/sales";
@@ -141,6 +145,17 @@ export default function SalesPage() {
     paymentId: string;
   } | null>(null);
   const [deletingPayment, setDeletingPayment] = useState(false);
+
+  /* ── Return drawer ── */
+  const [returnDrawerOpen, setReturnDrawerOpen] = useState(false);
+  const [returnTargetSale, setReturnTargetSale] = useState<SaleListItem | null>(null);
+  const [returnLines, setReturnLines] = useState<
+    Array<{ saleLineId: string; lineName: string; originalQuantity: number; returnQuantity: string; refundAmount: string }>
+  >([]);
+  const [returnNotes, setReturnNotes] = useState("");
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnFormError, setReturnFormError] = useState("");
+  const [returnDetailLoading, setReturnDetailLoading] = useState(false);
 
   /* ── Sale detail modal ── */
   const [saleDetailOpen, setSaleDetailOpen] = useState(false);
@@ -748,10 +763,111 @@ export default function SalesPage() {
     setSaleDetail(null);
   };
 
+  /* ── Return drawer ── */
+  const openReturnDrawer = async (sale: SaleListItem) => {
+    setReturnTargetSale(sale);
+    setReturnNotes("");
+    setReturnFormError("");
+    setReturnLines([]);
+    setReturnDrawerOpen(true);
+    setReturnDetailLoading(true);
+    try {
+      const response = await getSaleById(sale.id);
+      const detail = normalizeSaleDetail(response);
+      if (!detail) {
+        setReturnFormError("Satis detayi alinamadi.");
+        return;
+      }
+      setReturnLines(
+        detail.lines.map((line: SaleDetailLine) => ({
+          saleLineId: line.id,
+          lineName:
+            line.productVariantName ??
+            line.productPackageName ??
+            line.productName ??
+            line.id,
+          originalQuantity: line.quantity ?? 0,
+          returnQuantity: "",
+          refundAmount: "",
+        })),
+      );
+    } catch {
+      setReturnFormError("Satis satirlari yuklenemedi.");
+    } finally {
+      setReturnDetailLoading(false);
+    }
+  };
+
+  const closeReturnDrawer = () => {
+    if (returnSubmitting) return;
+    setReturnDrawerOpen(false);
+    setReturnTargetSale(null);
+    setReturnLines([]);
+    setReturnFormError("");
+  };
+
+  const submitReturn = async () => {
+    if (!returnTargetSale) return;
+    const activeLines = returnLines.filter(
+      (l) => l.returnQuantity !== "" && Number(l.returnQuantity) > 0,
+    );
+    if (activeLines.length === 0) {
+      setReturnFormError("En az bir satir icin iade adedi girin.");
+      return;
+    }
+    const invalidLine = activeLines.some((l) => {
+      const qty = Number(l.returnQuantity);
+      return !Number.isFinite(qty) || qty <= 0 || qty > l.originalQuantity;
+    });
+    if (invalidLine) {
+      setReturnFormError("Iade adedi 0'dan buyuk ve orijinal adedi gecmemelidir.");
+      return;
+    }
+
+    setReturnSubmitting(true);
+    setReturnFormError("");
+    try {
+      const lines: CreateSaleReturnLine[] = activeLines.map((l) => ({
+        saleLineId: l.saleLineId,
+        quantity: Number(l.returnQuantity),
+        ...(l.refundAmount !== "" && Number(l.refundAmount) >= 0
+          ? { refundAmount: Number(l.refundAmount) }
+          : {}),
+      }));
+      await createSaleReturn(returnTargetSale.id, {
+        lines,
+        notes: returnNotes.trim() || undefined,
+      });
+      setSuccess("Iade olusturuldu.");
+      setReturnDrawerOpen(false);
+      setReturnTargetSale(null);
+      setReturnLines([]);
+      await fetchSalesReceipts();
+    } catch {
+      setReturnFormError("Iade olusturulamadi. Lutfen tekrar deneyin.");
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (saleId: string) => {
+    try {
+      const blob = await downloadSaleReceipt(saleId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fis-${saleId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setSalesError("Fis indirilemedi. Lutfen tekrar deneyin.");
+    }
+  };
+
   /* ── Validation ── */
   const validate = (): boolean => {
     const nextErrors: FieldErrors = {};
-    if (!customerId && !editingSaleId) nextErrors.customerId = "Musteri secimi zorunludur.";
+    if (!customerId) nextErrors.customerId = "Musteri secimi zorunludur.";
     if (!isStoreScopedUser && !storeId) nextErrors.storeId = "Magaza secimi zorunludur.";
     if (!editingSaleId && !paymentMethod) nextErrors.paymentMethod = "Odeme yontemi zorunludur.";
     if (!editingSaleId) {
@@ -842,10 +958,8 @@ export default function SalesPage() {
     try {
       if (editingSaleId) {
         const payload: UpdateSalePayload = {
-          name: name.trim(),
-          surname: surname.trim(),
-          phoneNumber: phoneNumber.trim() || undefined,
-          email: email.trim() || undefined,
+          ...(isStoreScopedUser ? {} : { storeId }),
+          customerId,
           meta: {
             note: note.trim() || undefined,
           },
@@ -931,6 +1045,8 @@ export default function SalesPage() {
         onOpenDetail={(id) => void openSaleDetailDialog(id)}
         onEdit={(sale) => void openEditDrawer(sale)}
         onOpenCancel={openCancelDialog}
+        onReturn={(sale) => void openReturnDrawer(sale)}
+        onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
       />
 
       <SalesPagination
@@ -1139,6 +1255,120 @@ export default function SalesPage() {
         detail={saleDetail}
         onClose={closeSaleDetailDialog}
       />
+
+      <Drawer
+        open={returnDrawerOpen}
+        onClose={closeReturnDrawer}
+        side="right"
+        title="Iade Olustur"
+        description={
+          returnTargetSale
+            ? `Fis: ${returnTargetSale.receiptNo ?? returnTargetSale.id}`
+            : "Iade edilecek satirlari ve adetleri secin."
+        }
+        closeDisabled={returnSubmitting}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              label="Iptal"
+              onClick={closeReturnDrawer}
+              variant="secondary"
+              disabled={returnSubmitting}
+            />
+            <Button
+              label={returnSubmitting ? "Gonderiliyor..." : "Iadeyi Onayla"}
+              onClick={submitReturn}
+              variant="primarySolid"
+              loading={returnSubmitting}
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4 p-5">
+          {returnDetailLoading ? (
+            <p className="text-sm text-muted">Satis satirlari yukleniyor...</p>
+          ) : returnLines.length === 0 && !returnFormError ? (
+            <p className="text-sm text-muted">Bu satisa ait satir bulunamadi.</p>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {returnLines.map((line, idx) => (
+                  <div
+                    key={line.saleLineId}
+                    className="rounded-xl border border-border bg-surface2/40 p-3 space-y-2"
+                  >
+                    <p className="text-sm font-medium text-text">
+                      {line.lineName}
+                      <span className="ml-2 text-xs text-muted font-normal">
+                        (Adet: {line.originalQuantity})
+                      </span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">
+                          Iade Adedi
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={line.originalQuantity}
+                          step={1}
+                          value={line.returnQuantity}
+                          onChange={(e) => {
+                            if (returnFormError) setReturnFormError("");
+                            setReturnLines((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, returnQuantity: e.target.value } : l,
+                              ),
+                            );
+                          }}
+                          placeholder="0"
+                          className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted">
+                          Iade Tutari (opsiyonel)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={line.refundAmount}
+                          onChange={(e) => {
+                            if (returnFormError) setReturnFormError("");
+                            setReturnLines((prev) =>
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, refundAmount: e.target.value } : l,
+                              ),
+                            );
+                          }}
+                          placeholder="0.00"
+                          className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-muted">Notlar</label>
+                <textarea
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                  placeholder="Iade nedeni veya ek aciklama..."
+                  className="min-h-[80px] w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </>
+          )}
+
+          {returnFormError && (
+            <p className="text-sm text-error">{returnFormError}</p>
+          )}
+        </div>
+      </Drawer>
     </div>
   );
 }

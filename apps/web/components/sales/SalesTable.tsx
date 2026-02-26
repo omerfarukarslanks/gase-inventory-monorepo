@@ -1,8 +1,9 @@
 "use client";
 
 import { formatDate, formatPrice } from "@/lib/format";
-import { EditIcon, PriceIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
+import RowActionMenu, { type RowActionMenuItem } from "@/components/ui/RowActionMenu";
 
 type SalesTableProps = {
   salesReceipts: SaleListItem[];
@@ -19,6 +20,8 @@ type SalesTableProps = {
   onOpenDetail: (saleId: string) => void;
   onEdit: (sale: SaleListItem) => void;
   onOpenCancel: (sale: SaleListItem) => void;
+  onReturn: (sale: SaleListItem) => void;
+  onDownloadReceipt: (saleId: string) => void;
 };
 
 function getSaleTotal(sale: SaleListItem) {
@@ -84,6 +87,8 @@ export default function SalesTable({
   onOpenDetail,
   onEdit,
   onOpenCancel,
+  onReturn,
+  onDownloadReceipt,
 }: SalesTableProps) {
   if (salesError) {
     return (
@@ -138,6 +143,51 @@ export default function SalesTable({
               const loadingPayments = Boolean(paymentLoadingBySaleId[sale.id]);
               const paymentsError = paymentErrorBySaleId[sale.id] ?? "";
               const showAddPaymentButton = shouldShowAddPaymentButton(sale.remainingAmount);
+              const isCancelledSale = sale.status === "CANCELLED";
+              const isConfirmedSale = sale.status === "CONFIRMED";
+              const actionItems: RowActionMenuItem[] = [];
+
+              if (isCancelledSale) {
+                actionItems.push({
+                  key: "print",
+                  label: "Yazdir",
+                  onClick: () => onDownloadReceipt(sale.id),
+                });
+              } else {
+                if (showAddPaymentButton) {
+                  actionItems.push({
+                    key: "add-payment",
+                    label: "Odeme Ekle",
+                    onClick: () => onAddPayment(sale.id),
+                  });
+                }
+
+                if (isConfirmedSale) {
+                  actionItems.push({
+                    key: "edit",
+                    label: "Duzenle",
+                    onClick: () => onEdit(sale),
+                  });
+                  actionItems.push({
+                    key: "return",
+                    label: "Iade Olustur",
+                    onClick: () => onReturn(sale),
+                  });
+                  actionItems.push({
+                    key: "print",
+                    label: "Yazdir",
+                    onClick: () => onDownloadReceipt(sale.id),
+                  });
+                  actionItems.push({
+                    key: "cancel",
+                    label: "Iptal Et",
+                    tone: "danger",
+                    onClick: () => onOpenCancel(sale),
+                  });
+                }
+              }
+
+              const hasActionMenuItems = actionItems.length > 0;
 
               return [
                   <tr
@@ -207,40 +257,11 @@ export default function SalesTable({
                       {formatPrice(sale.remainingAmount)}
                     </td>
                     <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
-                      <div className="inline-flex items-center gap-1">
-                        {showAddPaymentButton && (
-                          <button
-                            type="button"
-                            onClick={() => onAddPayment(sale.id)}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                            title="Odeme ekle"
-                          >
-                            <PriceIcon />
-                          </button>
-                        )}
-                        {sale.status === "CONFIRMED" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => onEdit(sale)}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                              aria-label="Satis fisini duzenle"
-                              title="Fisi duzenle"
-                            >
-                              <EditIcon />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onOpenCancel(sale)}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
-                              aria-label="Satis fisini iptal et"
-                              title="Fisi iptal et"
-                            >
-                              <TrashIcon />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      {hasActionMenuItems ? (
+                        <RowActionMenu items={actionItems} />
+                      ) : (
+                        <span className="text-sm text-muted">-</span>
+                      )}
                     </td>
                   </tr>,
 

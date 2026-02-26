@@ -4,19 +4,21 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createProductPackage,
+  deleteProductPackage,
   getProductPackageById,
   getProductPackages,
   updateProductPackage,
   type ProductPackage,
   type ProductPackagesListMeta,
 } from "@/lib/product-packages";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { getProducts, getProductVariants, type Product } from "@/lib/products";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
-import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { formatPrice, toNumberOrNull } from "@/lib/format";
 import { useDebounceStr } from "@/hooks/useDebounce";
@@ -130,6 +132,11 @@ export default function ProductPackagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [togglingIds, setTogglingIds] = useState<string[]>([]);
+
+  /* Delete dialog state */
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetPackage, setDeleteTargetPackage] = useState<ProductPackage | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   /* Drawer state */
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -438,6 +445,28 @@ export default function ProductPackagesPage() {
     }
   };
 
+  /* ── Delete ── */
+  const onRequestDelete = (pkg: ProductPackage) => {
+    setDeleteTargetPackage(pkg);
+    setDeleteDialogOpen(true);
+  };
+
+  const onConfirmDelete = async () => {
+    if (!deleteTargetPackage) return;
+    setDeleting(true);
+    try {
+      await deleteProductPackage(deleteTargetPackage.id);
+      setDeleteDialogOpen(false);
+      setDeleteTargetPackage(null);
+      await fetchPackages();
+    } catch {
+      setError("Paket silinemedi. Lutfen tekrar deneyin.");
+      setDeleteDialogOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const clearAdvancedFilters = () => setStatusFilter("all");
 
   const onToggleExpand = (packageId: string) => {
@@ -624,16 +653,25 @@ export default function ProductPackagesPage() {
                               <button
                                 type="button"
                                 onClick={() => onEditPackage(pkg.id)}
-                                disabled={togglingIds.includes(pkg.id)}
+                                disabled={togglingIds.includes(pkg.id) || deleting}
                                 className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
                                 title="Duzenle"
                               >
                                 <EditIcon />
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => onRequestDelete(pkg)}
+                                disabled={togglingIds.includes(pkg.id) || deleting}
+                                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error transition-colors disabled:opacity-50"
+                                title="Paketi sil"
+                              >
+                                <TrashIcon />
+                              </button>
                               <ToggleSwitch
                                 checked={Boolean(pkg.isActive)}
                                 onChange={(next) => onToggleActive(pkg, next)}
-                                disabled={togglingIds.includes(pkg.id)}
+                                disabled={togglingIds.includes(pkg.id) || deleting}
                               />
                             </div>
                           </td>
@@ -1002,6 +1040,26 @@ export default function ProductPackagesPage() {
           )}
         </form>
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Paketi Sil"
+        description={
+          deleteTargetPackage
+            ? `"${deleteTargetPackage.name}" (${deleteTargetPackage.code}) paketini silmek istediginizden emin misiniz? Bu islem geri alinamaz.`
+            : "Bu paketi silmek istediginizden emin misiniz?"
+        }
+        confirmLabel="Evet, Sil"
+        cancelLabel="Vazgec"
+        loading={deleting}
+        loadingLabel="Siliniyor..."
+        onConfirm={onConfirmDelete}
+        onClose={() => {
+          if (deleting) return;
+          setDeleteDialogOpen(false);
+          setDeleteTargetPackage(null);
+        }}
+      />
     </div>
   );
 }

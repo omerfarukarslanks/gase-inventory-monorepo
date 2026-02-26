@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, BASE_URL, ApiError } from "@/lib/api";
 import type { Currency } from "@/lib/products";
 import { normalizeSalePayment, normalizeSalePaymentsResponse } from "@/lib/sales-normalize";
 
@@ -237,15 +237,19 @@ export async function cancelSale(id: string, meta?: CancelSaleMeta): Promise<unk
 export type UpdateSaleLinePayload = CreateSaleLinePayload;
 
 export type UpdateSalePayload = {
-  name: string;
-  surname: string;
-  phoneNumber?: string;
-  email?: string;
+  storeId?: string;
+  customerId: string;
   meta?: {
     source?: string;
     note?: string;
   };
   lines: UpdateSaleLinePayload[];
+  initialPayment?: {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    note?: string;
+    paidAt?: string;
+  };
 };
 
 export async function getSaleById(id: string): Promise<unknown> {
@@ -328,4 +332,38 @@ export async function deleteSalePayment(saleId: string, paymentId: string): Prom
   return apiFetch<unknown>(`/sales/${saleId}/payments/${paymentId}`, {
     method: "DELETE",
   });
+}
+
+export type CreateSaleReturnLine = {
+  saleLineId: string;
+  quantity: number;
+  refundAmount?: number;
+};
+
+export type CreateSaleReturnPayload = {
+  lines: CreateSaleReturnLine[];
+  notes?: string;
+};
+
+export async function createSaleReturn(
+  saleId: string,
+  payload: CreateSaleReturnPayload,
+): Promise<unknown> {
+  return apiFetch<unknown>(`/sales/${saleId}/returns`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function downloadSaleReceipt(saleId: string): Promise<Blob> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const res = await fetch(`${BASE_URL}/sales/${saleId}/receipt`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    throw new ApiError(`Fis indirilemedi (${res.status})`, res.status);
+  }
+  return res.blob();
 }
