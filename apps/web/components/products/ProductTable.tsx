@@ -20,13 +20,11 @@ function VirtualVariantList({
   fallbackCurrency,
   togglingVariantIds,
   onToggleVariantActive,
-  onPrice,
 }: {
   variants: ProductVariant[];
   fallbackCurrency: string;
   togglingVariantIds: string[];
   onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
-  onPrice: (variant: ProductVariant) => void;
 }) {
   const rowHeight = 64;
   const containerHeight = 240;
@@ -90,14 +88,6 @@ function VirtualVariantList({
                 {formatPercentOrAmount(variant.discountPercent, variant.discountAmount)}
               </div>
               <div className="sticky right-0 z-10 flex items-center justify-end gap-1 bg-surface2/40 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-                <button
-                  type="button"
-                  onClick={() => onPrice(variant)}
-                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
-                  title="Fiyat Duzenle"
-                >
-                  <PriceIcon />
-                </button>
                 <ToggleSwitch
                   checked={Boolean(variant.isActive)}
                   onChange={(next) => onToggleVariantActive(variant, next)}
@@ -128,7 +118,6 @@ type ProductTableProps = {
   onEdit: (productId: string) => void;
   onToggleActive: (product: Product, next: boolean) => void;
   onToggleVariantActive: (productId: string, variant: ProductVariant, next: boolean) => void;
-  onPrice: (product: Product, variant: ProductVariant) => void;
   onProductPrice: (product: Product) => void;
   footer?: ReactNode;
 };
@@ -147,7 +136,6 @@ export default function ProductTable({
   onEdit,
   onToggleActive,
   onToggleVariantActive,
-  onPrice,
   onProductPrice,
   footer,
 }: ProductTableProps) {
@@ -311,7 +299,6 @@ export default function ProductTable({
                               onToggleVariantActive={(variant, next) =>
                                 onToggleVariantActive(product.id, variant, next)
                               }
-                              onPrice={(variant) => onPrice(product, variant)}
                             />
                           )}
                         </td>

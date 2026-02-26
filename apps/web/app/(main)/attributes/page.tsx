@@ -353,7 +353,7 @@ export default function AttributesPage() {
           <Button
             label="Yeni Ozellik"
             onClick={openCreateDrawer}
-            variant="primarySolid"
+            variant="primarySoft"
             className="w-full px-3 py-2 lg:w-auto"
           />
         </div>

@@ -79,7 +79,7 @@ export default function SalesFilters({
         <Button
           label="Yeni Satis"
           onClick={onNewSale}
-          variant="primarySolid"
+          variant="primarySoft"
           className="px-3 py-1.5"
         />
       </div>

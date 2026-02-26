@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@/components/ui/Button";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { getVisiblePages } from "@/lib/pagination";
 
 type TablePaginationProps = {
@@ -38,6 +39,11 @@ export default function TablePagination({
     onPageChange(clamped);
   };
 
+  const pageSizeOptionsAsDropdown = pageSizeOptions.map((size) => ({
+    value: String(size),
+    label: String(size),
+  }));
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
       <div className="flex items-center gap-4">
@@ -48,21 +54,22 @@ export default function TablePagination({
       </div>
 
       <div className="flex items-center gap-2">
-        <label htmlFor={pageSizeId} className="text-xs text-muted">
+        <span className="text-xs text-muted">
           Satir:
-        </label>
-        <select
-          id={pageSizeId}
-          value={pageSize}
-          onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          className="rounded-lg border border-border bg-surface px-2 py-1 text-xs text-text outline-none"
-        >
-          {pageSizeOptions.map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
+        </span>
+        <SearchableDropdown
+          options={pageSizeOptionsAsDropdown}
+          value={String(pageSize)}
+          onChange={(value) => onPageSizeChange(Number(value || pageSizeOptions[0] || 10))}
+          placeholder="Satir"
+          showEmptyOption={false}
+          allowClear={false}
+          showSearchInput={false}
+          menuPlacement="top"
+          inputAriaLabel={`${pageSizeId} satir sayisi`}
+          toggleAriaLabel={`${pageSizeId} satir sayisi listesini ac`}
+          className="w-[76px]"
+        />
 
         <Button
           label="Onceki"

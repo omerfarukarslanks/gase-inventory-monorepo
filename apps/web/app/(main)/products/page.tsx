@@ -23,10 +23,6 @@ import Button from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
-import {
-  getVariantStockByStore,
-  type InventoryStoreStockItem,
-} from "@/lib/inventory";
 import PriceDrawer, { type PriceTarget } from "@/components/stock/PriceDrawer";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { toNumberOrNull } from "@/lib/format";
@@ -360,54 +356,6 @@ export default function ProductsPage() {
     () => stores.map((s) => ({ value: s.id, label: s.name })),
     [stores],
   );
-
-  const openPriceDrawer = async (product: Product, variant: ProductVariant) => {
-    let variantStores: InventoryStoreStockItem[] = [];
-    try {
-      const res = await getVariantStockByStore(variant.id);
-      const raw = Array.isArray(res) ? res : Array.isArray((res as Record<string, unknown>)?.items) ? ((res as Record<string, unknown>).items as unknown[]) : Array.isArray((res as Record<string, unknown>)?.data) ? ((res as Record<string, unknown>).data as unknown[]) : [];
-      variantStores = raw.map((item: unknown) => {
-        const obj = item as Record<string, unknown>;
-        return {
-          storeId: String(obj.storeId ?? (obj.store as Record<string, unknown>)?.id ?? ""),
-          storeName: String(obj.storeName ?? (obj.store as Record<string, unknown>)?.name ?? "-"),
-          quantity: Number(obj.quantity ?? 0),
-          totalQuantity: Number(obj.totalQuantity ?? obj.quantity ?? 0),
-          salePrice: obj.salePrice == null ? null : Number(obj.salePrice),
-          purchasePrice: obj.purchasePrice == null ? null : Number(obj.purchasePrice),
-          currency: (String(obj.currency ?? "") || null) as InventoryStoreStockItem["currency"],
-          taxPercent: obj.taxPercent == null ? null : Number(obj.taxPercent),
-          taxAmount: obj.taxAmount == null ? null : Number(obj.taxAmount),
-          discountPercent: obj.discountPercent == null ? null : Number(obj.discountPercent),
-          discountAmount: obj.discountAmount == null ? null : Number(obj.discountAmount),
-          lineTotal: obj.lineTotal == null ? null : Number(obj.lineTotal),
-          isStoreOverride: Boolean(obj.isStoreOverride),
-        };
-      });
-    } catch {
-      variantStores = [];
-    }
-
-    setPriceTarget({
-      mode: "variant",
-      productId: product.id,
-      productVariantId: variant.id,
-      productName: product.name,
-      variantName: variant.name ?? "-",
-      stores: variantStores,
-      initial: {
-        unitPrice: variant.unitPrice ?? null,
-        currency: variant.currency ?? product.currency,
-        discountPercent: variant.discountPercent ?? null,
-        discountAmount: variant.discountAmount ?? null,
-        taxPercent: variant.taxPercent ?? null,
-        taxAmount: variant.taxAmount ?? null,
-        lineTotal: variant.lineTotal ?? null,
-      },
-    });
-    setPriceProductId(product.id);
-    setPriceOpen(true);
-  };
 
   const openProductPriceDrawer = (product: Product) => {
     setPriceTarget({
@@ -930,7 +878,6 @@ export default function ProductsPage() {
         onEdit={onEditProduct}
         onToggleActive={onToggleProductActive}
         onToggleVariantActive={onToggleVariantActive}
-        onPrice={openPriceDrawer}
         onProductPrice={openProductPriceDrawer}
         footer={
           meta && !loading && !error ? (

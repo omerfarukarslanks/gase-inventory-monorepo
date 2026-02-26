@@ -7,6 +7,7 @@ import {
   type SupplierSalesPerformanceItem,
   type SupplierSalesPerformanceResponse,
 } from "@/lib/reports";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { formatPrice } from "@/lib/format";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -28,6 +29,12 @@ export default function SupplierPerformancePage() {
   const [meta, setMeta] = useState<SupplierSalesPerformanceResponse["meta"]>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const limitOptions = [
+    { value: "20", label: "20" },
+    { value: "50", label: "50" },
+    { value: "100", label: "100" },
+  ] as const;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -130,18 +137,21 @@ export default function SupplierPerformancePage() {
           <label className="mb-1 block text-xs font-semibold text-muted">
             Limit
           </label>
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(Number(e.target.value));
+          <SearchableDropdown
+            options={[...limitOptions]}
+            value={String(limit)}
+            onChange={(value) => {
+              setLimit(Number(value || 20));
               setPage(1);
             }}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          >
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
+            placeholder="Limit"
+            showEmptyOption={false}
+            allowClear={false}
+            showSearchInput={false}
+            inputAriaLabel="Tedarikci performansi limit"
+            toggleAriaLabel="Tedarikci performansi limit listesini ac"
+            className="w-[100px]"
+          />
         </div>
         <button
           onClick={onFilter}

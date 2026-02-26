@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getReportRevenueTrend, type RevenueTrendItem } from "@/lib/reports";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { formatPrice } from "@/lib/format";
 
 const today = new Date().toISOString().slice(0, 10);
@@ -15,6 +16,12 @@ export default function RevenueTrendPage() {
   const [items, setItems] = useState<RevenueTrendItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const groupByOptions = [
+    { value: "day", label: "Gun" },
+    { value: "week", label: "Hafta" },
+    { value: "month", label: "Ay" },
+  ] as const;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -80,15 +87,18 @@ export default function RevenueTrendPage() {
           <label className="mb-1 block text-xs font-semibold text-muted">
             Gruplama
           </label>
-          <select
+          <SearchableDropdown
+            options={[...groupByOptions]}
             value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as "day" | "week" | "month")}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          >
-            <option value="day">Gun</option>
-            <option value="week">Hafta</option>
-            <option value="month">Ay</option>
-          </select>
+            onChange={(value) => setGroupBy(value as "day" | "week" | "month")}
+            placeholder="Gruplama"
+            showEmptyOption={false}
+            allowClear={false}
+            showSearchInput={false}
+            inputAriaLabel="Gelir trendi gruplama"
+            toggleAriaLabel="Gelir trendi gruplama listesini ac"
+            className="w-[130px]"
+          />
         </div>
         <button
           onClick={() => void fetchData()}

@@ -1,10 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { WeeklySalesChart, CategoryPieChart, MonthlyBarChart } from "@/components/dashboard/Chart";
 import { recentTransactions, lowStockItems } from "@/components/dashboard/data";
 
 export default function DashboardPage() {
+    const [period, setPeriod] = useState("this-week");
+    const periodOptions = [
+        { value: "this-week", label: "Bu Hafta" },
+        { value: "last-month", label: "Gecen Ay" },
+    ] as const;
+
     return (
         <div className="space-y-6">
             {/* KPI Cards */}
@@ -47,10 +55,17 @@ export default function DashboardPage() {
                             <h3 className="text-lg font-semibold text-text">Haftalık Satış Grafiği</h3>
                             <p className="text-sm text-muted">Geçen haftayla karşılaştırmalı</p>
                         </div>
-                        <select className="bg-transparent text-sm font-medium text-text2 outline-none">
-                            <option>Bu Hafta</option>
-                            <option>Geçen Ay</option>
-                        </select>
+                        <SearchableDropdown
+                            options={[...periodOptions]}
+                            value={period}
+                            onChange={setPeriod}
+                            placeholder="Donem"
+                            showEmptyOption={false}
+                            allowClear={false}
+                            inputAriaLabel="Dashboard donem secimi"
+                            toggleAriaLabel="Dashboard donem listesini ac"
+                            className="w-[140px]"
+                        />
                     </div>
                     <WeeklySalesChart />
                 </div>

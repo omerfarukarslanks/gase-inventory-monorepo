@@ -19,6 +19,8 @@ type SearchableDropdownProps = {
   inputAriaLabel?: string;
   allowClear?: boolean;
   showEmptyOption?: boolean;
+  showSearchInput?: boolean;
+  menuPlacement?: "bottom" | "top";
   className?: string;
   disabled?: boolean;
 };
@@ -68,6 +70,8 @@ export default function SearchableDropdown({
   inputAriaLabel = "Seçim filtresi",
   allowClear = true,
   showEmptyOption = true,
+  showSearchInput = true,
+  menuPlacement = "bottom",
   className = "",
   disabled = false,
 }: SearchableDropdownProps) {
@@ -103,18 +107,20 @@ export default function SearchableDropdown({
       setQuery("");
       return;
     }
+    if (!showSearchInput) return;
     requestAnimationFrame(() => {
       searchInputRef.current?.focus();
     });
-  }, [open]);
+  }, [open, showSearchInput]);
 
   const filteredOptions = useMemo(() => {
+    if (!showSearchInput) return options;
     const normalized = query.trim().toLowerCase();
     if (!normalized) return options;
     return options.filter((option) =>
       option.label.toLowerCase().includes(normalized),
     );
-  }, [options, query]);
+  }, [options, query, showSearchInput]);
 
   const selectOption = (nextValue: string) => {
     onChange(nextValue);
@@ -178,21 +184,27 @@ export default function SearchableDropdown({
       </div>
 
       {open && !disabled && (
-        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10">
-          <div className="px-1 pb-1">
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={query}
-              placeholder="Ara..."
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setOpen(false);
-              }}
-              className="h-9 w-full rounded-lg border border-border bg-surface2 px-2.5 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
-              aria-label={inputAriaLabel}
-            />
-          </div>
+        <div
+          className={`absolute z-30 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-lg shadow-primary/10 ${
+            menuPlacement === "top" ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
+        >
+          {showSearchInput && (
+            <div className="px-1 pb-1">
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                placeholder="Ara..."
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpen(false);
+                }}
+                className="h-9 w-full rounded-lg border border-border bg-surface2 px-2.5 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                aria-label={inputAriaLabel}
+              />
+            </div>
+          )}
 
           {showEmptyOption && (
             <button

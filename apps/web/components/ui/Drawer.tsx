@@ -92,9 +92,25 @@ export default function Drawer({
               <button
                 onClick={onClose}
                 disabled={closeDisabled}
-                className="rounded-lg border border-border cursor-pointer px-2 py-1 text-xs text-text disabled:cursor-not-allowed disabled:opacity-60 hover:bg-surface2"
+                aria-label={closeLabel}
+                title={closeLabel}
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border text-text transition-colors hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {closeLabel}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
               </button>
             </div>
           </div>

@@ -148,11 +148,11 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 h-screen border-r border-border bg-surface transition-all duration-200",
+        "sticky top-0 flex h-screen flex-col border-r border-border bg-surface transition-all duration-200",
         collapsed ? "w-[76px]" : "w-[260px]",
       )}
     >
-      <div className="flex h-16 items-center justify-between px-4">
+      <div className="flex h-16 flex-shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl2 bg-primary/15 text-primary">
             SP
@@ -180,7 +180,7 @@ export default function Sidebar({
         </button>
       </div>
 
-      <div className="px-3 py-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 pb-4">
         <div className={cn("px-3 py-2 text-[10px] font-semibold tracking-widest text-muted", collapsed && "text-center")}>
           {!collapsed ? "ANA MENU" : "*"}
         </div>
@@ -253,7 +253,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-3" ref={menuRef}>
+      <div className="flex-shrink-0 border-t border-border bg-surface p-3" ref={menuRef}>
         {menuOpen && (
           <div className="mb-2 rounded-xl2 border border-border bg-surface p-1 shadow-xl">
             <Link
