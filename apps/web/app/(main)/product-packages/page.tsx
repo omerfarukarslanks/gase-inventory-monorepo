@@ -7,6 +7,7 @@ import {
   getProductPackageById,
   getProductPackages,
   updateProductPackage,
+  type ProductPackageItem,
   type ProductPackage,
   type ProductPackagesListMeta,
 } from "@/lib/product-packages";
@@ -93,6 +94,45 @@ function createRowId() {
     return crypto.randomUUID();
   }
   return `row-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function VirtualPackageItemsTable({ items }: { items: ProductPackageItem[] }) {
+  const rowHeight = 42;
+  const containerHeight = 252;
+  const overscan = 4;
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const totalHeight = items.length * rowHeight;
+  const visibleCount = Math.ceil(containerHeight / rowHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+  const endIndex = Math.min(items.length, startIndex + visibleCount + overscan * 2);
+  const visibleItems = items.slice(startIndex, endIndex);
+
+  return (
+    <div className="min-w-[620px]">
+      <div className="grid grid-cols-[2fr_1fr_90px] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
+        <div className="px-3 py-2">Varyant Adi</div>
+        <div className="px-3 py-2">Kod</div>
+        <div className="px-3 py-2 text-right">Adet</div>
+      </div>
+      <div className="h-[252px] overflow-y-auto" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+        <div className="relative" style={{ height: totalHeight }}>
+          <div className="absolute inset-x-0" style={{ transform: `translateY(${startIndex * rowHeight}px)` }}>
+            {visibleItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid h-[42px] grid-cols-[2fr_1fr_90px] items-center border-b border-border text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
+              >
+                <div className="truncate px-3 py-2 text-text">{item.productVariant.name}</div>
+                <div className="truncate px-3 py-2 font-mono text-text2">{item.productVariant.code}</div>
+                <div className="px-3 py-2 text-right text-text2">{item.quantity}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Component ── */
@@ -631,30 +671,7 @@ export default function ProductPackagesPage() {
                                 </div>
                               ) : (
                                 <div className="overflow-hidden rounded-xl border border-border bg-surface">
-                                  <table className="w-full min-w-[620px]">
-                                    <thead className="border-b border-border bg-surface2/70">
-                                      <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                                        <th className="px-4 py-2.5">Varyant Adi</th>
-                                        <th className="px-4 py-2.5">Kod</th>
-                                        <th className="px-4 py-2.5 text-right">Adet</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(pkg.items ?? []).map((item) => (
-                                        <tr key={item.id} className="border-b border-border last:border-b-0">
-                                          <td className="px-4 py-2.5 text-sm text-text">
-                                            {item.productVariant.name}
-                                          </td>
-                                          <td className="px-4 py-2.5 text-sm font-mono text-text2">
-                                            {item.productVariant.code}
-                                          </td>
-                                          <td className="px-4 py-2.5 text-right text-sm text-text2">
-                                            {item.quantity}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                  <VirtualPackageItemsTable items={pkg.items ?? []} />
                                 </div>
                               )}
                             </td>

@@ -43,59 +43,59 @@ function VirtualVariantList({
   const visibleItems = variants.slice(startIndex, endIndex);
 
   return (
-    <div
-      className="h-[240px] overflow-y-auto rounded-xl border border-border bg-surface2/40"
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-    >
-      <div className="grid grid-cols-[minmax(180px,2fr)_100px_120px_120px_120px_92px] border-b border-border bg-surface2/80 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface">
+      <div className="grid grid-cols-[minmax(180px,2fr)_100px_120px_120px_120px_92px] border-b border-border bg-surface2/70 px-3 py-2 text-left text-[11px] uppercase tracking-wide text-muted">
         <div>Varyant</div>
         <div className="text-right">Para Birimi</div>
         <div className="text-right">Satış</div>
         <div className="text-right">Vergi</div>
         <div className="text-right">İndirim</div>
-        <div className="sticky right-0 z-10 bg-surface2/80 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-          İşlemler
-        </div>
+        <div className="text-right">İşlemler</div>
       </div>
-      <div className="relative" style={{ height: totalHeight }}>
-        <div
-          className="absolute left-0 right-0"
-          style={{ transform: `translateY(${startIndex * rowHeight}px)` }}
-        >
-          {visibleItems.map((variant) => (
-            <div
-              key={variant.id}
-              className="grid h-16 grid-cols-[minmax(180px,2fr)_100px_120px_120px_120px_92px] items-center border-b border-border px-3 text-sm last:border-b-0"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-xs font-medium text-text">
-                  {variant.name ?? "Ozellik yok"}
+      <div
+        className="h-[240px] overflow-y-auto"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
+        <div className="relative" style={{ height: totalHeight }}>
+          <div
+            className="absolute left-0 right-0"
+            style={{ transform: `translateY(${startIndex * rowHeight}px)` }}
+          >
+            {visibleItems.map((variant) => (
+              <div
+                key={variant.id}
+                className="grid h-16 grid-cols-[minmax(180px,2fr)_100px_120px_120px_120px_92px] items-center border-b border-border px-3 text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-medium text-text">
+                    {variant.name ?? "Ozellik yok"}
+                  </div>
+                  <div className="truncate text-[11px] text-muted">{variant.code ?? "-"}</div>
                 </div>
-                <div className="truncate text-[11px] text-muted">{variant.code ?? "-"}</div>
+                <div className="text-right">
+                  <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                    {variant.currency ?? fallbackCurrency}
+                  </span>
+                </div>
+                <div className="text-right text-xs text-text2">
+                  {formatPrice(variant.lineTotal ?? variant.unitPrice)}
+                </div>
+                <div className="text-right text-xs text-text2">
+                  {formatPercentOrAmount(variant.taxPercent, variant.taxAmount)}
+                </div>
+                <div className="text-right text-xs text-text2">
+                  {formatPercentOrAmount(variant.discountPercent, variant.discountAmount)}
+                </div>
+                <div className="flex items-center justify-end gap-1 text-right">
+                  <ToggleSwitch
+                    checked={Boolean(variant.isActive)}
+                    onChange={(next) => onToggleVariantActive(variant, next)}
+                    disabled={togglingVariantIds.includes(variant.id)}
+                  />
+                </div>
               </div>
-              <div className="text-right">
-                <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                  {variant.currency ?? fallbackCurrency}
-                </span>
-              </div>
-              <div className="text-right text-xs text-text2">
-                {formatPrice(variant.lineTotal ?? variant.unitPrice)}
-              </div>
-              <div className="text-right text-xs text-text2">
-                {formatPercentOrAmount(variant.taxPercent, variant.taxAmount)}
-              </div>
-              <div className="text-right text-xs text-text2">
-                {formatPercentOrAmount(variant.discountPercent, variant.discountAmount)}
-              </div>
-              <div className="sticky right-0 z-10 flex items-center justify-end gap-1 bg-surface2/40 shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-                <ToggleSwitch
-                  checked={Boolean(variant.isActive)}
-                  onChange={(next) => onToggleVariantActive(variant, next)}
-                  disabled={togglingVariantIds.includes(variant.id)}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

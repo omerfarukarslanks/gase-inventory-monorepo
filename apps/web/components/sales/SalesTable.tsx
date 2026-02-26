@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { formatDate, formatPrice } from "@/lib/format";
 import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
@@ -72,6 +72,89 @@ function getPaymentMethodLabel(paymentMethod?: string | null) {
 function shouldShowAddPaymentButton(remainingAmount?: number | null) {
   if (remainingAmount == null) return true;
   return Number(remainingAmount) !== 0;
+}
+
+function VirtualSalePaymentsTable({
+  saleId,
+  payments,
+  onEditPayment,
+  onDeletePayment,
+}: {
+  saleId: string;
+  payments: SalePayment[];
+  onEditPayment: (saleId: string, payment: SalePayment) => void;
+  onDeletePayment: (saleId: string, payment: SalePayment) => void;
+}) {
+  const rowHeight = 44;
+  const containerHeight = 280;
+  const overscan = 4;
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const totalHeight = payments.length * rowHeight;
+  const visibleCount = Math.ceil(containerHeight / rowHeight);
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+  const endIndex = Math.min(payments.length, startIndex + visibleCount + overscan * 2);
+  const visiblePayments = payments.slice(startIndex, endIndex);
+
+  return (
+    <div className="min-w-[860px]">
+      <div className="grid grid-cols-[1.15fr_0.9fr_0.9fr_0.9fr_0.8fr_1fr_0.9fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
+        <div className="px-3 py-2.5">Guncelleme Tarihi</div>
+        <div className="px-3 py-2.5 text-right">Tutar</div>
+        <div className="px-3 py-2.5">Odeme Yontemi</div>
+        <div className="px-3 py-2.5">Durum</div>
+        <div className="px-3 py-2.5">Para Birimi</div>
+        <div className="px-3 py-2.5">Iptal Tarihi</div>
+        <div className="bg-surface2/70 px-3 py-2.5 text-right">
+          Islemler
+        </div>
+      </div>
+
+      <div className="h-[280px] overflow-y-auto" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+        <div className="relative" style={{ height: totalHeight }}>
+          <div className="absolute inset-x-0" style={{ transform: `translateY(${startIndex * rowHeight}px)` }}>
+            {visiblePayments.map((payment) => (
+              <div
+                key={payment.id}
+                className="grid h-11 grid-cols-[1.15fr_0.9fr_0.9fr_0.9fr_0.8fr_1fr_0.9fr] items-center border-b border-border text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
+              >
+                <div className="px-3 py-2.5">{formatDate(payment.updatedAt)}</div>
+                <div className="px-3 py-2.5 text-right">{formatPrice(payment.amount)}</div>
+                <div className="px-3 py-2.5">{getPaymentMethodLabel(payment.paymentMethod)}</div>
+                <div className="px-3 py-2.5">{getPaymentStatusLabel(payment.status)}</div>
+                <div className="px-3 py-2.5">{payment.currency ?? "-"}</div>
+                <div className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</div>
+                <div className="flex items-center justify-end gap-1 px-3 py-2.5">
+                  {payment.status !== "CANCELLED" && (
+                    <button
+                      type="button"
+                      onClick={() => onEditPayment(saleId, payment)}
+                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                      aria-label="Odeme kaydini duzenle"
+                      title="Duzenle"
+                    >
+                      <EditIcon />
+                    </button>
+                  )}
+                  {payment.status !== "CANCELLED" && (
+                    <button
+                      type="button"
+                      onClick={() => onDeletePayment(saleId, payment)}
+                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
+                      aria-label="Odeme kaydini sil"
+                      title="Sil"
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function SalesTable({
@@ -275,12 +358,6 @@ export default function SalesTable({
                     <tr key={`${sale.id}-payments`} className="border-b border-border bg-surface2/20">
                       <td colSpan={10} className="px-4 py-3">
                         <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                              Odeme Adimlari
-                            </h3>
-                          </div>
-
                           {loadingPayments ? (
                             <p className="text-sm text-muted">Odemeler yukleniyor...</p>
                           ) : paymentsError ? (
@@ -289,57 +366,12 @@ export default function SalesTable({
                             <p className="text-sm text-muted">Bu satis fisine ait odeme kaydi bulunamadi.</p>
                           ) : (
                             <div className="overflow-x-auto rounded-xl border border-border">
-                              <table className="w-full min-w-[860px]">
-                                <thead className="border-b border-border bg-surface2/60">
-                                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                                    <th className="px-3 py-2.5">Guncelleme Tarihi</th>
-                                    <th className="px-3 py-2.5 text-right">Tutar</th>
-                                    <th className="px-3 py-2.5">Odeme Yontemi</th>
-                                    <th className="px-3 py-2.5">Durum</th>
-                                    <th className="px-3 py-2.5">Para Birimi</th>
-                                    <th className="px-3 py-2.5">Iptal Tarihi</th>
-                                    <th className="px-3 py-2.5 text-right">Islemler</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {payments.map((payment) => (
-                                    <tr key={payment.id} className="border-b border-border text-sm text-text2 last:border-b-0">
-                                      <td className="px-3 py-2.5">{formatDate(payment.updatedAt)}</td>
-                                      <td className="px-3 py-2.5 text-right">{formatPrice(payment.amount)}</td>
-                                      <td className="px-3 py-2.5">{getPaymentMethodLabel(payment.paymentMethod)}</td>
-                                      <td className="px-3 py-2.5">{getPaymentStatusLabel(payment.status)}</td>
-                                      <td className="px-3 py-2.5">{payment.currency ?? "-"}</td>
-                                      <td className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</td>
-                                      <td className="px-3 py-2.5 text-right">
-                                        <div className="inline-flex items-center gap-1">
-                                          {payment.status !== "CANCELLED" && (
-                                          <button
-                                            type="button"
-                                            onClick={() => onEditPayment(sale.id, payment)}
-                                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                                            aria-label="Odeme kaydini duzenle"
-                                            title="Duzenle"
-                                          >
-                                            <EditIcon />
-                                          </button>
-                                          )}
-                                          {payment.status !== "CANCELLED" && (
-                                            <button
-                                              type="button"
-                                              onClick={() => onDeletePayment(sale.id, payment)}
-                                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
-                                              aria-label="Odeme kaydini sil"
-                                              title="Sil"
-                                            >
-                                              <TrashIcon />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                              <VirtualSalePaymentsTable
+                                saleId={sale.id}
+                                payments={payments}
+                                onEditPayment={onEditPayment}
+                                onDeletePayment={onDeletePayment}
+                              />
                             </div>
                           )}
                         </div>
