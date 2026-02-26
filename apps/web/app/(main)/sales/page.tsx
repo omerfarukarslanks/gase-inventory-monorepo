@@ -3,10 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getSessionUser,
-  getSessionUserRole,
   getSessionUserStoreIds,
   getSessionUserStoreType,
-  isStoreScopedRole,
 } from "@/lib/authz";
 import { getTenantStockSummary } from "@/lib/inventory";
 import { getPaginationValue, normalizeProducts } from "@/lib/normalize";
@@ -209,16 +207,12 @@ export default function SalesPage() {
 
   /* ── Init scope ── */
   useEffect(() => {
-    const role = getSessionUserRole();
     const user = getSessionUser();
     const storeType = getSessionUserStoreType(user);
     const storeIds = getSessionUserStoreIds(user);
-    setIsStoreScopedUser(isStoreScopedRole(role));
+    setIsStoreScopedUser(false);
     setIsWholesaleStoreType(storeType === "WHOLESALE");
     setScopedStoreId(storeIds[0] ?? "");
-    if (isStoreScopedRole(role)) {
-      setStoreId(storeIds[0] ?? "");
-    }
     setScopeReady(true);
   }, []);
 

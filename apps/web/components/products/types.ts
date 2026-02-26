@@ -24,6 +24,7 @@ export type ProductForm = {
   image: string;
   storeIds: string[];
   applyToAllStores: boolean;
+  categoryId: string;
   supplierId: string;
 };
 
@@ -63,6 +64,7 @@ export const EMPTY_PRODUCT_FORM: ProductForm = {
   image: "",
   storeIds: [],
   applyToAllStores: false,
+  categoryId: "",
   supplierId: "",
 };
 

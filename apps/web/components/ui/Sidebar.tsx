@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
-import { canAccessTenantPages, getSessionUserRole } from "@/lib/authz";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
@@ -18,6 +17,7 @@ const items = [
 
 const adminItems = [
   { href: "/attributes", label: "Ozellikler", icon: "O" },
+  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK" },
   { href: "/stores", label: "Magazalar", icon: "M" },
   { href: "/suppliers", label: "Tedarikciler", icon: "T" },
   { href: "/customers", label: "Musteriler", icon: "C" },
@@ -80,12 +80,10 @@ export default function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
   const [displayName, setDisplayName] = useState("Kullanici");
   const [displayRole, setDisplayRole] = useState("Admin");
-  const [canSeeTenantManagement, setCanSeeTenantManagement] = useState(true);
   const [canSeePackages, setCanSeePackages] = useState(false);
 
   useEffect(() => {
     try {
-      setCanSeeTenantManagement(canAccessTenantPages(getSessionUserRole()));
       const rawUser = localStorage.getItem("user");
       if (!rawUser) {
         setDisplayName("Kullanici");
@@ -101,7 +99,6 @@ export default function Sidebar({
     } catch {
       setDisplayName("Kullanici");
       setDisplayRole("User");
-      setCanSeeTenantManagement(false);
       setCanSeePackages(false);
     }
   }, []);
@@ -229,17 +226,7 @@ export default function Sidebar({
         </div>
 
         <div className="space-y-1">
-          {adminItems
-            .filter(
-              (it) =>
-                canSeeTenantManagement ||
-                (it.href !== "/stores" &&
-                  it.href !== "/users" &&
-                  it.href !== "/attributes" &&
-                  it.href !== "/suppliers" &&
-                  it.href !== "/customers"),
-            )
-            .map((it) => (
+          {adminItems.map((it) => (
             <Link
               key={it.href}
               href={it.href}

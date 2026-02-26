@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
+import { getSessionUser, getSessionUserStoreIds } from "@/lib/authz";
 import {
   adjustInventory,
   getTenantStockSummary,
@@ -50,10 +50,9 @@ export default function StockPage() {
   const [scopedStoreId, setScopedStoreId] = useState("");
 
   useEffect(() => {
-    const role = getSessionUserRole();
     const user = getSessionUser();
     const storeIds = getSessionUserStoreIds(user);
-    setIsStoreScopedUser(isStoreScopedRole(role));
+    setIsStoreScopedUser(false);
     setScopedStoreId(storeIds[0] ?? "");
     setScopeReady(true);
   }, []);

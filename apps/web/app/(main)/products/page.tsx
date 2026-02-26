@@ -16,7 +16,8 @@ import {
   type Currency,
 } from "@/lib/products";
 import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
-import { getSessionUser, getSessionUserRole, getSessionUserStoreIds, isStoreScopedRole } from "@/lib/authz";
+import { getSessionUser, getSessionUserStoreIds } from "@/lib/authz";
+import { getAllProductCategories } from "@/lib/product-categories";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -66,7 +67,7 @@ export default function ProductsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [step1ProductInfoOpen, setStep1ProductInfoOpen] = useState(true);
+  const [step1ProductInfoOpen, setStep1ProductInfoOpen] = useState(false);
   const [step1StoreScopeOpen, setStep1StoreScopeOpen] = useState(true);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
 
@@ -79,6 +80,7 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState("");
 
   const [attributeDefinitions, setAttributeDefinitions] = useState<AttributeDefinition[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   /* Product form */
   const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
@@ -137,10 +139,9 @@ export default function ProductsPage() {
   const [scopedStoreId, setScopedStoreId] = useState("");
 
   useEffect(() => {
-    const role = getSessionUserRole();
     const user = getSessionUser();
     const storeIds = getSessionUserStoreIds(user);
-    setIsStoreScopedUser(isStoreScopedRole(role));
+    setIsStoreScopedUser(false);
     setScopedStoreId(storeIds[0] ?? "");
     setScopeReady(true);
   }, []);
@@ -216,6 +217,20 @@ export default function ProductsPage() {
       .catch(() => setAttributeDefinitions([]));
   }, []);
 
+  useEffect(() => {
+    getAllProductCategories({ isActive: "all" })
+      .then((categories) => {
+        const options = (categories ?? [])
+          .map((category) => ({
+            value: category.id,
+            label: category.name,
+          }))
+          .sort((a, b) => a.label.localeCompare(b.label, "tr"));
+        setCategoryOptions(options);
+      })
+      .catch(() => setCategoryOptions([]));
+  }, []);
+
 
   /* ── Pagination ── */
 
@@ -258,6 +273,7 @@ export default function ProductsPage() {
         sku: product.sku,
         description: product.description ?? undefined,
         image: product.image ?? undefined,
+        categoryId: product.categoryId ?? product.category?.id ?? undefined,
         supplierId: product.supplierId ?? product.supplier?.id ?? undefined,
         isActive: next,
       });
@@ -432,7 +448,7 @@ export default function ProductsPage() {
     setExpandedVariantKeys([]);
     setOriginalVariantMap({});
     setStep(1);
-    setStep1ProductInfoOpen(true);
+    setStep1ProductInfoOpen(false);
     setStep1StoreScopeOpen(true);
     setDrawerOpen(true);
   };
@@ -494,6 +510,7 @@ export default function ProductsPage() {
         image: detail.image ?? "",
         storeIds: detail.storeIds ?? [],
         applyToAllStores: Boolean(detail.applyToAllStores),
+        categoryId: detail.categoryId ?? detail.category?.id ?? "",
         supplierId: detail.supplierId ?? detail.supplier?.id ?? "",
       };
       setForm(formData);
@@ -685,6 +702,7 @@ export default function ProductsPage() {
         sku: form.sku.trim(),
         description: form.description.trim() || undefined,
         image: form.image.trim() || undefined,
+        categoryId: form.categoryId || undefined,
         supplierId: form.supplierId || undefined,
         ...buildPricingPayload(),
         ...buildScopePayload(),
@@ -983,6 +1001,7 @@ export default function ProductsPage() {
               errors={errors}
               calculatedLineTotal={calculatedLineTotal}
               storeOptions={storeOptions}
+              categoryOptions={categoryOptions}
               isStoreScopedUser={isStoreScopedUser}
               productInfoOpen={step1ProductInfoOpen}
               onToggleProductInfo={() => setStep1ProductInfoOpen((prev) => !prev)}

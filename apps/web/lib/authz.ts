@@ -94,11 +94,13 @@ export function getSessionUserStoreType(user?: SessionUser | null): SessionStore
 }
 
 export function canAccessTenantPages(role: UserRole | null): boolean {
-  return role === UserRole.OWNER || role === UserRole.ADMIN;
+  void role;
+  return true;
 }
 
 export function isStoreScopedRole(role: UserRole | null): boolean {
-  return role === UserRole.MANAGER || role === UserRole.STAFF;
+  void role;
+  return false;
 }
 
 export function getSessionUserStoreIds(user: SessionUser | null): string[] {
@@ -137,13 +139,6 @@ export function getSessionUserStoreIds(user: SessionUser | null): string[] {
 }
 
 export function getSessionListScope(user?: SessionUser | null): SessionListScope {
-  const resolvedUser = user ?? getSessionUser();
-  const role = asRole(resolvedUser?.role);
-  if (isStoreScopedRole(role)) {
-    return {
-      scope: "store",
-      storeIds: getSessionUserStoreIds(resolvedUser),
-    };
-  }
+  void user;
   return { scope: "tenant" };
 }
