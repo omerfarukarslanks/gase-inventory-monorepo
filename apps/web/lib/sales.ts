@@ -13,7 +13,6 @@ type SaleLineCommonPayload = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal: number;
   campaignCode?: string;
 };
 
@@ -95,6 +94,28 @@ export type GetSalesResponse = {
   meta: SalesListMeta;
 };
 
+export type SaleDetailPackageItem = {
+  productVariantId: string;
+  productVariantName?: string;
+  qtyPerPackage?: number;
+};
+
+export type SaleDetailPackageVariantPool = {
+  productVariantId: string;
+  productVariantName?: string;
+  qtyPerPackage?: number;
+  sold?: number | null;
+  returned?: number | null;
+  remaining?: number | null;
+};
+
+export type SaleDetailPartialPackage = {
+  exists: boolean;
+  incompletePackageCount?: number | null;
+  missingVariants: string[];
+  presentVariants: string[];
+};
+
 export type SaleDetailLine = {
   id: string;
   productName?: string;
@@ -104,6 +125,9 @@ export type SaleDetailLine = {
   productPackageName?: string;
   productVariantCode?: string;
   quantity?: number | null;
+  originalQuantity?: number | null;
+  returnedQuantity?: number | null;
+  completePackagesRemaining?: number | null;
   currency?: Currency | null;
   unitPrice?: number | null;
   discountPercent?: number | null;
@@ -112,6 +136,9 @@ export type SaleDetailLine = {
   taxAmount?: number | null;
   lineTotal?: number | null;
   campaignCode?: string | null;
+  packageItems?: SaleDetailPackageItem[];
+  variantPool?: SaleDetailPackageVariantPool[];
+  partialPackage?: SaleDetailPartialPackage | null;
 };
 
 export type SaleDetail = {
@@ -326,6 +353,7 @@ export async function updateSalePayment(
       amount: payload.amount,
       paymentMethod: payload.paymentMethod,
       note: payload.note ?? null,
+      paidAt: payload.paidAt ?? null,
       currency: payload.currency,
     }
   );
@@ -346,7 +374,6 @@ export type PatchSaleLinePayload = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal?: number;
   currency?: Currency;
   campaignCode?: string;
 };
@@ -376,9 +403,15 @@ export async function removeSaleLine(saleId: string, lineId: string): Promise<vo
   await apiFetch<void>(`/sales/${saleId}/lines/${lineId}`, { method: "DELETE" });
 }
 
+export type PackageVariantReturn = {
+  productVariantId: string;
+  quantity: number;
+};
+
 export type CreateSaleReturnLine = {
   saleLineId: string;
-  quantity: number;
+  quantity?: number;
+  packageVariantReturns?: PackageVariantReturn[];
   refundAmount?: number;
 };
 

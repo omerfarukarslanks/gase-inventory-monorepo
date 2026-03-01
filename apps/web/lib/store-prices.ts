@@ -11,7 +11,6 @@ export type StorePricePayload = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal: number;
   campaignCode?: string;
   storeIds?: string[];
   applyToAllStores?: boolean;

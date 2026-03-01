@@ -255,6 +255,7 @@ export default function ProductDrawerStep1({
             <div className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none flex items-center">
               {calculatedLineTotal == null ? "-" : formatPrice(calculatedLineTotal)}
             </div>
+            <p className="text-[11px] text-muted">Bu hesaplama degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
             {errors.lineTotal && <p className="text-xs text-error">{errors.lineTotal}</p>}
           </div>
         </div>

@@ -174,7 +174,25 @@ export default function SalesPage() {
   const [returnDrawerOpen, setReturnDrawerOpen] = useState(false);
   const [returnTargetSale, setReturnTargetSale] = useState<SaleListItem | null>(null);
   const [returnLines, setReturnLines] = useState<
-    Array<{ saleLineId: string; lineName: string; originalQuantity: number; returnQuantity: string; refundAmount: string }>
+    Array<{
+      saleLineId: string;
+      lineName: string;
+      originalQuantity: number;
+      returnedQuantity: number;
+      completePackagesRemaining: number | null;
+      partialPackage: { exists: boolean; incompletePackageCount?: number | null; missingVariants: string[]; presentVariants: string[] } | null;
+      isPackageLine: boolean;
+      returnMode: "quantity" | "variants";
+      returnQuantity: string;
+      packageVariantReturns: Array<{
+        productVariantId: string;
+        name: string;
+        qtyPerPackage?: number;
+        remaining?: number | null;
+        returnQuantity: string;
+      }>;
+      refundAmount: string;
+    }>
   >([]);
   const [returnNotes, setReturnNotes] = useState("");
   const [returnSubmitting, setReturnSubmitting] = useState(false);
@@ -225,6 +243,7 @@ export default function SalesPage() {
   const [paymentDrawerSaleId, setPaymentDrawerSaleId] = useState("");
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentPaidAtInput, setPaymentPaidAtInput] = useState("");
   const [paymentMethodInput, setPaymentMethodInput] = useState<PaymentMethod>("CASH");
   const [paymentCurrency, setPaymentCurrency] = useState<Currency>("TRY");
   const [paymentNoteInput, setPaymentNoteInput] = useState("");
@@ -504,10 +523,20 @@ export default function SalesPage() {
     return "TRY";
   };
 
+  const normalizePaidAtInput = (value?: string | null): string => {
+    if (!value) return "";
+    const directDate = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (directDate) return directDate[1];
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toISOString().slice(0, 10);
+  };
+
   const openAddPaymentDrawer = (saleId: string) => {
     setPaymentDrawerSaleId(saleId);
     setEditingPaymentId(null);
     setPaymentAmount("");
+    setPaymentPaidAtInput("");
     setPaymentMethodInput("CASH");
     setPaymentCurrency("TRY");
     setPaymentNoteInput("");
@@ -519,6 +548,7 @@ export default function SalesPage() {
     setPaymentDrawerSaleId(saleId);
     setEditingPaymentId(payment.id);
     setPaymentAmount(payment.amount != null ? String(payment.amount) : "");
+    setPaymentPaidAtInput(normalizePaidAtInput(payment.paidAt));
     setPaymentMethodInput(normalizePaymentMethod(payment.paymentMethod as string | null | undefined));
     setPaymentCurrency(normalizeCurrency(payment.currency as string | null | undefined));
     setPaymentNoteInput(payment.note ?? "");
@@ -534,6 +564,11 @@ export default function SalesPage() {
 
   const submitPayment = async () => {
     const amount = toNumberOrNull(paymentAmount);
+    const normalizedPaidAt = paymentPaidAtInput.trim();
+    const paidAt =
+      normalizedPaidAt.length > 0
+        ? new Date(`${normalizedPaidAt}T00:00:00.000Z`).toISOString()
+        : undefined;
     if (!paymentDrawerSaleId) {
       setPaymentFormError("Satis kaydi secilmedi.");
       return;
@@ -551,6 +586,7 @@ export default function SalesPage() {
           amount,
           paymentMethod: paymentMethodInput,
           note: paymentNoteInput.trim() || undefined,
+          paidAt,
           currency: paymentCurrency,
         });
         setSuccess("Odeme kaydi guncellendi.");
@@ -559,7 +595,7 @@ export default function SalesPage() {
           amount,
           paymentMethod: paymentMethodInput,
           note: paymentNoteInput.trim() || undefined,
-          paidAt: new Date().toISOString(),
+          paidAt,
           currency: paymentCurrency,
         });
         setSuccess("Odeme kaydi eklendi.");
@@ -568,6 +604,7 @@ export default function SalesPage() {
       setPaymentDrawerOpen(false);
       setEditingPaymentId(null);
       setPaymentAmount("");
+      setPaymentPaidAtInput("");
       setPaymentNoteInput("");
       await fetchSalePayments(paymentDrawerSaleId, true);
       await fetchSalesReceipts();
@@ -921,7 +958,6 @@ export default function SalesPage() {
         ? { taxPercent: Number(addLineForm.taxPercent) } : {}),
       ...(addLineForm.taxMode === "amount" && addLineForm.taxAmount
         ? { taxAmount: Number(addLineForm.taxAmount) } : {}),
-      lineTotal: Math.round(calcLineTotal(addLineForm) * 100) / 100,
       ...(addLineForm.campaignCode.trim() ? { campaignCode: addLineForm.campaignCode.trim() } : {}),
     };
 
@@ -960,17 +996,32 @@ export default function SalesPage() {
         return;
       }
       setReturnLines(
-        detail.lines.map((line: SaleDetailLine) => ({
-          saleLineId: line.id,
-          lineName:
-            line.productVariantName ??
-            line.productPackageName ??
-            line.productName ??
-            line.id,
-          originalQuantity: line.quantity ?? 0,
-          returnQuantity: "",
-          refundAmount: "",
-        })),
+        detail.lines.map((line: SaleDetailLine) => {
+          const variants = line.variantPool ?? line.packageItems ?? [];
+          return {
+            saleLineId: line.id,
+            lineName:
+              line.productVariantName ??
+              line.productPackageName ??
+              line.productName ??
+              line.id,
+            originalQuantity: line.originalQuantity ?? line.quantity ?? 0,
+            returnedQuantity: line.returnedQuantity ?? 0,
+            completePackagesRemaining: line.completePackagesRemaining ?? null,
+            partialPackage: line.partialPackage ?? null,
+            isPackageLine: Boolean(line.productPackageId),
+            returnMode: "quantity" as const,
+            returnQuantity: "",
+            packageVariantReturns: variants.map((item) => ({
+              productVariantId: item.productVariantId,
+              name: item.productVariantName ?? item.productVariantId,
+              qtyPerPackage: item.qtyPerPackage,
+              remaining: (item as { remaining?: number | null }).remaining ?? null,
+              returnQuantity: "",
+            })),
+            refundAmount: "",
+          };
+        }),
       );
     } catch {
       setReturnFormError("Satis satirlari yuklenemedi.");
@@ -989,32 +1040,64 @@ export default function SalesPage() {
 
   const submitReturn = async () => {
     if (!returnTargetSale) return;
-    const activeLines = returnLines.filter(
-      (l) => l.returnQuantity !== "" && Number(l.returnQuantity) > 0,
-    );
+
+    const activeLines = returnLines.filter((l) => {
+      if (l.returnMode === "variants") {
+        return l.packageVariantReturns.some((pv) => Number(pv.returnQuantity) > 0);
+      }
+      return l.returnQuantity !== "" && Number(l.returnQuantity) > 0;
+    });
+
     if (activeLines.length === 0) {
       setReturnFormError("En az bir satir icin iade adedi girin.");
       return;
     }
+
     const invalidLine = activeLines.some((l) => {
+      if (l.returnMode === "variants") {
+        return l.packageVariantReturns.some((pv) => {
+          if (pv.returnQuantity === "" || Number(pv.returnQuantity) === 0) return false;
+          const qty = Number(pv.returnQuantity);
+          if (!Number.isFinite(qty) || qty < 0) return true;
+          if (pv.remaining != null && qty > pv.remaining) return true;
+          return false;
+        });
+      }
       const qty = Number(l.returnQuantity);
-      return !Number.isFinite(qty) || qty <= 0 || qty > l.originalQuantity;
+      const maxQty = l.isPackageLine
+        ? (l.completePackagesRemaining ?? l.originalQuantity)
+        : l.originalQuantity;
+      return !Number.isFinite(qty) || qty <= 0 || qty > maxQty;
     });
+
     if (invalidLine) {
-      setReturnFormError("Iade adedi 0'dan buyuk ve orijinal adedi gecmemelidir.");
+      setReturnFormError("Iade adedi gecersiz. Lutfen kontrol edin.");
       return;
     }
 
     setReturnSubmitting(true);
     setReturnFormError("");
     try {
-      const lines: CreateSaleReturnLine[] = activeLines.map((l) => ({
-        saleLineId: l.saleLineId,
-        quantity: Number(l.returnQuantity),
-        ...(l.refundAmount !== "" && Number(l.refundAmount) >= 0
-          ? { refundAmount: Number(l.refundAmount) }
-          : {}),
-      }));
+      const lines: CreateSaleReturnLine[] = activeLines.map((l) => {
+        const refund =
+          l.refundAmount !== "" && Number(l.refundAmount) >= 0
+            ? { refundAmount: Number(l.refundAmount) }
+            : {};
+        if (l.returnMode === "variants") {
+          return {
+            saleLineId: l.saleLineId,
+            packageVariantReturns: l.packageVariantReturns
+              .filter((pv) => Number(pv.returnQuantity) > 0)
+              .map((pv) => ({ productVariantId: pv.productVariantId, quantity: Number(pv.returnQuantity) })),
+            ...refund,
+          };
+        }
+        return {
+          saleLineId: l.saleLineId,
+          quantity: Number(l.returnQuantity),
+          ...refund,
+        };
+      });
       await createSaleReturn(returnTargetSale.id, {
         lines,
         notes: returnNotes.trim() || undefined,
@@ -1102,7 +1185,6 @@ export default function SalesPage() {
         ...(line.taxMode === "amount" && line.taxAmount
           ? { taxAmount: Number(line.taxAmount) }
           : {}),
-        lineTotal: Math.round(calcLineTotal(line) * 100) / 100,
         ...(line.campaignCode.trim() ? { campaignCode: line.campaignCode.trim() } : {}),
       };
 
@@ -1347,6 +1429,19 @@ export default function SalesPage() {
           </div>
 
           <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Odeme Tarihi</label>
+            <input
+              type="date"
+              value={paymentPaidAtInput}
+              onChange={(e) => {
+                if (paymentFormError) setPaymentFormError("");
+                setPaymentPaidAtInput(e.target.value);
+              }}
+              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="space-y-1">
             <label className="text-xs font-semibold text-muted">Odeme Yontemi *</label>
             <SearchableDropdown
               options={PAYMENT_METHOD_OPTIONS}
@@ -1488,55 +1583,196 @@ export default function SalesPage() {
                   >
                     <p className="text-sm font-medium text-text">
                       {line.lineName}
-                      <span className="ml-2 text-xs text-muted font-normal">
-                        (Adet: {line.originalQuantity})
-                      </span>
+                      {!line.isPackageLine && (
+                        <span className="ml-2 text-xs text-muted font-normal">
+                          (Satılan: {line.originalQuantity}
+                          {line.returnedQuantity > 0 && `, İade: ${line.returnedQuantity}`})
+                        </span>
+                      )}
+                      {line.isPackageLine && (
+                        <span className="ml-2 text-xs text-muted font-normal">
+                          ({line.completePackagesRemaining ?? 0} tam paket
+                          {line.partialPackage?.exists && `, ${line.partialPackage.incompletePackageCount ?? 1} eksik paket`})
+                        </span>
+                      )}
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">
-                          Iade Adedi
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={line.originalQuantity}
-                          step={1}
-                          value={line.returnQuantity}
-                          onChange={(e) => {
+
+                    {/* Eksik paket bilgisi */}
+                    {line.isPackageLine && line.partialPackage?.exists && (
+                      <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2 space-y-1">
+                        <p className="text-xs font-semibold text-warning">Eksik Paket</p>
+                        {line.partialPackage.presentVariants.length > 0 && (
+                          <p className="text-xs text-muted">
+                            <span className="font-medium text-text">Mevcut:</span>{" "}
+                            {line.partialPackage.presentVariants.join(", ")}
+                          </p>
+                        )}
+                        {line.partialPackage.missingVariants.length > 0 && (
+                          <p className="text-xs text-muted">
+                            <span className="font-medium text-text">Eksik:</span>{" "}
+                            {line.partialPackage.missingVariants.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Paket satırı: mod seçimi */}
+                    {line.isPackageLine && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
                             if (returnFormError) setReturnFormError("");
                             setReturnLines((prev) =>
-                              prev.map((l, i) =>
-                                i === idx ? { ...l, returnQuantity: e.target.value } : l,
-                              ),
+                              prev.map((l, i) => i === idx ? { ...l, returnMode: "quantity" } : l),
                             );
                           }}
-                          placeholder="0"
-                          className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">
-                          Iade Tutari (opsiyonel)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={line.refundAmount}
-                          onChange={(e) => {
+                          className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
+                            line.returnMode === "quantity"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-surface2 text-muted border-border"
+                          }`}
+                        >
+                          Tam Paket (Adet)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
                             if (returnFormError) setReturnFormError("");
                             setReturnLines((prev) =>
-                              prev.map((l, i) =>
-                                i === idx ? { ...l, refundAmount: e.target.value } : l,
-                              ),
+                              prev.map((l, i) => i === idx ? { ...l, returnMode: "variants" } : l),
                             );
                           }}
-                          placeholder="0.00"
-                          className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                        />
+                          className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
+                            line.returnMode === "variants"
+                              ? "bg-primary text-white border-primary"
+                              : "bg-surface2 text-muted border-border"
+                          }`}
+                        >
+                          Varyant Bazli
+                        </button>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Mod A veya Perakende: adet girişi */}
+                    {(!line.isPackageLine || line.returnMode === "quantity") && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-muted">
+                            {line.isPackageLine
+                              ? `Iade Adedi (maks. ${line.completePackagesRemaining ?? line.originalQuantity})`
+                              : `Iade Adedi (maks. ${line.originalQuantity - line.returnedQuantity})`}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={
+                              line.isPackageLine
+                                ? (line.completePackagesRemaining ?? line.originalQuantity)
+                                : line.originalQuantity - line.returnedQuantity
+                            }
+                            step={1}
+                            value={line.returnQuantity}
+                            onChange={(e) => {
+                              if (returnFormError) setReturnFormError("");
+                              setReturnLines((prev) =>
+                                prev.map((l, i) =>
+                                  i === idx ? { ...l, returnQuantity: e.target.value } : l,
+                                ),
+                              );
+                            }}
+                            placeholder="0"
+                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-muted">
+                            Iade Tutari (opsiyonel)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={line.refundAmount}
+                            onChange={(e) => {
+                              if (returnFormError) setReturnFormError("");
+                              setReturnLines((prev) =>
+                                prev.map((l, i) =>
+                                  i === idx ? { ...l, refundAmount: e.target.value } : l,
+                                ),
+                              );
+                            }}
+                            placeholder="0.00"
+                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mod B: varyant bazlı iade */}
+                    {line.isPackageLine && line.returnMode === "variants" && (
+                      <div className="space-y-2">
+                        {line.packageVariantReturns.length === 0 ? (
+                          <p className="text-xs text-muted">Bu paket icin varyant bilgisi bulunamadi.</p>
+                        ) : (
+                          line.packageVariantReturns.map((pv, pvIdx) => (
+                            <div key={pv.productVariantId} className="flex items-center gap-2">
+                              <span className="flex-1 text-xs text-text truncate">
+                                {pv.name}
+                                {pv.qtyPerPackage != null && (
+                                  <span className="ml-1 text-muted font-normal">(x{pv.qtyPerPackage})</span>
+                                )}
+                                {pv.remaining != null && (
+                                  <span className="ml-1 text-xs text-muted font-normal">(kalan: {pv.remaining})</span>
+                                )}
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={pv.remaining ?? undefined}
+                                step={1}
+                                value={pv.returnQuantity}
+                                onChange={(e) => {
+                                  if (returnFormError) setReturnFormError("");
+                                  setReturnLines((prev) =>
+                                    prev.map((l, i) => {
+                                      if (i !== idx) return l;
+                                      const updated = l.packageVariantReturns.map((p, pi) =>
+                                        pi === pvIdx ? { ...p, returnQuantity: e.target.value } : p,
+                                      );
+                                      return { ...l, packageVariantReturns: updated };
+                                    }),
+                                  );
+                                }}
+                                placeholder="0"
+                                className="h-9 w-24 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              />
+                            </div>
+                          ))
+                        )}
+                        <div className="space-y-1 pt-1">
+                          <label className="text-xs font-semibold text-muted">
+                            Iade Tutari (opsiyonel)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={line.refundAmount}
+                            onChange={(e) => {
+                              if (returnFormError) setReturnFormError("");
+                              setReturnLines((prev) =>
+                                prev.map((l, i) =>
+                                  i === idx ? { ...l, refundAmount: e.target.value } : l,
+                                ),
+                              );
+                            }}
+                            placeholder="0.00"
+                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

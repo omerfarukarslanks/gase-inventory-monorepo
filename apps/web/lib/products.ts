@@ -113,7 +113,6 @@ export type CreateProductRequest = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal: number;
   name: string;
   sku: string;
   description?: string;
@@ -134,7 +133,6 @@ export type UpdateProductRequest = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal?: number;
   name?: string;
   sku?: string;
   description?: string;

@@ -7,6 +7,9 @@ import type {
   SaleListLine,
   SaleDetail,
   SaleDetailLine,
+  SaleDetailPackageItem,
+  SaleDetailPackageVariantPool,
+  SaleDetailPartialPackage,
 } from "@/lib/sales";
 
 function getPackageItemsSummary(items: unknown): string | undefined {
@@ -191,6 +194,57 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
       const variant = asObject(line.productVariant);
       const packageNode = asObject(line.productPackage);
       const packageItemsSummary = getPackageItemsSummary(packageNode?.items);
+
+      const rawPackageItems = Array.isArray(packageNode?.items) ? packageNode!.items as unknown[] : [];
+      const packageItems: SaleDetailPackageItem[] = rawPackageItems
+        .map((item) => asObject(item))
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .reduce<SaleDetailPackageItem[]>((acc, item) => {
+          const itemVariant = asObject(item.productVariant);
+          const productVariantId = pickString(item.productVariantId, item.variantId, itemVariant?.id);
+          if (!productVariantId) return acc;
+          acc.push({
+            productVariantId,
+            productVariantName: pickString(item.variantName, itemVariant?.name) || undefined,
+            qtyPerPackage: pickNumberOrNull(item.qtyPerPackage, item.quantity, item.qty) ?? undefined,
+          });
+          return acc;
+        }, []);
+
+      const rawVariantPool = Array.isArray(packageNode?.variantPool) ? packageNode!.variantPool as unknown[] : [];
+      const variantPool: SaleDetailPackageVariantPool[] = rawVariantPool
+        .map((item) => asObject(item))
+        .filter((item): item is Record<string, unknown> => Boolean(item))
+        .reduce<SaleDetailPackageVariantPool[]>((acc, item) => {
+          const productVariantId = pickString(item.variantId, item.productVariantId);
+          if (!productVariantId) return acc;
+          acc.push({
+            productVariantId,
+            productVariantName: pickString(item.variantName, item.productVariantName) || undefined,
+            qtyPerPackage: pickNumberOrNull(item.qtyPerPackage) ?? undefined,
+            sold: pickNumberOrNull(item.sold),
+            returned: pickNumberOrNull(item.returned),
+            remaining: pickNumberOrNull(item.remaining),
+          });
+          return acc;
+        }, []);
+
+      const completePackagesRemaining = pickNumberOrNull(packageNode?.completePackagesRemaining);
+
+      const partialPackageNode = asObject(packageNode?.partialPackage);
+      const partialPackage: SaleDetailPartialPackage | null = partialPackageNode
+        ? {
+            exists: Boolean(partialPackageNode.exists),
+            incompletePackageCount: pickNumberOrNull(partialPackageNode.incompletePackageCount),
+            missingVariants: Array.isArray(partialPackageNode.missingVariants)
+              ? partialPackageNode.missingVariants.filter((v): v is string => typeof v === "string")
+              : [],
+            presentVariants: Array.isArray(partialPackageNode.presentVariants)
+              ? partialPackageNode.presentVariants.filter((v): v is string => typeof v === "string")
+              : [],
+          }
+        : null;
+
       return {
         id: pickString(line.id, line.saleLineId, `line-${index}`),
         productName:
@@ -227,6 +281,9 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
             packageNode?.code,
           ) || undefined,
         quantity: pickNumberOrNull(line.quantity),
+        originalQuantity: pickNumberOrNull(line.originalQuantity),
+        returnedQuantity: pickNumberOrNull(line.returnedQuantity),
+        completePackagesRemaining,
         currency: (pickString(line.currency) || null) as Currency | null,
         unitPrice: pickNumberOrNull(line.unitPrice),
         discountPercent: pickNumberOrNull(line.discountPercent),
@@ -235,6 +292,9 @@ export function normalizeSaleDetail(payload: unknown): SaleDetail | null {
         taxAmount: pickNumberOrNull(line.taxAmount),
         lineTotal: pickNumberOrNull(line.lineTotal),
         campaignCode: pickString(line.campaignCode) || null,
+        packageItems: packageItems.length > 0 ? packageItems : undefined,
+        variantPool: variantPool.length > 0 ? variantPool : undefined,
+        partialPackage,
       };
     });
 

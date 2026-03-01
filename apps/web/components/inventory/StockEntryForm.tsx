@@ -453,14 +453,12 @@ export default function StockEntryForm({
     if (!validate(filled, partial)) return;
 
     const items: InventoryReceiveItem[] = filled.map(({ block, entry }) => {
-      const lineTotal = isAdjustMode ? 0 : calcEntryTotal(entry, rates);
       const item: InventoryReceiveItem = {
         storeId: entry.storeId || fixedStoreId || "",
         productVariantId: block.variantId,
         quantity: Number(entry.quantity),
         currency: isAdjustMode ? productCurrency : entry.currency,
         unitPrice: isAdjustMode ? 0 : Number(entry.unitPrice),
-        lineTotal: Math.round(lineTotal * 100) / 100,
       };
 
       if (!isAdjustMode && entry.taxMode === "percent" && entry.taxPercent) {
@@ -784,18 +782,21 @@ export default function StockEntryForm({
       {/* Submit */}
       <div className="space-y-3 pt-2">
         {!isAdjustMode && (
-          <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
-            <span className="text-sm font-semibold text-text">Genel Toplam</span>
-            <span className="text-lg font-bold text-primary">
-              {formatPrice(
-                blocks.reduce(
-                  (total, block) =>
-                    total + block.entries.reduce((s, e) => s + calcEntryTotal(e, rates), 0),
-                  0,
-                ),
-              )}{" "}
-              TRY
-            </span>
+          <div className="space-y-1 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-text">Genel Toplam</span>
+              <span className="text-lg font-bold text-primary">
+                {formatPrice(
+                  blocks.reduce(
+                    (total, block) =>
+                      total + block.entries.reduce((s, e) => s + calcEntryTotal(e, rates), 0),
+                    0,
+                  ),
+                )}{" "}
+                TRY
+              </span>
+            </div>
+            <p className="text-[11px] text-muted">Bu hesaplama degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
           </div>
         )}
         <div className="flex justify-end">

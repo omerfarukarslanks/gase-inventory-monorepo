@@ -17,7 +17,6 @@ export type InventoryReceiveItem = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal: number;
   campaignCode?: string;
 };
 
@@ -74,7 +73,6 @@ export type InventorySellPayload = {
   discountAmount?: number;
   taxPercent?: number;
   taxAmount?: number;
-  lineTotal: number;
   campaignCode?: string;
   saleId?: string;
   saleLineId?: string;

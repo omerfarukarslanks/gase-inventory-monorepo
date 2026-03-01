@@ -54,7 +54,6 @@ export type PriceFormState = {
   discountAmount: string;
   taxPercent: string;
   taxAmount: string;
-  lineTotal: string;
 };
 
 const EMPTY_PRICE_FORM: PriceFormState = {
@@ -66,7 +65,6 @@ const EMPTY_PRICE_FORM: PriceFormState = {
   discountAmount: "",
   taxPercent: "",
   taxAmount: "",
-  lineTotal: "",
 };
 
 type PriceDrawerProps = {
@@ -164,7 +162,6 @@ export default function PriceDrawer({
             : initial?.taxAmount != null
               ? String(initial.taxAmount)
               : "",
-        lineTotal: "",
       });
       setFormError("");
     }
@@ -197,12 +194,10 @@ export default function PriceDrawer({
     const discountAmount = form.discountAmount ? Number(form.discountAmount) : undefined;
     const taxPercent = form.taxPercent ? Number(form.taxPercent) : undefined;
     const taxAmount = form.taxAmount ? Number(form.taxAmount) : undefined;
-    const lineTotal = calculatedLineTotal;
 
     const payload: StorePricePayload = {
       unitPrice,
       currency: form.currency,
-      lineTotal,
       applyToAllStores: effectiveApplyToAllStores || undefined,
       ...(effectiveStoreIds.length > 0 && !effectiveApplyToAllStores && { storeIds: effectiveStoreIds }),
       ...(discountPercent != null && { discountPercent }),
@@ -384,6 +379,7 @@ export default function PriceDrawer({
             readOnly
             className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text2 outline-none disabled:cursor-not-allowed"
           />
+          <p className="mt-1 text-[11px] text-muted">Bu hesaplama degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
         </Field>
 
         {formError && <p className="text-sm text-error">{formError}</p>}

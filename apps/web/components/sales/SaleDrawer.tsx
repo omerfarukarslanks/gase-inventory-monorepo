@@ -594,6 +594,7 @@ export default function SaleDrawer({
               </div>
             )}
 
+            <p className="mt-2 text-[11px] text-muted">Gosterilen satir toplamlari degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
             {errors.lines && <p className="mt-2 text-xs text-error">{errors.lines}</p>}
           </section>
         )}

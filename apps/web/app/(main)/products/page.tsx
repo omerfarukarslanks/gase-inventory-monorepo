@@ -254,7 +254,6 @@ export default function ProductsPage() {
         currency: product.currency,
         unitPrice: Number(product.unitPrice) || 0,
         purchasePrice: Number(product.purchasePrice) || 0,
-        lineTotal: Number(product.lineTotal) || Number(product.unitPrice) || 0,
         ...(product.taxPercent != null
           ? { taxPercent: Number(product.taxPercent) || 0 }
           : product.taxAmount != null
@@ -614,7 +613,6 @@ export default function ProductsPage() {
     currency: form.currency,
     unitPrice: Number(form.unitPrice),
     purchasePrice: Number(form.purchasePrice),
-    lineTotal: calculatedLineTotal ?? 0,
     ...(form.taxMode === "percent"
       ? form.taxPercent
         ? { taxPercent: Number(form.taxPercent) }
