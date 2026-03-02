@@ -7,6 +7,7 @@ import type {
   InventoryStoreStockItem,
 } from "@/lib/inventory";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
+import RowActionMenu from "@/components/ui/RowActionMenu";
 import { cn } from "@/lib/cn";
 
 function formatNumber(value: number | null | undefined) {
@@ -36,7 +37,27 @@ function TransferIcon() {
   );
 }
 
-/* ── Variant action params ── */
+function ReceiveIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3v12" />
+      <path d="m8 11 4 4 4-4" />
+      <path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4" />
+    </svg>
+  );
+}
+
+/* ── Action params ── */
 
 export type VariantActionParams = {
   productVariantId: string;
@@ -45,18 +66,26 @@ export type VariantActionParams = {
   stores: InventoryStoreStockItem[];
 };
 
+export type ProductActionParams = {
+  productId: string;
+  productName: string;
+  variants: InventoryVariantStockItem[];
+};
+
 /* ── Virtual variant rows ── */
 
 function VirtualVariantRows({
   variants,
   productName,
   getVariantStores,
+  onReceive,
   onAdjust,
   onTransfer,
 }: {
   variants: InventoryVariantStockItem[];
   productName: string;
   getVariantStores: (variant: InventoryVariantStockItem) => InventoryStoreStockItem[];
+  onReceive: (params: VariantActionParams) => void;
   onAdjust: (params: VariantActionParams) => void;
   onTransfer: (params: VariantActionParams) => void;
 }) {
@@ -97,7 +126,7 @@ function VirtualVariantRows({
           {visibleVariants.map((variant) => (
             <div
               key={variant.productVariantId}
-              className="grid h-11 grid-cols-[1.5fr_1fr_0.8fr] items-center border-b border-border px-3 text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
+              className="grid h-11 grid-cols-[1.5fr_1fr_1.2fr] items-center border-b border-border px-3 text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
             >
               <div className="min-w-0">
                 <div className="truncate text-xs font-medium text-text">
@@ -107,6 +136,14 @@ function VirtualVariantRows({
               </div>
               <div className="text-right text-text">{formatNumber(variant.totalQuantity)}</div>
               <div className="flex items-center justify-end gap-1 text-right">
+                <button
+                  type="button"
+                  onClick={() => onReceive(makeParams(variant))}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                  title="Stok Girisi"
+                >
+                  <ReceiveIcon />
+                </button>
                 <button
                   type="button"
                   onClick={() => onAdjust(makeParams(variant))}
@@ -139,8 +176,12 @@ type StockTableProps = {
   loading: boolean;
   error: string;
   getVariantStores: (variant: InventoryVariantStockItem) => InventoryStoreStockItem[];
+  onReceive: (params: VariantActionParams) => void;
   onAdjust: (params: VariantActionParams) => void;
   onTransfer: (params: VariantActionParams) => void;
+  onProductReceive: (params: ProductActionParams) => void;
+  onProductAdjust: (params: ProductActionParams) => void;
+  onProductTransfer: (params: ProductActionParams) => void;
   footer?: ReactNode;
 };
 
@@ -149,8 +190,12 @@ export default function StockTable({
   loading,
   error,
   getVariantStores,
+  onReceive,
   onAdjust,
   onTransfer,
+  onProductReceive,
+  onProductAdjust,
+  onProductTransfer,
   footer,
 }: StockTableProps) {
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -184,9 +229,8 @@ export default function StockTable({
               <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="w-10 px-2 py-3"></th>
                 <th className="px-4 py-3">Urun</th>
-                <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-                  Miktar
-                </th>
+                <th className="px-4 py-3 text-right">Miktar</th>
+                <th className="px-4 py-3 text-right">Islem</th>
               </tr>
             </thead>
             <tbody>
@@ -223,24 +267,62 @@ export default function StockTable({
                       <td className="px-4 py-3 text-sm font-medium text-text">
                         {product.productName}
                       </td>
-                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right text-sm text-text shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                      <td className="px-4 py-3 text-right text-sm text-text">
                         {formatNumber(product.totalQuantity)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <RowActionMenu
+                          menuMinWidth={180}
+                          items={[
+                            {
+                              key: "receive",
+                              label: "Stok Girisi",
+                              onClick: () =>
+                                onProductReceive({
+                                  productId: product.productId,
+                                  productName: product.productName,
+                                  variants: product.variants ?? [],
+                                }),
+                            },
+                            {
+                              key: "adjust",
+                              label: "Stok Duzeltme",
+                              onClick: () =>
+                                onProductAdjust({
+                                  productId: product.productId,
+                                  productName: product.productName,
+                                  variants: product.variants ?? [],
+                                }),
+                            },
+                            {
+                              key: "transfer",
+                              label: "Transfer",
+                              onClick: () =>
+                                onProductTransfer({
+                                  productId: product.productId,
+                                  productName: product.productName,
+                                  variants: product.variants ?? [],
+                                }),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
 
                     {expanded && (
                       <tr className="border-b border-border bg-surface/70">
-                        <td colSpan={3} className="px-4 py-3">
+                        <td colSpan={4} className="px-4 py-3">
                           <div className="overflow-hidden rounded-xl border border-border bg-surface">
-                            <div className="grid grid-cols-[1.5fr_1fr_0.8fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
+                            <div className="grid grid-cols-[1.5fr_1fr_1.2fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
                               <div className="px-3 py-2">Varyant</div>
                               <div className="px-3 py-2 text-right">Miktar</div>
-                              <div className="px-3 py-2 text-right">Islem</div>
+                              <div className="px-3 py-2 text-right">Islemler</div>
                             </div>
                             <VirtualVariantRows
                               variants={product.variants ?? []}
                               productName={product.productName}
                               getVariantStores={getVariantStores}
+                              onReceive={onReceive}
                               onAdjust={onAdjust}
                               onTransfer={onTransfer}
                             />

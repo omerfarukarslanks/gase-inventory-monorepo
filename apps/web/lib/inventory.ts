@@ -5,7 +5,9 @@ import type { Currency } from "@/lib/products";
 
 export type InventoryReceiveItem = {
   storeId: string;
-  productVariantId: string;
+  productVariantId?: string;
+  productId?: string;
+  supplierId?: string;
   quantity: number;
   meta?: {
     reason?: string;
@@ -23,12 +25,28 @@ export type InventoryReceiveItem = {
 export type InventoryTransferPayload = {
   fromStoreId: string;
   toStoreId: string;
+  productVariantId?: string;
+  productId?: string;
+  quantity: number;
+  meta?: {
+    reason?: string;
+    note?: string;
+  };
+};
+
+export type InventoryTransferItem = {
+  fromStoreId: string;
+  toStoreId: string;
   productVariantId: string;
   quantity: number;
   meta?: {
     reason?: string;
     note?: string;
   };
+};
+
+export type InventoryTransferBulkPayload = {
+  items: InventoryTransferItem[];
 };
 
 export type InventoryAdjustItem = {
@@ -43,7 +61,8 @@ export type InventoryAdjustItem = {
 
 export type InventoryAdjustSinglePayload = {
   storeId?: string;
-  productVariantId: string;
+  productVariantId?: string;
+  productId?: string;
   newQuantity: number;
   applyToAllStores?: boolean;
   meta?: {
@@ -222,6 +241,15 @@ export async function sellInventory(
   payload: InventorySellPayload,
 ): Promise<unknown> {
   return apiFetch<unknown>("/inventory/sell", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function transferInventoryBulk(
+  payload: InventoryTransferBulkPayload,
+): Promise<unknown> {
+  return apiFetch<unknown>("/inventory/transfer/bulk", {
     method: "POST",
     body: JSON.stringify(payload),
   });
