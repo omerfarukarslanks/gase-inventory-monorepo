@@ -17,6 +17,7 @@ import {
 } from "@/lib/products";
 import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
 import { getSessionUser, getSessionUserStoreIds } from "@/lib/authz";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getAllProductCategories } from "@/lib/product-categories";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
@@ -47,6 +48,8 @@ import ProductDrawerStep2 from "@/components/products/ProductDrawerStep2";
 /* ── Component ── */
 
 export default function ProductsPage() {
+  const { can } = usePermissions();
+
   /* List state */
   const [products, setProducts] = useState<Product[]>([]);
   const [meta, setMeta] = useState<ProductsListMeta | null>(null);
@@ -845,6 +848,7 @@ export default function ProductsPage() {
         showAdvancedFilters={showAdvancedFilters}
         onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
         onNewProduct={onOpenDrawer}
+        canCreate={can("PRODUCT_CREATE")}
         currencyFilter={currencyFilter}
         onCurrencyFilterChange={setCurrencyFilter}
         productStatusFilter={productStatusFilter}
@@ -877,6 +881,8 @@ export default function ProductsPage() {
         onToggleActive={onToggleProductActive}
         onToggleVariantActive={onToggleVariantActive}
         onProductPrice={openProductPriceDrawer}
+        canUpdate={can("PRODUCT_UPDATE")}
+        canPriceUpdate={can("STOCK_PRICE_UPDATE")}
         footer={
           meta && !loading && !error ? (
             <ProductPagination

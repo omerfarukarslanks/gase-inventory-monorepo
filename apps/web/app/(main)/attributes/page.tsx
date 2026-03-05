@@ -21,6 +21,7 @@ import {
 } from "@/lib/attributes";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { formatDate } from "@/lib/format";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
@@ -45,10 +46,12 @@ function VirtualAttributeValuesTable({
   values,
   togglingValueIds,
   onToggleValueStatus,
+  canManage,
 }: {
   values: AttributeValue[];
   togglingValueIds: string[];
   onToggleValueStatus: (value: AttributeValue, next: boolean) => void;
+  canManage: boolean;
 }) {
   const rowHeight = 40;
   const containerHeight = 240;
@@ -88,11 +91,13 @@ function VirtualAttributeValuesTable({
                   </span>
                 </div>
                 <div className="px-3 py-2 text-right">
-                  <ToggleSwitch
-                    checked={value.isActive}
-                    onChange={(next) => onToggleValueStatus(value, next)}
-                    disabled={togglingValueIds.includes(value.id)}
-                  />
+                  {canManage && (
+                    <ToggleSwitch
+                      checked={value.isActive}
+                      onChange={(next) => onToggleValueStatus(value, next)}
+                      disabled={togglingValueIds.includes(value.id)}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -105,6 +110,8 @@ function VirtualAttributeValuesTable({
 
 export default function AttributesPage() {
   const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
+  const canManage = can("PRODUCT_ATTRIBUTE_MANAGE");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -412,12 +419,14 @@ export default function AttributesPage() {
             variant="secondary"
             className="w-full px-3 py-2 lg:w-auto"
           />
-          <Button
-            label="Yeni Ozellik"
-            onClick={openCreateDrawer}
-            variant="primarySoft"
-            className="w-full px-3 py-2 lg:w-auto"
-          />
+          {canManage && (
+            <Button
+              label="Yeni Ozellik"
+              onClick={openCreateDrawer}
+              variant="primarySoft"
+              className="w-full px-3 py-2 lg:w-auto"
+            />
+          )}
         </div>
       </div>
 
@@ -542,20 +551,24 @@ export default function AttributesPage() {
                         <td className="px-4 py-3 text-sm text-text2">{formatDate(attribute.updatedAt)}</td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/40">
                           <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openEditDrawer(attribute)}
-                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
-                              aria-label="Ozellik duzenle"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </button>
-                            <ToggleSwitch
-                              checked={attribute.isActive}
-                              onChange={(next) => toggleAttributeStatus(attribute, next)}
-                              disabled={togglingAttributeIds.includes(attribute.id)}
-                            />
+                            {canManage && (
+                              <button
+                                type="button"
+                                onClick={() => openEditDrawer(attribute)}
+                                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
+                                aria-label="Ozellik duzenle"
+                                title="Duzenle"
+                              >
+                                <EditIcon />
+                              </button>
+                            )}
+                            {canManage && (
+                              <ToggleSwitch
+                                checked={attribute.isActive}
+                                onChange={(next) => toggleAttributeStatus(attribute, next)}
+                                disabled={togglingAttributeIds.includes(attribute.id)}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -573,6 +586,7 @@ export default function AttributesPage() {
                                 values={values}
                                 togglingValueIds={togglingValueIds}
                                 onToggleValueStatus={toggleAttributeValueStatus}
+                                canManage={canManage}
                               />
                             )}
                           </td>

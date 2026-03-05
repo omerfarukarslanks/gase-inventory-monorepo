@@ -24,6 +24,7 @@ import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { formatPrice } from "@/lib/format";
@@ -69,6 +70,7 @@ function formatCount(value: number | string | null | undefined): string {
 
 export default function CustomersPage() {
   const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
   const isMobile = !useMediaQuery();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -363,12 +365,14 @@ export default function CustomersPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          <Button
-            label="Yeni Musteri"
-            onClick={onOpenDrawer}
-            variant="primarySoft"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
+          {can("CUSTOMER_CREATE") && (
+            <Button
+              label="Yeni Musteri"
+              onClick={onOpenDrawer}
+              variant="primarySoft"
+              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+            />
+          )}
         </div>
       </div>
 
@@ -465,19 +469,23 @@ export default function CustomersPage() {
                             >
                               <PriceIcon />
                             </IconButton>
-                            <IconButton
-                              onClick={() => onEditCustomer(customer.id)}
-                              disabled={togglingCustomerIds.includes(customer.id)}
-                              aria-label="Musteri duzenle"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <ToggleSwitch
-                              checked={Boolean(customer.isActive)}
-                              onChange={(next) => onToggleCustomerActive(customer, next)}
-                              disabled={togglingCustomerIds.includes(customer.id)}
-                            />
+                            {can("CUSTOMER_UPDATE") && (
+                              <IconButton
+                                onClick={() => onEditCustomer(customer.id)}
+                                disabled={togglingCustomerIds.includes(customer.id)}
+                                aria-label="Musteri duzenle"
+                                title="Duzenle"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            )}
+                            {can("CUSTOMER_UPDATE") && (
+                              <ToggleSwitch
+                                checked={Boolean(customer.isActive)}
+                                onChange={(next) => onToggleCustomerActive(customer, next)}
+                                disabled={togglingCustomerIds.includes(customer.id)}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>

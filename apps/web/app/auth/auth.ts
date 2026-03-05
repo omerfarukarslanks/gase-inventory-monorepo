@@ -14,6 +14,7 @@ export interface LoginUserResponse {
   tenantId: string;
   storeId?: string;
   storeIds?: string[];
+  permissions?: string[];
   userStores?: Array<{
     storeId?: string;
     store?: {

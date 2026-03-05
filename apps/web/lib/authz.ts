@@ -5,10 +5,55 @@ export enum UserRole {
   STAFF = "STAFF",
 }
 
+export type PermissionName =
+  | "SALE_READ"
+  | "SALE_CREATE"
+  | "SALE_UPDATE"
+  | "SALE_CANCEL"
+  | "SALE_LINE_MANAGE"
+  | "SALE_RETURN"
+  | "SALE_RECEIPT_READ"
+  | "SALE_PAYMENT_MANAGE"
+  | "PRODUCT_READ"
+  | "PRODUCT_CREATE"
+  | "PRODUCT_UPDATE"
+  | "PRODUCT_DELETE"
+  | "PRODUCT_ATTRIBUTE_MANAGE"
+  | "PRODUCT_CATEGORY_MANAGE"
+  | "STOCK_LIST_READ"
+  | "STOCK_RECEIVE"
+  | "STOCK_ADJUST"
+  | "STOCK_TRANSFER"
+  | "STOCK_PRICE_UPDATE"
+  | "STORE_READ"
+  | "STORE_CREATE"
+  | "STORE_UPDATE"
+  | "STORE_DELETE"
+  | "SUPPLIER_READ"
+  | "SUPPLIER_CREATE"
+  | "SUPPLIER_UPDATE"
+  | "SUPPLIER_DELETE"
+  | "CUSTOMER_READ"
+  | "CUSTOMER_CREATE"
+  | "CUSTOMER_UPDATE"
+  | "CUSTOMER_DELETE"
+  | "USER_READ"
+  | "USER_CREATE"
+  | "USER_UPDATE"
+  | "USER_DELETE"
+  | "USER_ROLE_ASSIGN"
+  | "REPORT_SALES"
+  | "REPORT_STOCK"
+  | "REPORT_FINANCE"
+  | "AI_CHAT"
+  | "TENANT_SETTINGS"
+  | "PERMISSION_MANAGE";
+
 export type SessionUser = {
   role?: string;
   storeType?: string;
   storeId?: string;
+  permissions?: string[];
   store?: {
     id?: string;
     storeType?: string;
@@ -58,6 +103,16 @@ export function getSessionUser(): SessionUser | null {
   } catch {
     return null;
   }
+}
+
+export function getSessionUserPermissions(): string[] {
+  const user = getSessionUser();
+  return user?.permissions ?? [];
+}
+
+export function hasPermission(permission: PermissionName): boolean {
+  const permissions = getSessionUserPermissions();
+  return permissions.includes(permission);
 }
 
 function asStoreType(storeType?: string | null): SessionStoreType | null {

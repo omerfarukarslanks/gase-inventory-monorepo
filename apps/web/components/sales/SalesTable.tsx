@@ -24,6 +24,12 @@ type SalesTableProps = {
   onReturn: (sale: SaleListItem) => void;
   onDownloadReceipt: (saleId: string) => void;
   onManageLines: (sale: SaleListItem) => void;
+  canUpdate?: boolean;
+  canCancel?: boolean;
+  canManageLines?: boolean;
+  canReturn?: boolean;
+  canDownloadReceipt?: boolean;
+  canManagePayments?: boolean;
   footer?: ReactNode;
 };
 
@@ -80,11 +86,13 @@ function VirtualSalePaymentsTable({
   payments,
   onEditPayment,
   onDeletePayment,
+  canManagePayments,
 }: {
   saleId: string;
   payments: SalePayment[];
   onEditPayment: (saleId: string, payment: SalePayment) => void;
   onDeletePayment: (saleId: string, payment: SalePayment) => void;
+  canManagePayments: boolean;
 }) {
   const rowHeight = 44;
   const containerHeight = 280;
@@ -126,7 +134,7 @@ function VirtualSalePaymentsTable({
                 <div className="px-3 py-2.5">{payment.currency ?? "-"}</div>
                 <div className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</div>
                 <div className="flex items-center justify-end gap-1 px-3 py-2.5">
-                  {payment.status !== "CANCELLED" && (
+                  {canManagePayments && payment.status !== "CANCELLED" && (
                     <button
                       type="button"
                       onClick={() => onEditPayment(saleId, payment)}
@@ -137,7 +145,7 @@ function VirtualSalePaymentsTable({
                       <EditIcon />
                     </button>
                   )}
-                  {payment.status !== "CANCELLED" && (
+                  {canManagePayments && payment.status !== "CANCELLED" && (
                     <button
                       type="button"
                       onClick={() => onDeletePayment(saleId, payment)}
@@ -176,6 +184,12 @@ export default function SalesTable({
   onReturn,
   onDownloadReceipt,
   onManageLines,
+  canUpdate = true,
+  canCancel = true,
+  canManageLines = true,
+  canReturn = true,
+  canDownloadReceipt = true,
+  canManagePayments = true,
   footer,
 }: SalesTableProps) {
   if (salesError) {
@@ -239,13 +253,15 @@ export default function SalesTable({
               const actionItems: RowActionMenuItem[] = [];
 
               if (isCancelledSale) {
-                actionItems.push({
-                  key: "print",
-                  label: "Yazdir",
-                  onClick: () => onDownloadReceipt(sale.id),
-                });
+                if (canDownloadReceipt) {
+                  actionItems.push({
+                    key: "print",
+                    label: "Yazdir",
+                    onClick: () => onDownloadReceipt(sale.id),
+                  });
+                }
               } else {
-                if (showAddPaymentButton) {
+                if (showAddPaymentButton && canManagePayments) {
                   actionItems.push({
                     key: "add-payment",
                     label: "Odeme Ekle",
@@ -254,32 +270,42 @@ export default function SalesTable({
                 }
 
                 if (isConfirmedSale) {
-                  actionItems.push({
-                    key: "edit",
-                    label: "Duzenle",
-                    onClick: () => onEdit(sale),
-                  });
-                  actionItems.push({
-                    key: "manage-lines",
-                    label: "Satirlari Yonet",
-                    onClick: () => onManageLines(sale),
-                  });
-                  actionItems.push({
-                    key: "return",
-                    label: "Iade Olustur",
-                    onClick: () => onReturn(sale),
-                  });
-                  actionItems.push({
-                    key: "print",
-                    label: "Yazdir",
-                    onClick: () => onDownloadReceipt(sale.id),
-                  });
-                  actionItems.push({
-                    key: "cancel",
-                    label: "Iptal Et",
-                    tone: "danger",
-                    onClick: () => onOpenCancel(sale),
-                  });
+                  if (canUpdate) {
+                    actionItems.push({
+                      key: "edit",
+                      label: "Duzenle",
+                      onClick: () => onEdit(sale),
+                    });
+                  }
+                  if (canManageLines) {
+                    actionItems.push({
+                      key: "manage-lines",
+                      label: "Satirlari Yonet",
+                      onClick: () => onManageLines(sale),
+                    });
+                  }
+                  if (canReturn) {
+                    actionItems.push({
+                      key: "return",
+                      label: "Iade Olustur",
+                      onClick: () => onReturn(sale),
+                    });
+                  }
+                  if (canDownloadReceipt) {
+                    actionItems.push({
+                      key: "print",
+                      label: "Yazdir",
+                      onClick: () => onDownloadReceipt(sale.id),
+                    });
+                  }
+                  if (canCancel) {
+                    actionItems.push({
+                      key: "cancel",
+                      label: "Iptal Et",
+                      tone: "danger",
+                      onClick: () => onOpenCancel(sale),
+                    });
+                  }
                 }
               }
 
@@ -378,6 +404,7 @@ export default function SalesTable({
                                 payments={payments}
                                 onEditPayment={onEditPayment}
                                 onDeletePayment={onDeletePayment}
+                                canManagePayments={canManagePayments}
                               />
                             </div>
                           )}

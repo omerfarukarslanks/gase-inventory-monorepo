@@ -5,24 +5,34 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
+import type { PermissionName } from "@/lib/authz";
 
-const items = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  badge?: string;
+  permission?: PermissionName;
+  anyPermission?: PermissionName[];
+};
+
+const items: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: "D" },
-  { href: "/products", label: "Urunler", icon: "U" },
+  { href: "/products", label: "Urunler", icon: "U", permission: "PRODUCT_READ" },
   { href: "/product-packages", label: "Paketler", icon: "PK" },
-  { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3" },
-  { href: "/sales", label: "Satislar", icon: "TL" },
-  { href: "/chat", label: "AI Chat", icon: "AI" },
+  { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3", permission: "STOCK_LIST_READ" },
+  { href: "/sales", label: "Satislar", icon: "TL", permission: "SALE_READ" },
+  { href: "/chat", label: "AI Chat", icon: "AI", permission: "AI_CHAT" },
 ];
 
-const adminItems = [
-  { href: "/attributes", label: "Ozellikler", icon: "O" },
-  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK" },
-  { href: "/stores", label: "Magazalar", icon: "M" },
-  { href: "/suppliers", label: "Tedarikciler", icon: "T" },
-  { href: "/customers", label: "Musteriler", icon: "C" },
-  { href: "/users", label: "Kullanicilar", icon: "K" },
-  { href: "/reports", label: "Raporlar", icon: "R" },
+const adminItems: NavItem[] = [
+  { href: "/attributes", label: "Ozellikler", icon: "O", permission: "PRODUCT_ATTRIBUTE_MANAGE" },
+  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK", permission: "PRODUCT_CATEGORY_MANAGE" },
+  { href: "/stores", label: "Magazalar", icon: "M", permission: "STORE_READ" },
+  { href: "/suppliers", label: "Tedarikciler", icon: "T", permission: "SUPPLIER_READ" },
+  { href: "/customers", label: "Musteriler", icon: "C", permission: "CUSTOMER_READ" },
+  { href: "/users", label: "Kullanicilar", icon: "K", permission: "USER_READ" },
+  { href: "/reports", label: "Raporlar", icon: "R", anyPermission: ["REPORT_SALES", "REPORT_STOCK", "REPORT_FINANCE"] },
 ];
 
 type LocalUser = {
@@ -30,6 +40,7 @@ type LocalUser = {
   surname?: string;
   role?: string;
   storeType?: string;
+  permissions?: string[];
   store?: {
     storeType?: string;
   };
@@ -81,6 +92,7 @@ export default function Sidebar({
   const [displayName, setDisplayName] = useState("Kullanici");
   const [displayRole, setDisplayRole] = useState("Admin");
   const [canSeePackages, setCanSeePackages] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -89,6 +101,7 @@ export default function Sidebar({
         setDisplayName("Kullanici");
         setDisplayRole("User");
         setCanSeePackages(false);
+        setUserPermissions([]);
         return;
       }
       const parsed = JSON.parse(rawUser) as LocalUser;
@@ -96,12 +109,20 @@ export default function Sidebar({
       setDisplayName(fullName || "Kullanici");
       setDisplayRole(parsed.role || "Admin");
       setCanSeePackages(resolveUserStoreType(parsed) === "WHOLESALE");
+      setUserPermissions(parsed.permissions ?? []);
     } catch {
       setDisplayName("Kullanici");
       setDisplayRole("User");
       setCanSeePackages(false);
+      setUserPermissions([]);
     }
   }, []);
+
+  const canSeeItem = (item: NavItem): boolean => {
+    if (item.permission && !userPermissions.includes(item.permission)) return false;
+    if (item.anyPermission && !item.anyPermission.some((p) => userPermissions.includes(p))) return false;
+    return true;
+  };
 
   useEffect(() => {
     const onDocClick = (event: MouseEvent) => {
@@ -187,7 +208,7 @@ export default function Sidebar({
 
         <div className="space-y-1">
           {items
-            .filter((it) => canSeePackages || it.href !== "/product-packages")
+            .filter((it) => canSeeItem(it) && (canSeePackages || it.href !== "/product-packages"))
             .map((it) => (
             <Link
               key={it.href}
@@ -226,7 +247,7 @@ export default function Sidebar({
         </div>
 
         <div className="space-y-1">
-          {adminItems.map((it) => (
+          {adminItems.filter(canSeeItem).map((it) => (
             <Link
               key={it.href}
               href={it.href}

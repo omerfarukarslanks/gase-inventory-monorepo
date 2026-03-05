@@ -21,6 +21,7 @@ import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
@@ -42,6 +43,7 @@ const EMPTY_FORM: SupplierForm = {
 
 export default function SuppliersPage() {
   const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
   const isMobile = !useMediaQuery();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -264,12 +266,14 @@ export default function SuppliersPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          <Button
-            label="Yeni Tedarikci"
-            onClick={onOpenDrawer}
-            variant="primarySoft"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
+          {can("SUPPLIER_CREATE") && (
+            <Button
+              label="Yeni Tedarikci"
+              onClick={onOpenDrawer}
+              variant="primarySoft"
+              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+            />
+          )}
         </div>
       </div>
 
@@ -350,19 +354,23 @@ export default function SuppliersPage() {
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
-                            <IconButton
-                              onClick={() => onEditSupplier(supplier.id)}
-                              disabled={togglingSupplierIds.includes(supplier.id)}
-                              aria-label="Tedarikci duzenle"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <ToggleSwitch
-                              checked={Boolean(supplier.isActive)}
-                              onChange={(next) => onToggleSupplierActive(supplier, next)}
-                              disabled={togglingSupplierIds.includes(supplier.id)}
-                            />
+                            {can("SUPPLIER_UPDATE") && (
+                              <IconButton
+                                onClick={() => onEditSupplier(supplier.id)}
+                                disabled={togglingSupplierIds.includes(supplier.id)}
+                                aria-label="Tedarikci duzenle"
+                                title="Duzenle"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            )}
+                            {can("SUPPLIER_UPDATE") && (
+                              <ToggleSwitch
+                                checked={Boolean(supplier.isActive)}
+                                onChange={(next) => onToggleSupplierActive(supplier, next)}
+                                disabled={togglingSupplierIds.includes(supplier.id)}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>

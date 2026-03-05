@@ -22,6 +22,7 @@ import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Currency } from "@/lib/products";
 import { CURRENCY_OPTIONS, STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
@@ -50,6 +51,7 @@ const EMPTY_FORM: StoreForm = {
 
 export default function StoresPage() {
   const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
   const isMobile = !useMediaQuery();
 
   const [stores, setStores] = useState<Store[]>([]);
@@ -309,12 +311,14 @@ export default function StoresPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          <Button
-            label="New Store"
-            onClick={onOpenDrawer}
-            variant="primarySoft"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
+          {can("STORE_CREATE") && (
+            <Button
+              label="New Store"
+              onClick={onOpenDrawer}
+              variant="primarySoft"
+              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+            />
+          )}
         </div>
       </div>
 
@@ -382,19 +386,23 @@ export default function StoresPage() {
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
                       <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
-                          <IconButton
-                            onClick={() => onEditStore(store.id)}
-                            disabled={togglingStoreIds.includes(store.id)}
-                            aria-label="Edit store"
-                            title="Duzenle"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <ToggleSwitch
-                            checked={store.isActive}
-                            onChange={(next) => onToggleStoreActive(store, next)}
-                            disabled={togglingStoreIds.includes(store.id)}
-                          />
+                          {can("STORE_UPDATE") && (
+                            <IconButton
+                              onClick={() => onEditStore(store.id)}
+                              disabled={togglingStoreIds.includes(store.id)}
+                              aria-label="Edit store"
+                              title="Duzenle"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          )}
+                          {can("STORE_UPDATE") && (
+                            <ToggleSwitch
+                              checked={store.isActive}
+                              onChange={(next) => onToggleStoreActive(store, next)}
+                              disabled={togglingStoreIds.includes(store.id)}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -81,6 +81,9 @@ function VirtualVariantRows({
   onReceive,
   onAdjust,
   onTransfer,
+  canReceive,
+  canAdjust,
+  canTransfer,
 }: {
   variants: InventoryVariantStockItem[];
   productName: string;
@@ -88,6 +91,9 @@ function VirtualVariantRows({
   onReceive: (params: VariantActionParams) => void;
   onAdjust: (params: VariantActionParams) => void;
   onTransfer: (params: VariantActionParams) => void;
+  canReceive: boolean;
+  canAdjust: boolean;
+  canTransfer: boolean;
 }) {
   const rowHeight = 44;
   const containerHeight = 280;
@@ -136,30 +142,36 @@ function VirtualVariantRows({
               </div>
               <div className="text-right text-text">{formatNumber(variant.totalQuantity)}</div>
               <div className="flex items-center justify-end gap-1 text-right">
-                <button
-                  type="button"
-                  onClick={() => onReceive(makeParams(variant))}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                  title="Stok Girisi"
-                >
-                  <ReceiveIcon />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAdjust(makeParams(variant))}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                  title="Stok Duzeltme"
-                >
-                  <EditIcon />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onTransfer(makeParams(variant))}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                  title="Transfer"
-                >
-                  <TransferIcon />
-                </button>
+                {canReceive && (
+                  <button
+                    type="button"
+                    onClick={() => onReceive(makeParams(variant))}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                    title="Stok Girisi"
+                  >
+                    <ReceiveIcon />
+                  </button>
+                )}
+                {canAdjust && (
+                  <button
+                    type="button"
+                    onClick={() => onAdjust(makeParams(variant))}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                    title="Stok Duzeltme"
+                  >
+                    <EditIcon />
+                  </button>
+                )}
+                {canTransfer && (
+                  <button
+                    type="button"
+                    onClick={() => onTransfer(makeParams(variant))}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
+                    title="Transfer"
+                  >
+                    <TransferIcon />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -182,6 +194,9 @@ type StockTableProps = {
   onProductReceive: (params: ProductActionParams) => void;
   onProductAdjust: (params: ProductActionParams) => void;
   onProductTransfer: (params: ProductActionParams) => void;
+  canReceive?: boolean;
+  canAdjust?: boolean;
+  canTransfer?: boolean;
   footer?: ReactNode;
 };
 
@@ -196,6 +211,9 @@ export default function StockTable({
   onProductReceive,
   onProductAdjust,
   onProductTransfer,
+  canReceive = true,
+  canAdjust = true,
+  canTransfer = true,
   footer,
 }: StockTableProps) {
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
@@ -277,6 +295,7 @@ export default function StockTable({
                             {
                               key: "receive",
                               label: "Stok Girisi",
+                              hidden: !canReceive,
                               onClick: () =>
                                 onProductReceive({
                                   productId: product.productId,
@@ -287,6 +306,7 @@ export default function StockTable({
                             {
                               key: "adjust",
                               label: "Stok Duzeltme",
+                              hidden: !canAdjust,
                               onClick: () =>
                                 onProductAdjust({
                                   productId: product.productId,
@@ -297,6 +317,7 @@ export default function StockTable({
                             {
                               key: "transfer",
                               label: "Transfer",
+                              hidden: !canTransfer,
                               onClick: () =>
                                 onProductTransfer({
                                   productId: product.productId,
@@ -325,6 +346,9 @@ export default function StockTable({
                               onReceive={onReceive}
                               onAdjust={onAdjust}
                               onTransfer={onTransfer}
+                              canReceive={canReceive}
+                              canAdjust={canAdjust}
+                              canTransfer={canTransfer}
                             />
                           </div>
                         </td>

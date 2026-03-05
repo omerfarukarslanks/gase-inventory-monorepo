@@ -13,6 +13,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
@@ -23,6 +24,7 @@ const SortDescIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" he
 
 export default function UsersPage() {
     const accessChecked = useAdminGuard();
+    const { can } = usePermissions();
     const isMobile = !useMediaQuery();
     const stores = useStores();
 
@@ -284,12 +286,14 @@ export default function UsersPage() {
                         variant="secondary"
                         className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
                     />
-                    <Button
-                        label="Yeni Kullanıcı"
-                        onClick={openCreate}
-                        variant="primarySoft"
-                        className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-                    />
+                    {can("USER_CREATE") && (
+                        <Button
+                            label="Yeni Kullanıcı"
+                            onClick={openCreate}
+                            variant="primarySoft"
+                            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+                        />
+                    )}
                 </div>
             </div>
 
@@ -384,19 +388,23 @@ export default function UsersPage() {
                                         </td>
                                         <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
                                             <div className="inline-flex items-center gap-2">
-                                                <IconButton
-                                                    onClick={() => openEdit(user)}
-                                                    disabled={togglingUserIds.includes(user.id)}
-                                                    aria-label="Kullanici duzenle"
-                                                    title="Duzenle"
-                                                >
-                                                    <EditIcon />
-                                                </IconButton>
-                                                <ToggleSwitch
-                                                    checked={Boolean(user.isActive)}
-                                                    onChange={(next) => onToggleUserActive(user, next)}
-                                                    disabled={togglingUserIds.includes(user.id)}
-                                                />
+                                                {can("USER_UPDATE") && (
+                                                    <IconButton
+                                                        onClick={() => openEdit(user)}
+                                                        disabled={togglingUserIds.includes(user.id)}
+                                                        aria-label="Kullanici duzenle"
+                                                        title="Duzenle"
+                                                    >
+                                                        <EditIcon />
+                                                    </IconButton>
+                                                )}
+                                                {can("USER_UPDATE") && (
+                                                    <ToggleSwitch
+                                                        checked={Boolean(user.isActive)}
+                                                        onChange={(next) => onToggleUserActive(user, next)}
+                                                        disabled={togglingUserIds.includes(user.id)}
+                                                    />
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

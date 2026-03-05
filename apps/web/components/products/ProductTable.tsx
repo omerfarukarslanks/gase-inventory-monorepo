@@ -20,11 +20,13 @@ function VirtualVariantList({
   fallbackCurrency,
   togglingVariantIds,
   onToggleVariantActive,
+  canUpdate,
 }: {
   variants: ProductVariant[];
   fallbackCurrency: string;
   togglingVariantIds: string[];
   onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
+  canUpdate: boolean;
 }) {
   const rowHeight = 64;
   const containerHeight = 240;
@@ -87,11 +89,13 @@ function VirtualVariantList({
                   {formatPercentOrAmount(variant.discountPercent, variant.discountAmount)}
                 </div>
                 <div className="flex items-center justify-end gap-1 text-right">
-                  <ToggleSwitch
-                    checked={Boolean(variant.isActive)}
-                    onChange={(next) => onToggleVariantActive(variant, next)}
-                    disabled={togglingVariantIds.includes(variant.id)}
-                  />
+                  {canUpdate && (
+                    <ToggleSwitch
+                      checked={Boolean(variant.isActive)}
+                      onChange={(next) => onToggleVariantActive(variant, next)}
+                      disabled={togglingVariantIds.includes(variant.id)}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -119,6 +123,8 @@ type ProductTableProps = {
   onToggleActive: (product: Product, next: boolean) => void;
   onToggleVariantActive: (productId: string, variant: ProductVariant, next: boolean) => void;
   onProductPrice: (product: Product) => void;
+  canUpdate?: boolean;
+  canPriceUpdate?: boolean;
   footer?: ReactNode;
 };
 
@@ -137,6 +143,8 @@ export default function ProductTable({
   onToggleActive,
   onToggleVariantActive,
   onProductPrice,
+  canUpdate = true,
+  canPriceUpdate = true,
   footer,
 }: ProductTableProps) {
   return (
@@ -248,31 +256,37 @@ export default function ProductTable({
                       </td>
                       <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => onProductPrice(product)}
-                            disabled={togglingProductIds.includes(product.id)}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors disabled:opacity-50"
-                            aria-label="Urun fiyatini duzenle"
-                            title="Fiyat Duzenle"
-                          >
-                            <PriceIcon />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onEdit(product.id)}
-                            disabled={togglingProductIds.includes(product.id)}
-                            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-                            aria-label="Urunu duzenle"
-                            title="Duzenle"
-                          >
-                            <EditIcon />
-                          </button>
-                          <ToggleSwitch
-                            checked={Boolean(product.isActive)}
-                            onChange={(next) => onToggleActive(product, next)}
-                            disabled={togglingProductIds.includes(product.id)}
-                          />
+                          {canPriceUpdate && (
+                            <button
+                              type="button"
+                              onClick={() => onProductPrice(product)}
+                              disabled={togglingProductIds.includes(product.id)}
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                              aria-label="Urun fiyatini duzenle"
+                              title="Fiyat Duzenle"
+                            >
+                              <PriceIcon />
+                            </button>
+                          )}
+                          {canUpdate && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(product.id)}
+                              disabled={togglingProductIds.includes(product.id)}
+                              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                              aria-label="Urunu duzenle"
+                              title="Duzenle"
+                            >
+                              <EditIcon />
+                            </button>
+                          )}
+                          {canUpdate && (
+                            <ToggleSwitch
+                              checked={Boolean(product.isActive)}
+                              onChange={(next) => onToggleActive(product, next)}
+                              disabled={togglingProductIds.includes(product.id)}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>,
@@ -299,6 +313,7 @@ export default function ProductTable({
                               onToggleVariantActive={(variant, next) =>
                                 onToggleVariantActive(product.id, variant, next)
                               }
+                              canUpdate={canUpdate}
                             />
                           )}
                         </td>

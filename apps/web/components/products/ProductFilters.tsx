@@ -17,6 +17,7 @@ type ProductFiltersProps = {
   showAdvancedFilters: boolean;
   onToggleAdvancedFilters: () => void;
   onNewProduct: () => void;
+  canCreate?: boolean;
   currencyFilter: Currency | "";
   onCurrencyFilterChange: (value: Currency | "") => void;
   productStatusFilter: IsActiveFilter;
@@ -40,6 +41,7 @@ export default function ProductFilters({
   showAdvancedFilters,
   onToggleAdvancedFilters,
   onNewProduct,
+  canCreate = true,
   currencyFilter,
   onCurrencyFilterChange,
   productStatusFilter,
@@ -76,12 +78,14 @@ export default function ProductFilters({
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          <Button
-            label="Yeni Urun"
-            onClick={onNewProduct}
-            variant="primarySoft"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
+          {canCreate && (
+            <Button
+              label="Yeni Urun"
+              onClick={onNewProduct}
+              variant="primarySoft"
+              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+            />
+          )}
         </div>
       </div>
 

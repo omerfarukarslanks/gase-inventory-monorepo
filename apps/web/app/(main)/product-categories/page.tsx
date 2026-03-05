@@ -22,6 +22,7 @@ import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 
@@ -57,6 +58,8 @@ function slugifyText(value: string): string {
 
 export default function ProductCategoriesPage() {
   const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
+  const canManage = can("PRODUCT_CATEGORY_MANAGE");
   const isMobile = !useMediaQuery();
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -334,12 +337,14 @@ export default function ProductCategoriesPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          <Button
-            label="Yeni Kategori"
-            onClick={onOpenDrawer}
-            variant="primarySoft"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
+          {canManage && (
+            <Button
+              label="Yeni Kategori"
+              onClick={onOpenDrawer}
+              variant="primarySoft"
+              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
+            />
+          )}
         </div>
       </div>
 
@@ -420,19 +425,23 @@ export default function ProductCategoriesPage() {
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
-                            <IconButton
-                              onClick={() => void onEditCategory(category.id)}
-                              disabled={togglingCategoryIds.includes(category.id)}
-                              aria-label="Kategori duzenle"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                            <ToggleSwitch
-                              checked={Boolean(category.isActive)}
-                              onChange={(next) => void onToggleCategoryActive(category, next)}
-                              disabled={togglingCategoryIds.includes(category.id)}
-                            />
+                            {canManage && (
+                              <IconButton
+                                onClick={() => void onEditCategory(category.id)}
+                                disabled={togglingCategoryIds.includes(category.id)}
+                                aria-label="Kategori duzenle"
+                                title="Duzenle"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            )}
+                            {canManage && (
+                              <ToggleSwitch
+                                checked={Boolean(category.isActive)}
+                                onChange={(next) => void onToggleCategoryActive(category, next)}
+                                disabled={togglingCategoryIds.includes(category.id)}
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>

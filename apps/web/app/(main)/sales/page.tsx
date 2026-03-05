@@ -9,6 +9,7 @@ import {
 import { getTenantStockSummary } from "@/lib/inventory";
 import { getPaginationValue, normalizeProducts } from "@/lib/normalize";
 import { useStores } from "@/hooks/useStores";
+import { usePermissions } from "@/hooks/usePermissions";
 import { createCustomer, type CreateCustomerRequest, type Customer } from "@/lib/customers";
 import { getProductPackages } from "@/lib/product-packages";
 import {
@@ -112,6 +113,7 @@ function resolvePackageItemStockText(item: unknown): string {
 
 export default function SalesPage() {
   const stores = useStores();
+  const { can } = usePermissions();
 
   /* ── Sales list state ── */
   const [salesReceipts, setSalesReceipts] = useState<SaleListItem[]>([]);
@@ -1270,6 +1272,7 @@ export default function SalesPage() {
         showAdvancedFilters={showSalesAdvancedFilters}
         onToggleAdvancedFilters={() => setShowSalesAdvancedFilters((prev) => !prev)}
         onNewSale={openSaleDrawer}
+        canCreate={can("SALE_CREATE")}
         isStoreScopedUser={isStoreScopedUser}
         storeOptions={storeOptions}
         salesStoreIds={salesStoreIds}
@@ -1315,6 +1318,12 @@ export default function SalesPage() {
         onReturn={(sale) => void openReturnDrawer(sale)}
         onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
         onManageLines={(sale) => void openManageLinesDrawer(sale)}
+        canUpdate={can("SALE_UPDATE")}
+        canCancel={can("SALE_CANCEL")}
+        canManageLines={can("SALE_LINE_MANAGE")}
+        canReturn={can("SALE_RETURN")}
+        canDownloadReceipt={can("SALE_RECEIPT_READ")}
+        canManagePayments={can("SALE_PAYMENT_MANAGE")}
         footer={
           salesMeta && !salesLoading && !salesError ? (
             <SalesPagination

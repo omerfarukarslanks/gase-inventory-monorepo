@@ -23,6 +23,7 @@ import type { StockEntryInitialEntry } from "@/components/inventory/StockEntryFo
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
+import { usePermissions } from "@/hooks/usePermissions";
 import { normalizeStoreItems, normalizeProducts, getPaginationValue } from "@/lib/normalize";
 
 import StockFilters from "@/components/stock/StockFilters";
@@ -133,6 +134,9 @@ export default function StockPage() {
   const [productDrawerOpen, setProductDrawerOpen] = useState(false);
   const [productDrawerOperation, setProductDrawerOperation] = useState<ProductInventoryOperation | null>(null);
   const [productDrawerTarget, setProductDrawerTarget] = useState<ProductInventoryTarget | null>(null);
+
+  /* ── Permissions ── */
+  const { can } = usePermissions();
 
   /* ── Responsive ── */
   const isMobile = !useMediaQuery();
@@ -585,6 +589,9 @@ export default function StockPage() {
         onProductReceive={(params) => openProductDrawer("receive", params)}
         onProductAdjust={(params) => openProductDrawer("adjust", params)}
         onProductTransfer={(params) => openProductDrawer("transfer", params)}
+        canReceive={can("STOCK_RECEIVE")}
+        canAdjust={can("STOCK_ADJUST")}
+        canTransfer={can("STOCK_TRANSFER")}
         footer={
           !loading && !error ? (
             <StockPagination

@@ -10,6 +10,7 @@ type SalesFiltersProps = {
   showAdvancedFilters: boolean;
   onToggleAdvancedFilters: () => void;
   onNewSale: () => void;
+  canCreate?: boolean;
   isStoreScopedUser: boolean;
   storeOptions: Array<{ value: string; label: string }>;
   salesStoreIds: string[];
@@ -41,6 +42,7 @@ export default function SalesFilters({
   showAdvancedFilters,
   onToggleAdvancedFilters,
   onNewSale,
+  canCreate = true,
   isStoreScopedUser,
   storeOptions,
   salesStoreIds,
@@ -76,12 +78,14 @@ export default function SalesFilters({
           variant="secondary"
           className="px-3 py-1.5"
         />
-        <Button
-          label="Yeni Satis"
-          onClick={onNewSale}
-          variant="primarySoft"
-          className="px-3 py-1.5"
-        />
+        {canCreate && (
+          <Button
+            label="Yeni Satis"
+            onClick={onNewSale}
+            variant="primarySoft"
+            className="px-3 py-1.5"
+          />
+        )}
       </div>
 
       {showAdvancedFilters && (
