@@ -882,7 +882,7 @@ export default function ProductsPage() {
         onToggleVariantActive={onToggleVariantActive}
         onProductPrice={openProductPriceDrawer}
         canUpdate={can("PRODUCT_UPDATE")}
-        canPriceUpdate={can("STOCK_PRICE_UPDATE")}
+        canPriceUpdate={can("PRICE_MANAGE")}
         footer={
           meta && !loading && !error ? (
             <ProductPagination

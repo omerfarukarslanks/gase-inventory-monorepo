@@ -266,7 +266,7 @@ export default function SuppliersPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          {can("SUPPLIER_CREATE") && (
+          {can("SUPPLIER_MANAGE") && (
             <Button
               label="Yeni Tedarikci"
               onClick={onOpenDrawer}
@@ -354,7 +354,7 @@ export default function SuppliersPage() {
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
-                            {can("SUPPLIER_UPDATE") && (
+                            {can("SUPPLIER_MANAGE") && (
                               <IconButton
                                 onClick={() => onEditSupplier(supplier.id)}
                                 disabled={togglingSupplierIds.includes(supplier.id)}
@@ -364,7 +364,7 @@ export default function SuppliersPage() {
                                 <EditIcon />
                               </IconButton>
                             )}
-                            {can("SUPPLIER_UPDATE") && (
+                            {can("SUPPLIER_MANAGE") && (
                               <ToggleSwitch
                                 checked={Boolean(supplier.isActive)}
                                 onChange={(next) => onToggleSupplierActive(supplier, next)}

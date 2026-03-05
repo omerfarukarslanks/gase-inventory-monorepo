@@ -32,7 +32,8 @@ const adminItems: NavItem[] = [
   { href: "/suppliers", label: "Tedarikciler", icon: "T", permission: "SUPPLIER_READ" },
   { href: "/customers", label: "Musteriler", icon: "C", permission: "CUSTOMER_READ" },
   { href: "/users", label: "Kullanicilar", icon: "K", permission: "USER_READ" },
-  { href: "/reports", label: "Raporlar", icon: "R", anyPermission: ["REPORT_SALES", "REPORT_STOCK", "REPORT_FINANCE"] },
+  { href: "/permissions", label: "Yetkiler", icon: "YT", permission: "PERMISSION_MANAGE" },
+  { href: "/reports", label: "Raporlar", icon: "R", anyPermission: ["REPORT_SALES_READ", "REPORT_STOCK_READ", "REPORT_FINANCIAL_READ"] },
 ];
 
 type LocalUser = {
