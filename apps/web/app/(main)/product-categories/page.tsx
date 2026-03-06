@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import TablePagination from "@/components/ui/TablePagination";
 import {
   createProductCategory,
   getAllProductCategories,
@@ -10,52 +11,15 @@ import {
   type ProductCategory,
   type ProductCategoriesListMeta,
 } from "@/lib/product-categories";
-import Drawer from "@/components/ui/Drawer";
-import Button from "@/components/ui/Button";
-import IconButton from "@/components/ui/IconButton";
-import InputField from "@/components/ui/InputField";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
-import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon } from "@/components/ui/icons/TableIcons";
-import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { useLang } from "@/context/LangContext";
-
-type CategoryForm = {
-  name: string;
-  slug: string;
-  description: string;
-  parentId: string;
-};
-
-const EMPTY_FORM: CategoryForm = {
-  name: "",
-  slug: "",
-  description: "",
-  parentId: "",
-};
-
-function slugifyText(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[\u00E7]/g, "c")
-    .replace(/[\u011F]/g, "g")
-    .replace(/[\u0131]/g, "i")
-    .replace(/[\u00F6]/g, "o")
-    .replace(/[\u015F]/g, "s")
-    .replace(/[\u00FC]/g, "u")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+import ProductCategoryFilters from "@/components/product-categories/ProductCategoryFilters";
+import ProductCategoryTable from "@/components/product-categories/ProductCategoryTable";
+import ProductCategoryDrawer from "@/components/product-categories/ProductCategoryDrawer";
+import { EMPTY_FORM, slugifyText, type CategoryForm } from "@/components/product-categories/types";
 
 export default function ProductCategoriesPage() {
   const { t } = useLang();
@@ -110,7 +74,7 @@ export default function ProductCategoriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter]);
+  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter, t]);
 
   const fetchAllCategories = useCallback(async () => {
     if (!accessChecked) return;
@@ -229,8 +193,8 @@ export default function ProductCategoriesPage() {
     }
   };
 
-  const onSubmitCategory = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmitCategory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setFormError("");
     setNameError("");
     setSlugError("");
@@ -286,18 +250,10 @@ export default function ProductCategoriesPage() {
       setSlugTouched(false);
       await Promise.all([fetchCategories(), fetchAllCategories()]);
     } catch {
-      setFormError(
-        editingCategoryId
-          ? t("common.loadError")
-          : t("common.loadError"),
-      );
+      setFormError(t("common.loadError"));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const clearAdvancedFilters = () => {
-    setStatusFilter("all");
   };
 
   const onToggleCategoryActive = async (category: ProductCategory, next: boolean) => {
@@ -322,230 +278,58 @@ export default function ProductCategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("productCategories.title")}</h1>
-          <p className="text-sm text-muted">{t("productCategories.title")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Ara..."
-            containerClassName="w-full lg:w-64"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          {canCreate && (
-            <Button
-              label={t("productCategories.new")}
-              onClick={onOpenDrawer}
-              variant="primarySoft"
-              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-            />
-          )}
-        </div>
-      </div>
+      <ProductCategoryFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={onOpenDrawer}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={() => setStatusFilter("all")}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder={t("common.allStatuses")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Kategori durum filtresi"
-              toggleAriaLabel="Kategori durum listesini ac"
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <Button
-              label={t("common.clearFilters")}
-              onClick={clearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
-      )}
-
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-        ) : error ? (
-          <div className="p-6">
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">{t("productCategories.title")}</th>
-                    <th className="px-4 py-3">Slug</th>
-                    <th className="px-4 py-3">Aciklama</th>
-                    <th className="px-4 py-3">Ust Kategori</th>
-                    <th className="px-4 py-3">{t("common.status")}</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted">
-                        {t("common.noData")}
-                      </td>
-                    </tr>
-                  ) : (
-                    categories.map((category) => (
-                      <tr
-                        key={category.id}
-                        className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-text">{category.name}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{category.slug ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{category.description ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">
-                          {category.parent?.name ?? (category.parentId ? parentNameMap.get(category.parentId) ?? "-" : "-")}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                              category.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                            }`}
-                          >
-                            {category.isActive ? t("common.active") : t("common.passive")}
-                          </span>
-                        </td>
-                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                          <div className="inline-flex items-center gap-1">
-                            {canUpdate && (
-                              <IconButton
-                                onClick={() => void onEditCategory(category.id)}
-                                disabled={togglingCategoryIds.includes(category.id)}
-                                aria-label="Kategori duzenle"
-                                title="Duzenle"
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            )}
-                            {canUpdate && (
-                              <ToggleSwitch
-                                checked={Boolean(category.isActive)}
-                                onChange={(next) => void onToggleCategoryActive(category, next)}
-                                disabled={togglingCategoryIds.includes(category.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {meta && (
-              <TablePagination
-                page={currentPage}
-                totalPages={totalPages}
-                total={meta.total}
-                pageSize={pageSize}
-                pageSizeId="product-categories-page-size"
-                loading={loading}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={onChangePageSize}
-              />
-            )}
-          </>
-        )}
-      </section>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={onCloseDrawer}
-        side="right"
-        title={editingCategoryId ? t("common.update") : t("productCategories.new")}
-        description={editingCategoryId ? t("common.update") : t("productCategories.new")}
-        closeDisabled={submitting || loadingCategoryDetail}
-        className={cn(isMobile && "!max-w-none")}
+      <ProductCategoryTable
+        loading={loading}
+        error={error}
+        categories={categories}
+        parentNameMap={parentNameMap}
+        canUpdate={canUpdate}
+        togglingCategoryIds={togglingCategoryIds}
+        onEditCategory={(id) => void onEditCategory(id)}
+        onToggleCategoryActive={(category, next) => void onToggleCategoryActive(category, next)}
         footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label={t("common.cancel")}
-              type="button"
-              onClick={onCloseDrawer}
-              disabled={submitting || loadingCategoryDetail}
-              variant="secondary"
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeId="product-categories-page-size"
+              loading={loading}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={onChangePageSize}
             />
-            <Button
-              label={submitting ? (editingCategoryId ? t("common.updating") : t("common.creating")) : t("common.save")}
-              type="submit"
-              form="category-form"
-              disabled={submitting || loadingCategoryDetail}
-              variant="primarySolid"
-            />
-          </div>
+          ) : null
         }
-      >
-        <form id="category-form" onSubmit={onSubmitCategory} className="space-y-4 p-5">
-          {loadingCategoryDetail ? (
-            <div className="text-sm text-muted">{t("common.loading")}</div>
-          ) : (
-            <>
-              <InputField
-                label="Kategori Adi *"
-                type="text"
-                value={form.name}
-                onChange={(value) => onFormChange("name", value)}
-                placeholder="Elektronik"
-                error={nameError}
-              />
+      />
 
-              <InputField
-                label="Slug *"
-                type="text"
-                value={form.slug}
-                onChange={(value) => onFormChange("slug", value)}
-                placeholder="elektronik"
-                error={slugError}
-              />
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Ust Kategori</label>
-                <SearchableDropdown
-                  options={parentOptions}
-                  value={form.parentId}
-                  onChange={(value) => onFormChange("parentId", value)}
-                  placeholder="Ana kategori"
-                  emptyOptionLabel="Ana Kategori"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Aciklama</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => onFormChange("description", e.target.value)}
-                  className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-                  placeholder="Tum elektronik urunler"
-                />
-              </div>
-
-              {formError && <p className="text-sm text-error">{formError}</p>}
-            </>
-          )}
-        </form>
-      </Drawer>
+      <ProductCategoryDrawer
+        open={drawerOpen}
+        editingCategoryId={editingCategoryId}
+        submitting={submitting}
+        loadingCategoryDetail={loadingCategoryDetail}
+        isMobile={isMobile}
+        form={form}
+        parentOptions={parentOptions}
+        formError={formError}
+        nameError={nameError}
+        slugError={slugError}
+        onClose={onCloseDrawer}
+        onSubmit={onSubmitCategory}
+        onFormChange={onFormChange}
+      />
     </div>
   );
 }

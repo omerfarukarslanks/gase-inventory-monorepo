@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import TablePagination from "@/components/ui/TablePagination";
 import {
   createCustomer,
   getCustomerById,
@@ -12,67 +13,23 @@ import {
   type CustomersListMeta,
   type CustomerGender,
 } from "@/lib/customers";
-import Drawer from "@/components/ui/Drawer";
-import Button from "@/components/ui/Button";
-import IconButton from "@/components/ui/IconButton";
-import InputField from "@/components/ui/InputField";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
-import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
-import { cn } from "@/lib/cn";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
-import { formatPrice } from "@/lib/format";
 import { useLang } from "@/context/LangContext";
-
-type CustomerForm = {
-  name: string;
-  surname: string;
-  address: string;
-  country: string;
-  city: string;
-  district: string;
-  phoneNumber: string;
-  email: string;
-  gender: string;
-  birthDate: string;
-};
-
-const GENDER_OPTIONS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-];
-
-const EMPTY_FORM: CustomerForm = {
-  name: "",
-  surname: "",
-  address: "",
-  country: "",
-  city: "",
-  district: "",
-  phoneNumber: "",
-  email: "",
-  gender: "",
-  birthDate: "",
-};
-
-function formatCount(value: number | string | null | undefined): string {
-  if (value == null) return "-";
-  const numeric = Number(value);
-  if (Number.isNaN(numeric)) return "-";
-  return numeric.toLocaleString("tr-TR", { maximumFractionDigits: 0 });
-}
+import CustomersFilters from "@/components/customers/CustomersFilters";
+import CustomersTable from "@/components/customers/CustomersTable";
+import CustomerDrawer from "@/components/customers/CustomerDrawer";
+import CustomerBalanceDrawer from "@/components/customers/CustomerBalanceDrawer";
+import { EMPTY_FORM, type CustomerForm } from "@/components/customers/types";
 
 export default function CustomersPage() {
   const { t } = useLang();
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
+  const canCreate = can("CUSTOMER_CREATE");
+  const canUpdate = can("CUSTOMER_UPDATE");
   const isMobile = !useMediaQuery();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -125,7 +82,7 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter]);
+  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter, t]);
 
   useEffect(() => {
     if (debouncedSearch !== "") {
@@ -204,8 +161,8 @@ export default function CustomersPage() {
     }
   };
 
-  const onSubmitCustomer = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmitCustomer = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setFormError("");
     setNameError("");
     setSurnameError("");
@@ -266,18 +223,10 @@ export default function CustomersPage() {
       setEditingCustomerIsActive(true);
       await fetchCustomers();
     } catch {
-      setFormError(
-        editingCustomerId
-          ? t("common.loadError")
-          : t("common.loadError"),
-      );
+      setFormError(t("common.loadError"));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const clearAdvancedFilters = () => {
-    setStatusFilter("all");
   };
 
   const onToggleCustomerActive = async (customer: Customer, next: boolean) => {
@@ -316,7 +265,7 @@ export default function CustomersPage() {
     } finally {
       setCustomerBalanceLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const onOpenBalanceDrawer = async (customer: Customer) => {
     const fullName = [customer.name, customer.surname].filter(Boolean).join(" ").trim();
@@ -333,408 +282,79 @@ export default function CustomersPage() {
     setBalanceDrawerOpen(false);
   };
 
-  const balanceNumeric = Number(customerBalance?.balance ?? 0);
-  const balanceToneClass =
-    Number.isNaN(balanceNumeric) || balanceNumeric === 0
-      ? "text-text"
-      : balanceNumeric > 0
-        ? "text-error"
-        : "text-primary";
-  const balanceStatusLabel =
-    Number.isNaN(balanceNumeric) || balanceNumeric === 0
-      ? "Bakiye Kapali"
-      : balanceNumeric > 0
-        ? "Musteri Borclu"
-        : "Musteri Alacakli";
+  if (!accessChecked) return null;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("customers.title")}</h1>
-          <p className="text-sm text-muted">{t("customers.title")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Ara..."
-            containerClassName="w-full lg:w-64"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          {can("CUSTOMER_CREATE") && (
-            <Button
-              label={t("customers.new")}
-              onClick={onOpenDrawer}
-              variant="primarySoft"
-              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-            />
-          )}
-        </div>
-      </div>
+      <CustomersFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={onOpenDrawer}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={() => setStatusFilter("all")}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder={t("common.allStatuses")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Musteri durum filtresi"
-              toggleAriaLabel="Musteri durum listesini ac"
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <Button
-              label={t("common.clearFilters")}
-              onClick={clearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
-      )}
-
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-        ) : error ? (
-          <div className="p-6">
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">{t("customers.colName")}</th>
-                    <th className="px-4 py-3">{t("customers.colName")}</th>
-                    <th className="px-4 py-3">{t("customers.colPhone")}</th>
-                    <th className="px-4 py-3">{t("customers.colEmail")}</th>
-                    <th className="px-4 py-3">Sehir / Ilce</th>
-                    <th className="px-4 py-3">Cinsiyet</th>
-                    <th className="px-4 py-3">Dogum Tarihi</th>
-                    <th className="px-4 py-3">{t("common.status")}</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customers.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted">
-                        {t("common.noData")}
-                      </td>
-                    </tr>
-                  ) : (
-                    customers.map((customer) => (
-                      <tr
-                        key={customer.id}
-                        className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-text">{customer.name}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{customer.surname}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{customer.phoneNumber ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{customer.email ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">
-                          {[customer.city, customer.district].filter(Boolean).join(" / ") || "-"}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-text2">{customer.gender ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">
-                          {customer.birthDate ? String(customer.birthDate).slice(0, 10) : "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                              customer.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                            }`}
-                          >
-                            {customer.isActive ? t("common.active") : t("common.passive")}
-                          </span>
-                        </td>
-                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                          <div className="inline-flex items-center gap-1">
-                            <IconButton
-                              onClick={() => void onOpenBalanceDrawer(customer)}
-                              disabled={togglingCustomerIds.includes(customer.id)}
-                              aria-label="Musteri cari bakiyesi"
-                              title="Cari Bakiye"
-                            >
-                              <PriceIcon />
-                            </IconButton>
-                            {can("CUSTOMER_UPDATE") && (
-                              <IconButton
-                                onClick={() => onEditCustomer(customer.id)}
-                                disabled={togglingCustomerIds.includes(customer.id)}
-                                aria-label="Musteri duzenle"
-                                title="Duzenle"
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            )}
-                            {can("CUSTOMER_UPDATE") && (
-                              <ToggleSwitch
-                                checked={Boolean(customer.isActive)}
-                                onChange={(next) => onToggleCustomerActive(customer, next)}
-                                disabled={togglingCustomerIds.includes(customer.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {meta && (
-              <TablePagination
-                page={currentPage}
-                totalPages={totalPages}
-                total={meta.total}
-                pageSize={pageSize}
-                pageSizeId="customers-page-size"
-                loading={loading}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={onChangePageSize}
-              />
-            )}
-          </>
-        )}
-      </section>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={onCloseDrawer}
-        side="right"
-        title={editingCustomerId ? t("customers.update") : t("customers.new")}
-        description={editingCustomerId ? t("customers.update") : t("customers.new")}
-        closeDisabled={submitting || loadingCustomerDetail}
-        className={cn(isMobile && "!max-w-none")}
+      <CustomersTable
+        loading={loading}
+        error={error}
+        customers={customers}
+        togglingCustomerIds={togglingCustomerIds}
+        canUpdate={canUpdate}
+        onOpenBalanceDrawer={(customer) => void onOpenBalanceDrawer(customer)}
+        onEditCustomer={(id) => void onEditCustomer(id)}
+        onToggleCustomerActive={(customer, next) => void onToggleCustomerActive(customer, next)}
         footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label={t("common.cancel")}
-              type="button"
-              onClick={onCloseDrawer}
-              disabled={submitting || loadingCustomerDetail}
-              variant="secondary"
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeId="customers-page-size"
+              loading={loading}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={onChangePageSize}
             />
-            <Button
-              label={submitting ? (editingCustomerId ? t("common.updating") : t("common.creating")) : t("common.save")}
-              type="submit"
-              form="customer-form"
-              disabled={submitting || loadingCustomerDetail}
-              variant="primarySolid"
-            />
-          </div>
+          ) : null
         }
-      >
-        <form id="customer-form" onSubmit={onSubmitCustomer} className="space-y-4 p-5">
-          {loadingCustomerDetail ? (
-            <div className="text-sm text-muted">{t("common.loading")}</div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <InputField
-                  label={`${t("customers.colName")} *`}
-                  type="text"
-                  value={form.name}
-                  onChange={(value) => onFormChange("name", value)}
-                  placeholder="Ahmet"
-                  error={nameError}
-                />
-                <InputField
-                  label={`${t("customers.colName")} *`}
-                  type="text"
-                  value={form.surname}
-                  onChange={(value) => onFormChange("surname", value)}
-                  placeholder="Yilmaz"
-                  error={surnameError}
-                />
-              </div>
+      />
 
-              <InputField
-                label="Adres"
-                type="text"
-                value={form.address}
-                onChange={(value) => onFormChange("address", value)}
-                placeholder="Ataturk Cad. No:1"
-              />
+      <CustomerDrawer
+        open={drawerOpen}
+        editingCustomerId={editingCustomerId}
+        submitting={submitting}
+        loadingCustomerDetail={loadingCustomerDetail}
+        isMobile={isMobile}
+        form={form}
+        formError={formError}
+        nameError={nameError}
+        surnameError={surnameError}
+        emailError={emailError}
+        editingCustomerIsActive={editingCustomerIsActive}
+        onClose={onCloseDrawer}
+        onSubmit={onSubmitCustomer}
+        onFormChange={onFormChange}
+        onEditingCustomerIsActiveChange={setEditingCustomerIsActive}
+      />
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <InputField
-                  label="Ulke"
-                  type="text"
-                  value={form.country}
-                  onChange={(value) => onFormChange("country", value)}
-                  placeholder="Turkiye"
-                />
-                <InputField
-                  label="Sehir"
-                  type="text"
-                  value={form.city}
-                  onChange={(value) => onFormChange("city", value)}
-                  placeholder="Istanbul"
-                />
-                <InputField
-                  label="Ilce"
-                  type="text"
-                  value={form.district}
-                  onChange={(value) => onFormChange("district", value)}
-                  placeholder="Kadikoy"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <InputField
-                  label={t("customers.colPhone")}
-                  type="text"
-                  value={form.phoneNumber}
-                  onChange={(value) => onFormChange("phoneNumber", value)}
-                  placeholder="+905321234567"
-                />
-                <InputField
-                  label={t("customers.colEmail")}
-                  type="email"
-                  value={form.email}
-                  onChange={(value) => onFormChange("email", value)}
-                  placeholder="ahmet@example.com"
-                  error={emailError}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted">Cinsiyet</label>
-                  <SearchableDropdown
-                    options={GENDER_OPTIONS}
-                    value={form.gender}
-                    onChange={(value) => onFormChange("gender", value)}
-                    placeholder="Cinsiyet secin"
-                    emptyOptionLabel="Cinsiyet secin"
-                    inputAriaLabel="Cinsiyet secimi"
-                    clearAriaLabel="Cinsiyet secimini temizle"
-                    toggleAriaLabel="Cinsiyet listesini ac"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted">Dogum Tarihi</label>
-                  <input
-                    type="date"
-                    value={form.birthDate}
-                    onChange={(e) => onFormChange("birthDate", e.target.value)}
-                    className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              {editingCustomerId && (
-                <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">
-                  <span className="text-xs font-semibold text-muted">{t("common.active")}</span>
-                  <ToggleSwitch
-                    checked={editingCustomerIsActive}
-                    onChange={setEditingCustomerIsActive}
-                    disabled={submitting || loadingCustomerDetail}
-                  />
-                </div>
-              )}
-
-              {formError && <p className="text-sm text-error">{formError}</p>}
-            </>
-          )}
-        </form>
-      </Drawer>
-
-      <Drawer
+      <CustomerBalanceDrawer
         open={balanceDrawerOpen}
         onClose={onCloseBalanceDrawer}
-        side="right"
-        title={t("customers.balance")}
-        description={customerBalance?.customerName || selectedBalanceCustomerName}
-        closeDisabled={customerBalanceLoading}
-        className={cn(isMobile && "!max-w-none")}
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label={customerBalanceLoading ? t("common.loading") : t("common.refresh")}
-              type="button"
-              onClick={() => {
-                if (!selectedBalanceCustomerId) return;
-                void loadCustomerBalance(selectedBalanceCustomerId);
-              }}
-              disabled={!selectedBalanceCustomerId}
-              variant="secondary"
-            />
-            <Button
-              label={t("common.close")}
-              type="button"
-              onClick={onCloseBalanceDrawer}
-              disabled={customerBalanceLoading}
-              variant="primarySolid"
-            />
-          </div>
-        }
-      >
-        <div className="space-y-4 p-5">
-          {customerBalanceLoading ? (
-            <div className="text-sm text-muted">Cari bakiye bilgisi yukleniyor...</div>
-          ) : customerBalanceError ? (
-            <p className="rounded-xl border border-error/40 bg-error/10 px-3 py-2 text-sm text-error">
-              {customerBalanceError}
-            </p>
-          ) : customerBalance ? (
-            <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-surface2/50 p-3">
-                  <p className="text-xs font-semibold text-muted">Toplam Satis</p>
-                  <p className="mt-1 text-lg font-semibold text-text">
-                    {formatCount(customerBalance.totalSalesCount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface2/50 p-3">
-                  <p className="text-xs font-semibold text-muted">Toplam Satis Tutari</p>
-                  <p className="mt-1 text-lg font-semibold text-text">
-                    {formatPrice(customerBalance.totalSaleAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface2/50 p-3">
-                  <p className="text-xs font-semibold text-muted">Toplam Tahsilat</p>
-                  <p className="mt-1 text-lg font-semibold text-text">
-                    {formatPrice(customerBalance.totalPaidAmount)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-surface2/50 p-3">
-                  <p className="text-xs font-semibold text-muted">Toplam Iade</p>
-                  <p className="mt-1 text-lg font-semibold text-text">
-                    {formatPrice(customerBalance.totalReturnAmount)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl2 border border-primary/30 bg-primary/10 p-4">
-                <p className="text-xs font-semibold text-muted">Cari Durum</p>
-                <p className={cn("mt-1 text-2xl font-bold", balanceToneClass)}>
-                  {formatPrice(customerBalance.balance)}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-muted">{balanceStatusLabel}</p>
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted">Cari bakiye bilgisi bulunamadi.</p>
-          )}
-        </div>
-      </Drawer>
+        isMobile={isMobile}
+        customerBalanceLoading={customerBalanceLoading}
+        customerBalanceError={customerBalanceError}
+        customerBalance={customerBalance}
+        selectedBalanceCustomerId={selectedBalanceCustomerId}
+        selectedBalanceCustomerName={selectedBalanceCustomerName}
+        onRefresh={() => {
+          if (!selectedBalanceCustomerId) return;
+          void loadCustomerBalance(selectedBalanceCustomerId);
+        }}
+      />
     </div>
   );
 }
