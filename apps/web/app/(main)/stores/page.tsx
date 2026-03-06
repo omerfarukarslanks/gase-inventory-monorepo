@@ -1,6 +1,17 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import TablePagination from "@/components/ui/TablePagination";
+import StoresFilters from "@/components/stores/StoresFilters";
+import StoreDrawer from "@/components/stores/StoreDrawer";
+import StoresTable from "@/components/stores/StoresTable";
+import { EMPTY_FORM, type StoreForm } from "@/components/stores/types";
+import { useDebounceStr } from "@/hooks/useDebounce";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useLang } from "@/context/LangContext";
+import type { Currency } from "@/lib/products";
 import {
   createStore,
   getStoreById,
@@ -10,45 +21,6 @@ import {
   type StoreType,
   type StoresListMeta,
 } from "@/lib/stores";
-import Drawer from "@/components/ui/Drawer";
-import Button from "@/components/ui/Button";
-import IconButton from "@/components/ui/IconButton";
-import InputField from "@/components/ui/InputField";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
-import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon } from "@/components/ui/icons/TableIcons";
-import { cn } from "@/lib/cn";
-import { useDebounceStr } from "@/hooks/useDebounce";
-import { useAdminGuard } from "@/hooks/useAdminGuard";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import type { Currency } from "@/lib/products";
-import { CURRENCY_OPTIONS, STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
-import { useLang } from "@/context/LangContext";
-
-type StoreForm = {
-  name: string;
-  storeType: StoreType;
-  currency: Currency;
-  code: string;
-  address: string;
-  slug: string;
-  logo: string;
-  description: string;
-};
-
-const EMPTY_FORM: StoreForm = {
-  name: "",
-  storeType: "RETAIL",
-  currency: "TRY",
-  code: "",
-  address: "",
-  slug: "",
-  logo: "",
-  description: "",
-};
 
 export default function StoresPage() {
   const accessChecked = useAdminGuard();
@@ -74,18 +46,24 @@ export default function StoresPage() {
   const [formError, setFormError] = useState("");
   const [nameError, setNameError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
+
   const debouncedSearch = useDebounceStr(searchTerm, 500);
-  const STORE_TYPE_OPTIONS = [
+  const canCreate = can("STORE_CREATE");
+  const canUpdate = can("STORE_UPDATE");
+  const storeTypeOptions = [
     { value: "RETAIL", label: t("stores.storeTypeRetail") },
     { value: "WHOLESALE", label: t("stores.storeTypeWholesale") },
   ] as const;
+
   const normalizeCurrency = (value: string): Currency =>
     value === "USD" || value === "EUR" ? value : "TRY";
+
   const normalizeStoreType = (value: string): StoreType =>
     value === "WHOLESALE" ? "WHOLESALE" : "RETAIL";
 
   const fetchStores = useCallback(async () => {
     if (!accessChecked) return;
+
     setLoading(true);
     setError("");
 
@@ -115,7 +93,7 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, debouncedSearch, statusFilter, accessChecked]);
+  }, [accessChecked, currentPage, debouncedSearch, pageSize, statusFilter, t]);
 
   useEffect(() => {
     if (debouncedSearch !== "") {
@@ -128,7 +106,7 @@ export default function StoresPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    fetchStores();
+    void fetchStores();
   }, [fetchStores]);
 
   const totalPages = meta?.totalPages ?? 1;
@@ -157,6 +135,7 @@ export default function StoresPage() {
     if (field === "name" && nameError) {
       setNameError("");
     }
+
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -193,8 +172,8 @@ export default function StoresPage() {
     }
   };
 
-  const onSubmitStore = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmitStore = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setFormError("");
     setNameError("");
 
@@ -215,6 +194,7 @@ export default function StoresPage() {
     }
 
     setSubmitting(true);
+
     try {
       if (editingStoreId) {
         await updateStore(
@@ -265,6 +245,7 @@ export default function StoresPage() {
 
   const onToggleStoreActive = async (store: Store, next: boolean) => {
     setTogglingStoreIds((prev) => [...prev, store.id]);
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -295,258 +276,58 @@ export default function StoresPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("stores.title")}</h1>
-          <p className="text-sm text-muted">{t("stores.subtitle")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder={t("common.search")}
-            containerClassName="w-full lg:w-64"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          {can("STORE_CREATE") && (
-            <Button
-              label={t("stores.new")}
-              onClick={onOpenDrawer}
-              variant="primarySoft"
-              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-            />
-          )}
-        </div>
-      </div>
+      <StoresFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={onOpenDrawer}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={clearAdvancedFilters}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder={t("common.allStatuses")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel={t("stores.statusFilter")}
-              toggleAriaLabel={t("stores.statusFilter")}
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <Button
-              label={t("common.clearFilters")}
-              onClick={clearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
-      )}
-
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-        ) : error ? (
-          <div className="p-6">
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">{t("stores.colName")}</th>
-                    <th className="px-4 py-3">{t("stores.colCode")}</th>
-                    <th className="px-4 py-3">{t("stores.colAddress")}</th>
-                    <th className="px-4 py-3">{t("stores.colStatus")}</th>
-                    <th className="px-4 py-3">{t("stores.colSlug")}</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("stores.colActions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stores.map((store) => (
-                    <tr key={store.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
-                      <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
-                      <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                            }`}
-                        >
-                          {store.isActive ? t("common.active") : t("common.passive")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
-                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                        <div className="inline-flex items-center gap-1">
-                          {can("STORE_UPDATE") && (
-                            <IconButton
-                              onClick={() => onEditStore(store.id)}
-                              disabled={togglingStoreIds.includes(store.id)}
-                              aria-label="Edit store"
-                              title="Duzenle"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          )}
-                          {can("STORE_UPDATE") && (
-                            <ToggleSwitch
-                              checked={store.isActive}
-                              onChange={(next) => onToggleStoreActive(store, next)}
-                              disabled={togglingStoreIds.includes(store.id)}
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {meta && (
-              <TablePagination
-                page={currentPage}
-                totalPages={totalPages}
-                total={meta.total}
-                pageSize={pageSize}
-                pageSizeId="stores-page-size"
-                loading={loading}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={onChangePageSize}
-              />
-            )}
-          </>
-        )}
-      </section>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={onCloseDrawer}
-        side={"right"}
-        title={editingStoreId ? t("stores.update") : t("stores.create")}
-        description={editingStoreId ? t("stores.update") : t("stores.name")}
-        closeDisabled={submitting || loadingStoreDetail}
-        className={cn(isMobile && "!max-w-none")}
+      <StoresTable
+        loading={loading}
+        error={error}
+        stores={stores}
+        canUpdate={canUpdate}
+        togglingStoreIds={togglingStoreIds}
+        onEditStore={(id) => void onEditStore(id)}
+        onToggleStoreActive={(store, next) => void onToggleStoreActive(store, next)}
         footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label={t("common.cancel")}
-              type="button"
-              onClick={onCloseDrawer}
-              disabled={submitting || loadingStoreDetail}
-              variant="secondary"
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeId="stores-page-size"
+              loading={loading}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={onChangePageSize}
             />
-            <Button
-              label={submitting ? (editingStoreId ? t("common.updating") : t("common.creating")) : editingStoreId ? t("stores.update") : t("stores.create")}
-              type="submit"
-              form="create-store-form"
-              disabled={submitting || loadingStoreDetail}
-              variant="primarySolid"
-            />
-          </div>
+          ) : null
         }
-      >
-        <form id="create-store-form" onSubmit={onSubmitStore} className="space-y-4 p-5">
-          {loadingStoreDetail ? (
-            <div className="text-sm text-muted">{t("stores.loadingDetail")}</div>
-          ) : (
-            <>
-          <InputField
-            label={t("stores.name")}
-            type="text"
-            value={form.name}
-            onChange={(v) => onFormChange("name", v)}
-            placeholder={t("stores.namePlaceholder")}
-            error={nameError}
-          />
+      />
 
-          <InputField
-            label={t("stores.code")}
-            type="text"
-            value={form.code}
-            onChange={(v) => onFormChange("code", v)}
-            placeholder={t("stores.codePlaceholder")}
-          />
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("stores.storeType")}</label>
-            <SearchableDropdown
-              options={[...STORE_TYPE_OPTIONS]}
-              value={form.storeType}
-              onChange={(value) => onFormChange("storeType", normalizeStoreType(value))}
-              placeholder={t("stores.storeTypePlaceholder")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel={t("stores.storeType")}
-              toggleAriaLabel={t("stores.storeType")}
-              disabled={Boolean(editingStoreId)}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("stores.currency")}</label>
-            <SearchableDropdown
-              options={CURRENCY_OPTIONS}
-              value={form.currency}
-              onChange={(value) => onFormChange("currency", normalizeCurrency(value))}
-              placeholder={t("stores.currencyPlaceholder")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel={t("stores.currency")}
-              toggleAriaLabel={t("stores.currency")}
-              disabled={Boolean(editingStoreId)}
-            />
-          </div>
-
-          <InputField
-            label={t("stores.address")}
-            type="text"
-            value={form.address}
-            onChange={(v) => onFormChange("address", v)}
-            placeholder={t("stores.addressPlaceholder")}
-          />
-
-          <InputField
-            label={t("stores.slug")}
-            type="text"
-            value={form.slug}
-            onChange={(v) => onFormChange("slug", v)}
-            placeholder={t("stores.slugPlaceholder")}
-          />
-
-          <InputField
-            label={t("stores.logo")}
-            type="text"
-            value={form.logo}
-            onChange={(v) => onFormChange("logo", v)}
-            placeholder={t("stores.logoPlaceholder")}
-          />
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("stores.description")}</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => onFormChange("description", e.target.value)}
-              className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-              placeholder={t("stores.descPlaceholder")}
-            />
-          </div>
-
-          {formError && <p className="text-sm text-error">{formError}</p>}
-            </>
-          )}
-        </form>
-      </Drawer>
+      <StoreDrawer
+        open={drawerOpen}
+        editingStoreId={editingStoreId}
+        submitting={submitting}
+        loadingStoreDetail={loadingStoreDetail}
+        isMobile={isMobile}
+        form={form}
+        formError={formError}
+        nameError={nameError}
+        storeTypeOptions={storeTypeOptions}
+        onClose={onCloseDrawer}
+        onSubmit={onSubmitStore}
+        onFormChange={onFormChange}
+        normalizeCurrency={normalizeCurrency}
+        normalizeStoreType={normalizeStoreType}
+      />
     </div>
   );
 }

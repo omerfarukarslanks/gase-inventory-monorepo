@@ -1,6 +1,16 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import SuppliersFilters from "@/components/suppliers/SuppliersFilters";
+import SupplierDrawer from "@/components/suppliers/SupplierDrawer";
+import SuppliersTable from "@/components/suppliers/SuppliersTable";
+import { EMPTY_FORM, type SupplierForm } from "@/components/suppliers/types";
+import TablePagination from "@/components/ui/TablePagination";
+import { useDebounceStr } from "@/hooks/useDebounce";
+import { useAdminGuard } from "@/hooks/useAdminGuard";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useLang } from "@/context/LangContext";
 import {
   createSupplier,
   getSupplierById,
@@ -9,38 +19,6 @@ import {
   type Supplier,
   type SuppliersListMeta,
 } from "@/lib/suppliers";
-import Drawer from "@/components/ui/Drawer";
-import Button from "@/components/ui/Button";
-import IconButton from "@/components/ui/IconButton";
-import InputField from "@/components/ui/InputField";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
-import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon } from "@/components/ui/icons/TableIcons";
-import { cn } from "@/lib/cn";
-import { useDebounceStr } from "@/hooks/useDebounce";
-import { useAdminGuard } from "@/hooks/useAdminGuard";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
-import { useLang } from "@/context/LangContext";
-
-type SupplierForm = {
-  name: string;
-  surname: string;
-  address: string;
-  phoneNumber: string;
-  email: string;
-};
-
-const EMPTY_FORM: SupplierForm = {
-  name: "",
-  surname: "",
-  address: "",
-  phoneNumber: "",
-  email: "",
-};
 
 export default function SuppliersPage() {
   const { t } = useLang();
@@ -70,11 +48,15 @@ export default function SuppliersPage() {
 
   const debouncedSearch = useDebounceStr(searchTerm, 500);
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const canCreate = can("SUPPLIER_CREATE");
+  const canUpdate = can("SUPPLIER_UPDATE");
 
   const fetchSuppliers = useCallback(async () => {
     if (!accessChecked) return;
+
     setLoading(true);
     setError("");
+
     try {
       const res = await getSuppliers({
         page: currentPage,
@@ -91,7 +73,7 @@ export default function SuppliersPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter]);
+  }, [accessChecked, currentPage, debouncedSearch, pageSize, statusFilter, t]);
 
   useEffect(() => {
     if (debouncedSearch !== "") {
@@ -104,7 +86,7 @@ export default function SuppliersPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    fetchSuppliers();
+    void fetchSuppliers();
   }, [fetchSuppliers]);
 
   const totalPages = meta?.totalPages ?? 1;
@@ -138,6 +120,7 @@ export default function SuppliersPage() {
     if (field === "email" && emailError) {
       setEmailError("");
     }
+
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -146,6 +129,7 @@ export default function SuppliersPage() {
     setNameError("");
     setEmailError("");
     setLoadingSupplierDetail(true);
+
     try {
       const detail = await getSupplierById(id);
       setForm({
@@ -165,8 +149,8 @@ export default function SuppliersPage() {
     }
   };
 
-  const onSubmitSupplier = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmitSupplier = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setFormError("");
     setNameError("");
     setEmailError("");
@@ -187,6 +171,7 @@ export default function SuppliersPage() {
     }
 
     setSubmitting(true);
+
     try {
       if (editingSupplierId) {
         await updateSupplier(editingSupplierId, {
@@ -215,11 +200,7 @@ export default function SuppliersPage() {
       setEditingSupplierIsActive(true);
       await fetchSuppliers();
     } catch {
-      setFormError(
-        editingSupplierId
-          ? t("common.loadError")
-          : t("common.loadError"),
-      );
+      setFormError(t("common.loadError"));
     } finally {
       setSubmitting(false);
     }
@@ -231,6 +212,7 @@ export default function SuppliersPage() {
 
   const onToggleSupplierActive = async (supplier: Supplier, next: boolean) => {
     setTogglingSupplierIds((prev) => [...prev, supplier.id]);
+
     try {
       await updateSupplier(supplier.id, {
         name: supplier.name,
@@ -250,246 +232,58 @@ export default function SuppliersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("suppliers.title")}</h1>
-          <p className="text-sm text-muted">{t("suppliers.title")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Ara..."
-            containerClassName="w-full lg:w-64"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          {can("SUPPLIER_CREATE") && (
-            <Button
-              label={t("suppliers.new")}
-              onClick={onOpenDrawer}
-              variant="primarySoft"
-              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-            />
-          )}
-        </div>
-      </div>
+      <SuppliersFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={onOpenDrawer}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={clearAdvancedFilters}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder={t("common.allStatuses")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Tedarikci durum filtresi"
-              toggleAriaLabel="Tedarikci durum listesini ac"
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <Button
-              label={t("common.clearFilters")}
-              onClick={clearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
-      )}
-
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-        ) : error ? (
-          <div className="p-6">
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">{t("suppliers.colName")}</th>
-                    <th className="px-4 py-3">{t("suppliers.colSurname")}</th>
-                    <th className="px-4 py-3">{t("suppliers.colPhone")}</th>
-                    <th className="px-4 py-3">{t("suppliers.colEmail")}</th>
-                    <th className="px-4 py-3">{t("suppliers.colAddress")}</th>
-                    <th className="px-4 py-3">{t("common.status")}</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suppliers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted">
-                        {t("common.noData")}
-                      </td>
-                    </tr>
-                  ) : (
-                    suppliers.map((supplier) => (
-                      <tr
-                        key={supplier.id}
-                        className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-text">{supplier.name}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{supplier.surname ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{supplier.phoneNumber ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{supplier.email ?? "-"}</td>
-                        <td className="px-4 py-3 text-sm text-text2">{supplier.address ?? "-"}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                              supplier.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                            }`}
-                          >
-                            {supplier.isActive ? t("common.active") : t("common.passive")}
-                          </span>
-                        </td>
-                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                          <div className="inline-flex items-center gap-1">
-                            {can("SUPPLIER_UPDATE") && (
-                              <IconButton
-                                onClick={() => onEditSupplier(supplier.id)}
-                                disabled={togglingSupplierIds.includes(supplier.id)}
-                                aria-label="Tedarikci duzenle"
-                                title="Duzenle"
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            )}
-                            {can("SUPPLIER_UPDATE") && (
-                              <ToggleSwitch
-                                checked={Boolean(supplier.isActive)}
-                                onChange={(next) => onToggleSupplierActive(supplier, next)}
-                                disabled={togglingSupplierIds.includes(supplier.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {meta && (
-              <TablePagination
-                page={currentPage}
-                totalPages={totalPages}
-                total={meta.total}
-                pageSize={pageSize}
-                pageSizeId="suppliers-page-size"
-                loading={loading}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={onChangePageSize}
-              />
-            )}
-          </>
-        )}
-      </section>
-
-      <Drawer
-        open={drawerOpen}
-        onClose={onCloseDrawer}
-        side="right"
-        title={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
-        description={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
-        closeDisabled={submitting || loadingSupplierDetail}
-        className={cn(isMobile && "!max-w-none")}
+      <SuppliersTable
+        loading={loading}
+        error={error}
+        suppliers={suppliers}
+        canUpdate={canUpdate}
+        togglingSupplierIds={togglingSupplierIds}
+        onEditSupplier={(id) => void onEditSupplier(id)}
+        onToggleSupplierActive={(supplier, next) => void onToggleSupplierActive(supplier, next)}
         footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label={t("common.cancel")}
-              type="button"
-              onClick={onCloseDrawer}
-              disabled={submitting || loadingSupplierDetail}
-              variant="secondary"
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeId="suppliers-page-size"
+              loading={loading}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={onChangePageSize}
             />
-            <Button
-              label={submitting ? (editingSupplierId ? t("common.updating") : t("common.creating")) : t("common.save")}
-              type="submit"
-              form="supplier-form"
-              disabled={submitting || loadingSupplierDetail}
-              variant="primarySolid"
-            />
-          </div>
+          ) : null
         }
-      >
-        <form id="supplier-form" onSubmit={onSubmitSupplier} className="space-y-4 p-5">
-          {loadingSupplierDetail ? (
-            <div className="text-sm text-muted">{t("suppliers.loadingDetail")}</div>
-          ) : (
-            <>
-              <InputField
-                label={`${t("suppliers.name")} *`}
-                type="text"
-                value={form.name}
-                onChange={(value) => onFormChange("name", value)}
-                placeholder={t("suppliers.namePlaceholder")}
-                error={nameError}
-              />
+      />
 
-              <InputField
-                label={t("suppliers.surname")}
-                type="text"
-                value={form.surname}
-                onChange={(value) => onFormChange("surname", value)}
-                placeholder={t("suppliers.surnamePlaceholder")}
-              />
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">{t("suppliers.address")}</label>
-                <textarea
-                  value={form.address}
-                  onChange={(e) => onFormChange("address", e.target.value)}
-                  className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-                  placeholder={t("suppliers.addressPlaceholder")}
-                />
-              </div>
-
-              <InputField
-                label={t("suppliers.phone")}
-                type="text"
-                value={form.phoneNumber}
-                onChange={(value) => onFormChange("phoneNumber", value)}
-                placeholder={t("suppliers.phonePlaceholder")}
-              />
-
-              <InputField
-                label={t("suppliers.email")}
-                type="email"
-                value={form.email}
-                onChange={(value) => onFormChange("email", value)}
-                placeholder={t("suppliers.emailPlaceholder")}
-                error={emailError}
-              />
-
-              {editingSupplierId && (
-                <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">
-                  <span className="text-xs font-semibold text-muted">{t("suppliers.active")}</span>
-                  <ToggleSwitch
-                    checked={editingSupplierIsActive}
-                    onChange={setEditingSupplierIsActive}
-                    disabled={submitting || loadingSupplierDetail}
-                  />
-                </div>
-              )}
-
-              {formError && <p className="text-sm text-error">{formError}</p>}
-            </>
-          )}
-        </form>
-      </Drawer>
+      <SupplierDrawer
+        open={drawerOpen}
+        editingSupplierId={editingSupplierId}
+        submitting={submitting}
+        loadingSupplierDetail={loadingSupplierDetail}
+        isMobile={isMobile}
+        form={form}
+        formError={formError}
+        nameError={nameError}
+        emailError={emailError}
+        editingSupplierIsActive={editingSupplierIsActive}
+        onClose={onCloseDrawer}
+        onSubmit={onSubmitSupplier}
+        onFormChange={onFormChange}
+        onEditingSupplierIsActiveChange={setEditingSupplierIsActive}
+      />
     </div>
   );
 }
