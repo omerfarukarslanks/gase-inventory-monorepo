@@ -46,12 +46,12 @@ function VirtualAttributeValuesTable({
   values,
   togglingValueIds,
   onToggleValueStatus,
-  canManage,
+  canUpdate,
 }: {
   values: AttributeValue[];
   togglingValueIds: string[];
   onToggleValueStatus: (value: AttributeValue, next: boolean) => void;
-  canManage: boolean;
+  canUpdate: boolean;
 }) {
   const rowHeight = 40;
   const containerHeight = 240;
@@ -91,7 +91,7 @@ function VirtualAttributeValuesTable({
                   </span>
                 </div>
                 <div className="px-3 py-2 text-right">
-                  {canManage && (
+                  {canUpdate && (
                     <ToggleSwitch
                       checked={value.isActive}
                       onChange={(next) => onToggleValueStatus(value, next)}
@@ -111,7 +111,8 @@ function VirtualAttributeValuesTable({
 export default function AttributesPage() {
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
-  const canManage = can("PRODUCT_ATTRIBUTE_MANAGE");
+  const canCreate = can("PRODUCT_ATTRIBUTE_CREATE");
+  const canUpdate = can("PRODUCT_ATTRIBUTE_UPDATE");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -419,7 +420,7 @@ export default function AttributesPage() {
             variant="secondary"
             className="w-full px-3 py-2 lg:w-auto"
           />
-          {canManage && (
+          {canCreate && (
             <Button
               label="Yeni Ozellik"
               onClick={openCreateDrawer}
@@ -551,7 +552,7 @@ export default function AttributesPage() {
                         <td className="px-4 py-3 text-sm text-text2">{formatDate(attribute.updatedAt)}</td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/40">
                           <div className="inline-flex items-center gap-2">
-                            {canManage && (
+                            {canUpdate && (
                               <button
                                 type="button"
                                 onClick={() => openEditDrawer(attribute)}
@@ -562,7 +563,7 @@ export default function AttributesPage() {
                                 <EditIcon />
                               </button>
                             )}
-                            {canManage && (
+                            {canUpdate && (
                               <ToggleSwitch
                                 checked={attribute.isActive}
                                 onChange={(next) => toggleAttributeStatus(attribute, next)}
@@ -586,7 +587,7 @@ export default function AttributesPage() {
                                 values={values}
                                 togglingValueIds={togglingValueIds}
                                 onToggleValueStatus={toggleAttributeValueStatus}
-                                canManage={canManage}
+                                canUpdate={canUpdate}
                               />
                             )}
                           </td>

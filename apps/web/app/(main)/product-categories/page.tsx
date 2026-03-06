@@ -59,7 +59,8 @@ function slugifyText(value: string): string {
 export default function ProductCategoriesPage() {
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
-  const canManage = can("PRODUCT_CATEGORY_MANAGE");
+  const canCreate = can("PRODUCT_CATEGORY_CREATE");
+  const canUpdate = can("PRODUCT_CATEGORY_UPDATE");
   const isMobile = !useMediaQuery();
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -337,7 +338,7 @@ export default function ProductCategoriesPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          {canManage && (
+          {canCreate && (
             <Button
               label="Yeni Kategori"
               onClick={onOpenDrawer}
@@ -425,7 +426,7 @@ export default function ProductCategoriesPage() {
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                           <div className="inline-flex items-center gap-1">
-                            {canManage && (
+                            {canUpdate && (
                               <IconButton
                                 onClick={() => void onEditCategory(category.id)}
                                 disabled={togglingCategoryIds.includes(category.id)}
@@ -435,7 +436,7 @@ export default function ProductCategoriesPage() {
                                 <EditIcon />
                               </IconButton>
                             )}
-                            {canManage && (
+                            {canUpdate && (
                               <ToggleSwitch
                                 checked={Boolean(category.isActive)}
                                 onChange={(next) => void onToggleCategoryActive(category, next)}

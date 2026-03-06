@@ -6,33 +6,44 @@ export enum UserRole {
 }
 
 export type PermissionName =
-  // Satış
-  | "SALE_READ"
-  | "SALE_CREATE"
-  | "SALE_UPDATE"
-  | "SALE_CANCEL"
-  | "SALE_LINE_MANAGE"
-  | "SALE_RETURN"
-  | "SALE_RECEIPT_READ"
-  | "SALE_PAYMENT_MANAGE"
-  // Ürün
-  | "PRODUCT_READ"
-  | "PRODUCT_CREATE"
-  | "PRODUCT_UPDATE"
-  | "PRODUCT_DELETE"
-  | "PRODUCT_VARIANT_MANAGE"
-  | "PRODUCT_BARCODE_LOOKUP"
-  | "PRODUCT_ATTRIBUTE_MANAGE"
-  | "PRODUCT_CATEGORY_MANAGE"
-  | "PRODUCT_PACKAGE_MANAGE"
-  // Stok
+    // Stok
   | "STOCK_LIST_READ"
   | "STOCK_MOVEMENTS_READ"
   | "STOCK_LOW_ALERTS_READ"
   | "STOCK_SUMMARY_READ"
   | "STOCK_RECEIVE"
-  | "STOCK_ADJUST"
   | "STOCK_TRANSFER"
+  | "STOCK_ADJUST"
+  /// Satış
+  | "SALE_CREATE"
+  | "SALE_READ"
+  | "SALE_UPDATE"
+  | "SALE_CANCEL"
+  | "SALE_PAYMENT_CREATE"
+  | "SALE_PAYMENT_READ"
+  | "SALE_PAYMENT_UPDATE"
+  | "SALE_LINE_CREATE"
+  | "SALE_LINE_UPDATE"
+  | "SALE_RETURN_CREATE"
+  | "SALE_RETURN_READ"
+  | "SALE_RECEIPT_READ"
+  // Ürün
+  | "PRODUCT_DELETE"
+  | "PRODUCT_CREATE"
+  | "PRODUCT_UPDATE"
+  | "PRODUCT_READ"
+  | "PRODUCT_VARIANT_CREATE"
+  | "PRODUCT_VARIANT_UPDATE"
+  | "PRODUCT_BARCODE_LOOKUP"
+  | "PRODUCT_CATEGORY_READ"
+  | "PRODUCT_CATEGORY_CREATE"
+  | "PRODUCT_CATEGORY_UPDATE"
+  | "PRODUCT_PACKAGE_READ"
+  | "PRODUCT_PACKAGE_CREATE"
+  | "PRODUCT_PACKAGE_UPDATE"
+  | "PRODUCT_ATTRIBUTE_READ"
+  | "PRODUCT_ATTRIBUTE_UPDATE"
+  | "PRODUCT_ATTRIBUTE_CREATE"
   // Fiyat
   | "PRICE_READ"
   | "PRICE_MANAGE"
@@ -43,10 +54,12 @@ export type PermissionName =
   | "STORE_DELETE"
   // Tedarikçi
   | "SUPPLIER_READ"
-  | "SUPPLIER_MANAGE"
+  | "SUPPLIER_CREATE"
+  | "SUPPLIER_UPDATE"
   // Müşteri
   | "CUSTOMER_READ"
-  | "CUSTOMER_MANAGE"
+  | "CUSTOMER_CREATE"
+  | "CUSTOMER_UPDATE"
   // Kullanıcı
   | "USER_READ"
   | "USER_CREATE"
@@ -91,25 +104,6 @@ export type SessionUser = {
 
 export type SessionStoreType = "RETAIL" | "WHOLESALE";
 
-export type SessionListScope =
-  | {
-      scope: "tenant";
-    }
-  | {
-      scope: "store";
-      storeIds: string[];
-    };
-
-function asRole(role?: string | null): UserRole | null {
-  if (!role) return null;
-  const normalized = role.toUpperCase();
-  if (normalized === UserRole.OWNER) return UserRole.OWNER;
-  if (normalized === UserRole.ADMIN) return UserRole.ADMIN;
-  if (normalized === UserRole.MANAGER) return UserRole.MANAGER;
-  if (normalized === UserRole.STAFF) return UserRole.STAFF;
-  return null;
-}
-
 export function getSessionUser(): SessionUser | null {
   if (typeof window === "undefined") return null;
   try {
@@ -139,11 +133,6 @@ function asStoreType(storeType?: string | null): SessionStoreType | null {
   return null;
 }
 
-export function getSessionUserRole(): UserRole | null {
-  const user = getSessionUser();
-  return asRole(user?.role);
-}
-
 export function getSessionUserStoreType(user?: SessionUser | null): SessionStoreType | null {
   const resolvedUser = user ?? getSessionUser();
   if (!resolvedUser) return null;
@@ -162,16 +151,6 @@ export function getSessionUserStoreType(user?: SessionUser | null): SessionStore
   }
 
   return null;
-}
-
-export function canAccessTenantPages(role: UserRole | null): boolean {
-  void role;
-  return true;
-}
-
-export function isStoreScopedRole(role: UserRole | null): boolean {
-  void role;
-  return false;
 }
 
 export function getSessionUserStoreIds(user: SessionUser | null): string[] {
@@ -207,9 +186,4 @@ export function getSessionUserStoreIds(user: SessionUser | null): string[] {
   }
 
   return [...ids];
-}
-
-export function getSessionListScope(user?: SessionUser | null): SessionListScope {
-  void user;
-  return { scope: "tenant" };
 }

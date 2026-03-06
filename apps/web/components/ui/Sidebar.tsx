@@ -26,8 +26,8 @@ const items: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  { href: "/attributes", label: "Ozellikler", icon: "O", permission: "PRODUCT_ATTRIBUTE_MANAGE" },
-  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK", permission: "PRODUCT_CATEGORY_MANAGE" },
+  { href: "/attributes", label: "Ozellikler", icon: "O", permission: "PRODUCT_ATTRIBUTE_READ" },
+  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK", permission: "PRODUCT_CATEGORY_READ" },
   { href: "/stores", label: "Magazalar", icon: "M", permission: "STORE_READ" },
   { href: "/suppliers", label: "Tedarikciler", icon: "T", permission: "SUPPLIER_READ" },
   { href: "/customers", label: "Musteriler", icon: "C", permission: "CUSTOMER_READ" },

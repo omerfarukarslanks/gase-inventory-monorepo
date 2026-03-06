@@ -1320,10 +1320,12 @@ export default function SalesPage() {
         onManageLines={(sale) => void openManageLinesDrawer(sale)}
         canUpdate={can("SALE_UPDATE")}
         canCancel={can("SALE_CANCEL")}
-        canManageLines={can("SALE_LINE_MANAGE")}
-        canReturn={can("SALE_RETURN")}
+        canCreateLines={can("SALE_LINE_CREATE")}
+        canUpdateLines={can("SALE_LINE_UPDATE")}
+        canReturn={can("SALE_RETURN_READ")}
         canDownloadReceipt={can("SALE_RECEIPT_READ")}
-        canManagePayments={can("SALE_PAYMENT_MANAGE")}
+        canCreatePayments={can("SALE_PAYMENT_CREATE")}
+        canUpdatePayments={can("SALE_PAYMENT_UPDATE")}
         footer={
           salesMeta && !salesLoading && !salesError ? (
             <SalesPagination

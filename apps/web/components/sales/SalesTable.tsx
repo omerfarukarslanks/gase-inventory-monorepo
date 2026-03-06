@@ -26,10 +26,12 @@ type SalesTableProps = {
   onManageLines: (sale: SaleListItem) => void;
   canUpdate?: boolean;
   canCancel?: boolean;
-  canManageLines?: boolean;
+  canCreateLines?: boolean;
+  canUpdateLines?: boolean;
   canReturn?: boolean;
   canDownloadReceipt?: boolean;
-  canManagePayments?: boolean;
+  canCreatePayments?: boolean;
+  canUpdatePayments?: boolean;
   footer?: ReactNode;
 };
 
@@ -86,13 +88,13 @@ function VirtualSalePaymentsTable({
   payments,
   onEditPayment,
   onDeletePayment,
-  canManagePayments,
+  canUpdatePayments,
 }: {
   saleId: string;
   payments: SalePayment[];
   onEditPayment: (saleId: string, payment: SalePayment) => void;
   onDeletePayment: (saleId: string, payment: SalePayment) => void;
-  canManagePayments: boolean;
+  canUpdatePayments: boolean;
 }) {
   const rowHeight = 44;
   const containerHeight = 280;
@@ -134,7 +136,7 @@ function VirtualSalePaymentsTable({
                 <div className="px-3 py-2.5">{payment.currency ?? "-"}</div>
                 <div className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</div>
                 <div className="flex items-center justify-end gap-1 px-3 py-2.5">
-                  {canManagePayments && payment.status !== "CANCELLED" && (
+                  {canUpdatePayments && payment.status !== "CANCELLED" && (
                     <button
                       type="button"
                       onClick={() => onEditPayment(saleId, payment)}
@@ -145,7 +147,7 @@ function VirtualSalePaymentsTable({
                       <EditIcon />
                     </button>
                   )}
-                  {canManagePayments && payment.status !== "CANCELLED" && (
+                  {canUpdatePayments && payment.status !== "CANCELLED" && (
                     <button
                       type="button"
                       onClick={() => onDeletePayment(saleId, payment)}
@@ -186,10 +188,12 @@ export default function SalesTable({
   onManageLines,
   canUpdate = true,
   canCancel = true,
-  canManageLines = true,
+  canCreateLines = true,
+  canUpdateLines = true,
   canReturn = true,
   canDownloadReceipt = true,
-  canManagePayments = true,
+  canCreatePayments = true,
+  canUpdatePayments = true,
   footer,
 }: SalesTableProps) {
   if (salesError) {
@@ -261,7 +265,7 @@ export default function SalesTable({
                   });
                 }
               } else {
-                if (showAddPaymentButton && canManagePayments) {
+                if (showAddPaymentButton && canCreatePayments) {
                   actionItems.push({
                     key: "add-payment",
                     label: "Odeme Ekle",
@@ -277,7 +281,7 @@ export default function SalesTable({
                       onClick: () => onEdit(sale),
                     });
                   }
-                  if (canManageLines) {
+                  if (canUpdateLines || canCreateLines) {
                     actionItems.push({
                       key: "manage-lines",
                       label: "Satirlari Yonet",
@@ -404,7 +408,7 @@ export default function SalesTable({
                                 payments={payments}
                                 onEditPayment={onEditPayment}
                                 onDeletePayment={onDeletePayment}
-                                canManagePayments={canManagePayments}
+                                canUpdatePayments={canUpdatePayments}
                               />
                             </div>
                           )}

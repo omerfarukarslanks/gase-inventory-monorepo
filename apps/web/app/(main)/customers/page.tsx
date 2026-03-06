@@ -365,7 +365,7 @@ export default function CustomersPage() {
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
-          {can("CUSTOMER_MANAGE") && (
+          {can("CUSTOMER_CREATE") && (
             <Button
               label="Yeni Musteri"
               onClick={onOpenDrawer}
@@ -469,7 +469,7 @@ export default function CustomersPage() {
                             >
                               <PriceIcon />
                             </IconButton>
-                            {can("CUSTOMER_MANAGE") && (
+                            {can("CUSTOMER_UPDATE") && (
                               <IconButton
                                 onClick={() => onEditCustomer(customer.id)}
                                 disabled={togglingCustomerIds.includes(customer.id)}
@@ -479,7 +479,7 @@ export default function CustomersPage() {
                                 <EditIcon />
                               </IconButton>
                             )}
-                            {can("CUSTOMER_MANAGE") && (
+                            {can("CUSTOMER_UPDATE") && (
                               <ToggleSwitch
                                 checked={Boolean(customer.isActive)}
                                 onChange={(next) => onToggleCustomerActive(customer, next)}
