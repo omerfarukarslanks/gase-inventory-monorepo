@@ -1,13 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
-import Button from "@/components/ui/Button";
-import Drawer from "@/components/ui/Drawer";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
+import { useCallback, useEffect, useState } from "react";
 import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon } from "@/components/ui/icons/TableIcons";
 import {
   createAttribute,
   createAttributeValues,
@@ -22,92 +16,11 @@ import {
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatDate } from "@/lib/format";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { useLang } from "@/context/LangContext";
-
-type DrawerStep = 1 | 2;
-
-type EditableValue = {
-  id: string;
-  name: string;
-  isActive: boolean;
-  originalName: string;
-  originalIsActive: boolean;
-};
-
-function parseCommaSeparated(input: string): string[] {
-  return input
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function VirtualAttributeValuesTable({
-  values,
-  togglingValueIds,
-  onToggleValueStatus,
-  canUpdate,
-}: {
-  values: AttributeValue[];
-  togglingValueIds: string[];
-  onToggleValueStatus: (value: AttributeValue, next: boolean) => void;
-  canUpdate: boolean;
-}) {
-  const rowHeight = 40;
-  const containerHeight = 240;
-  const overscan = 4;
-  const [scrollTop, setScrollTop] = useState(0);
-
-  const totalHeight = values.length * rowHeight;
-  const visibleCount = Math.ceil(containerHeight / rowHeight);
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-  const endIndex = Math.min(values.length, startIndex + visibleCount + overscan * 2);
-  const visibleValues = values.slice(startIndex, endIndex);
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface">
-      <div className="grid grid-cols-[1.5fr_1fr_0.7fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
-        <div className="px-3 py-2">Deger Adi</div>
-        <div className="px-3 py-2">Durum</div>
-        <div className="bg-surface2/70 px-3 py-2 text-right">Islemler</div>
-      </div>
-
-      <div className="h-[240px] overflow-y-auto" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
-        <div className="relative" style={{ height: totalHeight }}>
-          <div className="absolute inset-x-0" style={{ transform: `translateY(${startIndex * rowHeight}px)` }}>
-            {visibleValues.map((value) => (
-              <div
-                key={value.id}
-                className="grid h-10 grid-cols-[1.5fr_1fr_0.7fr] items-center border-b border-border text-sm text-text2 last:border-b-0 hover:bg-surface2/30"
-              >
-                <div className="px-3 py-2 text-text">{value.name}</div>
-                <div className="px-3 py-2">
-                  <span
-                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      value.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                    }`}
-                  >
-                    {value.isActive ? "Aktif" : "Pasif"}
-                  </span>
-                </div>
-                <div className="px-3 py-2 text-right">
-                  {canUpdate && (
-                    <ToggleSwitch
-                      checked={value.isActive}
-                      onChange={(next) => onToggleValueStatus(value, next)}
-                      disabled={togglingValueIds.includes(value.id)}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import AttributesFilters from "@/components/attributes/AttributesFilters";
+import AttributesTable from "@/components/attributes/AttributesTable";
+import AttributeDrawer from "@/components/attributes/AttributeDrawer";
+import { parseCommaSeparated, type DrawerStep, type EditableValue } from "@/components/attributes/types";
 
 export default function AttributesPage() {
   const { t } = useLang();
@@ -168,7 +81,7 @@ export default function AttributesPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter]);
+  }, [accessChecked, currentPage, pageSize, debouncedSearch, statusFilter, t]);
 
   useEffect(() => {
     fetchAttributes();
@@ -179,22 +92,20 @@ export default function AttributesPage() {
   }, [debouncedSearch, statusFilter, pageSize]);
 
   useEffect(() => {
-    if (success) {
-      const t = setTimeout(() => setSuccess(""), 3000);
-      return () => clearTimeout(t);
-    }
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(""), 3000);
+    return () => clearTimeout(timer);
   }, [success]);
 
   useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => setError(""), 5000);
-      return () => clearTimeout(t);
-    }
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 5000);
+    return () => clearTimeout(timer);
   }, [error]);
 
   const toggleExpand = (id: string) => {
     setExpandedAttributeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
     );
   };
 
@@ -226,12 +137,12 @@ export default function AttributesPage() {
       const detail = await getAttributeById(attribute.id);
       const values = [...detail.values]
         .sort((a, b) => Number(a.value) - Number(b.value))
-        .map((v) => ({
-          id: v.id,
-          name: v.name ?? "",
-          isActive: v.isActive,
-          originalName: v.name ?? "",
-          originalIsActive: v.isActive,
+        .map((value) => ({
+          id: value.id,
+          name: value.name ?? "",
+          isActive: value.isActive,
+          originalName: value.name ?? "",
+          originalIsActive: value.isActive,
         }));
       setExistingValues(values);
     } catch {
@@ -290,9 +201,7 @@ export default function AttributesPage() {
   const toggleAttributeStatus = async (attribute: Attribute, next: boolean) => {
     setTogglingAttributeIds((prev) => [...prev, attribute.id]);
     setAttributes((prev) =>
-      prev.map((item) =>
-        item.id === attribute.id ? { ...item, isActive: next } : item,
-      ),
+      prev.map((item) => (item.id === attribute.id ? { ...item, isActive: next } : item)),
     );
     try {
       await updateAttribute(attribute.id, { isActive: next });
@@ -310,10 +219,7 @@ export default function AttributesPage() {
     }
   };
 
-  const toggleAttributeValueStatus = async (
-    value: AttributeValue,
-    next: boolean,
-  ) => {
+  const toggleAttributeValueStatus = async (value: AttributeValue, next: boolean) => {
     setTogglingValueIds((prev) => [...prev, value.id]);
     try {
       await updateAttributeValue(value.id, { isActive: next });
@@ -328,15 +234,12 @@ export default function AttributesPage() {
 
   const handleSave = async () => {
     setFormError("");
-    const attr = workingAttribute;
-    if (!attr) {
+    if (!workingAttribute) {
       setFormError("Ozellik kimligi bulunamadi. Lutfen tekrar deneyin.");
       return;
     }
 
-    const preparedNewValues = parseCommaSeparated(newValuesInput)
-      .map((name) => ({ name }));
-
+    const preparedNewValues = parseCommaSeparated(newValuesInput).map((name) => ({ name }));
     const existingValueUpdates = existingValues
       .filter((item) => item.name.trim() !== item.originalName)
       .map((item) => ({ id: item.id, name: item.name.trim() }));
@@ -353,18 +256,15 @@ export default function AttributesPage() {
     }
 
     setSubmitting(true);
-
     try {
       if (existingValueUpdates.length > 0) {
         await Promise.all(
-          existingValueUpdates.map((v) =>
-            updateAttributeValue(v.id, { name: v.name }),
-          ),
+          existingValueUpdates.map((value) => updateAttributeValue(value.id, { name: value.name })),
         );
       }
 
       if (preparedNewValues.length > 0) {
-        await createAttributeValues(attr.value, preparedNewValues);
+        await createAttributeValues(workingAttribute.value, preparedNewValues);
       }
 
       setDrawerOpen(false);
@@ -383,10 +283,6 @@ export default function AttributesPage() {
     );
   };
 
-
-  const valuesForRow = (attribute: Attribute): AttributeValue[] =>
-    [...(attribute.values ?? [])].sort((a, b) => Number(a.value) - Number(b.value));
-
   const totalPages = meta?.totalPages ?? 1;
 
   const handlePageChange = (nextPage: number) => {
@@ -403,63 +299,18 @@ export default function AttributesPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("attributes.title")}</h1>
-          <p className="text-sm text-muted">{t("attributes.title")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Ozellik ara..."
-            containerClassName="w-full lg:w-80"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={() => setShowAdvancedFilters((prev) => !prev)}
-            variant="secondary"
-            className="w-full px-3 py-2 lg:w-auto"
-          />
-          {canCreate && (
-            <Button
-              label={t("attributes.new")}
-              onClick={openCreateDrawer}
-              variant="primarySoft"
-              className="w-full px-3 py-2 lg:w-auto"
-            />
-          )}
-        </div>
-      </div>
+      <AttributesFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={openCreateDrawer}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={() => setStatusFilter("all")}
+      />
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
-            <SearchableDropdown
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder={t("common.allStatuses")}
-              showEmptyOption={false}
-              allowClear={false}
-              inputAriaLabel="Ozellik durum filtresi"
-              toggleAriaLabel="Ozellik durum listesini ac"
-            />
-          </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <Button
-              label={t("common.clearFilters")}
-              onClick={() => setStatusFilter("all")}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Alerts */}
       {success && (
         <div className="animate-fi rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
           {success}
@@ -471,311 +322,52 @@ export default function AttributesPage() {
         </div>
       )}
 
-      {/* Table */}
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        {loading ? (
-          <div className="flex items-center gap-2 p-6 text-sm text-muted">
-            <svg className="h-4 w-4 animate-sp" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-              <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-            {t("common.loading")}
-          </div>
-        ) : attributes.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 p-10 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted/40">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.29 7 12 12 20.71 7" />
-              <line x1="12" y1="22" x2="12" y2="12" />
-            </svg>
-            <p className="text-sm font-medium text-muted">{t("common.noData")}</p>
-            <p className="text-xs text-muted/70">{t("attributes.new")}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-              <thead className="border-b border-border bg-surface2/70">
-                <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                  <th className="px-4 py-3">{t("attributes.title")}</th>
-                  <th className="px-4 py-3">{t("common.status")}</th>
-                  <th className="px-4 py-3 text-center">{t("attributes.valueName")}</th>
-                  <th className="px-4 py-3">Guncelleme</th>
-                  <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attributes.map((attribute) => {
-                  const isExpanded = expandedAttributeIds.includes(attribute.id);
-                  const values = valuesForRow(attribute);
-
-                  return (
-                    <Fragment key={attribute.id}>
-                      <tr className="group border-b border-border last:border-b-0 hover:bg-surface2/40 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-text">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(attribute.id)}
-                            className="inline-flex items-center cursor-pointer gap-2 rounded-lg px-1 py-1 text-left hover:bg-surface2"
-                            aria-expanded={isExpanded}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className={`text-muted transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}
-                            >
-                              <path d="m9 18 6-6-6-6" />
-                            </svg>
-                            <span>{attribute.name}</span>
-                          </button>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              attribute.isActive
-                                ? "bg-primary/15 text-primary"
-                                : "bg-error/15 text-error"
-                            }`}
-                          >
-                            {attribute.isActive ? t("common.active") : t("common.passive")}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center text-sm text-text2">
-                          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-surface2 px-2 text-xs font-medium">
-                            {attribute.values?.length ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-text2">{formatDate(attribute.updatedAt)}</td>
-                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/40">
-                          <div className="inline-flex items-center gap-2">
-                            {canUpdate && (
-                              <button
-                                type="button"
-                                onClick={() => openEditDrawer(attribute)}
-                                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors"
-                                aria-label="Ozellik duzenle"
-                                title="Duzenle"
-                              >
-                                <EditIcon />
-                              </button>
-                            )}
-                            {canUpdate && (
-                              <ToggleSwitch
-                                checked={attribute.isActive}
-                                onChange={(next) => toggleAttributeStatus(attribute, next)}
-                                disabled={togglingAttributeIds.includes(attribute.id)}
-                              />
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-
-                      {/* Expanded child values */}
-                      {isExpanded && (
-                        <tr className="border-b border-border bg-surface/60">
-                          <td colSpan={5} className="px-5 py-4">
-                            {values.length === 0 ? (
-                              <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted">
-                                Bu ozellige ait deger bulunamadi.
-                              </div>
-                            ) : (
-                              <VirtualAttributeValuesTable
-                                values={values}
-                                togglingValueIds={togglingValueIds}
-                                onToggleValueStatus={toggleAttributeValueStatus}
-                                canUpdate={canUpdate}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {meta && (
-          <TablePagination
-            page={currentPage}
-            totalPages={totalPages}
-            total={meta.total}
-            pageSize={pageSize}
-            pageSizeId="attributes-page-size"
-            loading={loading}
-            onPageChange={handlePageChange}
-            onPageSizeChange={onChangePageSize}
-          />
-        )}
-      </section>
-
-      {/* Drawer */}
-      <Drawer
-        open={drawerOpen}
-        onClose={closeDrawer}
-        side="right"
-        title={editingId ? t("attributes.title") : t("attributes.new")}
-        description={`Adim ${drawerStep}/2`}
-        closeDisabled={submitting}
-        className="!max-w-[640px]"
+      <AttributesTable
+        loading={loading}
+        attributes={attributes}
+        expandedAttributeIds={expandedAttributeIds}
+        togglingAttributeIds={togglingAttributeIds}
+        togglingValueIds={togglingValueIds}
+        canUpdate={canUpdate}
+        onToggleExpand={toggleExpand}
+        onEditAttribute={openEditDrawer}
+        onToggleAttributeStatus={toggleAttributeStatus}
+        onToggleValueStatus={toggleAttributeValueStatus}
         footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button label={t("common.cancel")} onClick={closeDrawer} disabled={submitting} variant="secondary" />
-            {drawerStep === 2 && (
-              <Button label={t("common.back")} onClick={goPrevStep} disabled={submitting} variant="secondary" />
-            )}
-            {drawerStep === 1 ? (
-              <Button
-                label={t("common.continue")}
-                onClick={goNextStep}
-                disabled={submitting || detailLoading}
-                loading={submitting}
-                variant="primarySolid"
-              />
-            ) : (
-              <Button
-                label={t("common.save")}
-                onClick={handleSave}
-                loading={submitting}
-                variant="primarySolid"
-              />
-            )}
-          </div>
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={pageSize}
+              pageSizeId="attributes-page-size"
+              loading={loading}
+              onPageChange={handlePageChange}
+              onPageSizeChange={onChangePageSize}
+            />
+          ) : null
         }
-      >
-        <div className="space-y-5 p-5">
-          {/* Step indicator */}
-          <div className="flex gap-2">
-            <div className="h-1 flex-1 rounded-full bg-primary" />
-            <div className={`h-1 flex-1 rounded-full transition-colors ${drawerStep === 2 ? "bg-primary" : "bg-border"}`} />
-          </div>
+      />
 
-          {/* Step 1 - Attribute Name */}
-          {drawerStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-text">{t("attributes.title")}</h3>
-                <p className="text-xs text-muted">{t("attributes.title")}</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted">{t("attributes.title")} *</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Orn: Renk, Beden, Malzeme"
-                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !submitting) goNextStep();
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 2 - Attribute Values */}
-          {drawerStep === 2 && (
-            <div className="space-y-5">
-              <div>
-                <h3 className="text-sm font-semibold text-text">{t("attributes.valueName")}</h3>
-                <p className="text-xs text-muted">
-                  <span className="font-medium text-text">{originalName}</span> icin degerlerini yonetin
-                </p>
-              </div>
-
-              {detailLoading ? (
-                <div className="flex items-center gap-2 py-4 text-sm text-muted">
-                  <svg className="h-4 w-4 animate-sp" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                  {t("common.loading")}
-                </div>
-              ) : (
-                <>
-                  {/* Existing values */}
-                  {editingId && existingValues.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-muted">Mevcut Degerler</label>
-                      <div className="space-y-2">
-                        {existingValues.map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center gap-2 rounded-xl border border-border bg-surface2/30 p-2"
-                          >
-                            <input
-                              type="text"
-                              value={item.name}
-                              onChange={(e) => updateEditableValue(item.id, { name: e.target.value })}
-                              placeholder="Deger adi"
-                              className="h-9 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                            />
-                            <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                item.isActive
-                                  ? "bg-primary/15 text-primary"
-                                  : "bg-error/15 text-error"
-                              }`}
-                            >
-                              {item.isActive ? t("common.active") : t("common.passive")}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {editingId && existingValues.length === 0 && (
-                    <div className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted">
-                      Kayitli deger bulunamadi
-                    </div>
-                  )}
-
-                  {/* New values */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-muted">Yeni Degerler</label>
-                    <input
-                      type="text"
-                      value={newValuesInput}
-                      onChange={(e) => setNewValuesInput(e.target.value)}
-                      placeholder="Virgul ile ayirin: Kirmizi, Mavi, Yesil"
-                      className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
-                    {newValuesInput.trim() && (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {parseCommaSeparated(newValuesInput).map((name, i) => (
-                          <span
-                            key={`${name}-${i}`}
-                            className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-                          >
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Form error */}
-          {formError && (
-            <div className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error">
-              {formError}
-            </div>
-          )}
-        </div>
-      </Drawer>
+      <AttributeDrawer
+        open={drawerOpen}
+        editingId={editingId}
+        drawerStep={drawerStep}
+        submitting={submitting}
+        detailLoading={detailLoading}
+        formName={formName}
+        originalName={originalName}
+        existingValues={existingValues}
+        newValuesInput={newValuesInput}
+        formError={formError}
+        onClose={closeDrawer}
+        onPrevStep={goPrevStep}
+        onNextStep={goNextStep}
+        onSave={handleSave}
+        onFormNameChange={setFormName}
+        onNewValuesInputChange={setNewValuesInput}
+        onUpdateEditableValue={updateEditableValue}
+      />
     </div>
   );
 }
