@@ -112,8 +112,9 @@ function resolvePackageItemStockText(item: unknown): string {
 }
 
 export default function SalesPage() {
-  const stores = useStores();
   const { can } = usePermissions();
+  const canTenantOnly = can("TENANT_ONLY");
+  const stores = canTenantOnly ? useStores() : [];
 
   /* ── Sales list state ── */
   const [salesReceipts, setSalesReceipts] = useState<SaleListItem[]>([]);
@@ -219,7 +220,6 @@ export default function SalesPage() {
 
   /* ── Scope ── */
   const [scopeReady, setScopeReady] = useState(false);
-  const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
   const [scopedStoreId, setScopedStoreId] = useState("");
   const [isWholesaleStoreType, setIsWholesaleStoreType] = useState(false);
 
@@ -257,7 +257,6 @@ export default function SalesPage() {
     const user = getSessionUser();
     const storeType = getSessionUserStoreType(user);
     const storeIds = getSessionUserStoreIds(user);
-    setIsStoreScopedUser(false);
     setIsWholesaleStoreType(storeType === "WHOLESALE");
     setScopedStoreId(storeIds[0] ?? "");
     setScopeReady(true);
@@ -274,7 +273,7 @@ export default function SalesPage() {
           page: targetPage ?? salesPage,
           limit: salesLimit,
           includeLines: salesIncludeLines,
-          ...(isStoreScopedUser ? {} : { storeIds: salesStoreIds }),
+          ...(canTenantOnly ? {} : { storeIds: salesStoreIds }),
           receiptNo: salesReceiptNoFilter || undefined,
           name: salesNameFilter || undefined,
           surname: salesSurnameFilter || undefined,
@@ -301,7 +300,7 @@ export default function SalesPage() {
       salesPage,
       salesLimit,
       salesIncludeLines,
-      isStoreScopedUser,
+      canTenantOnly,
       salesStoreIds,
       salesReceiptNoFilter,
       salesNameFilter,
@@ -691,7 +690,7 @@ export default function SalesPage() {
   /* ── Form helpers ── */
   const resetSaleForm = useCallback(() => {
     setEditingSaleId(null);
-    setStoreId(isStoreScopedUser ? scopedStoreId : "");
+    setStoreId(canTenantOnly ? scopedStoreId : "");
     setCustomerId("");
     setName("");
     setSurname("");
@@ -703,7 +702,7 @@ export default function SalesPage() {
     setLines([createLineRow()]);
     setErrors({});
     setFormError("");
-  }, [isStoreScopedUser, scopedStoreId]);
+  }, [canTenantOnly, scopedStoreId]);
 
   const openSaleDrawer = () => {
     resetSaleForm();
@@ -1135,7 +1134,7 @@ export default function SalesPage() {
     const nextErrors: FieldErrors = {};
     if (!customerId) nextErrors.customerId = "Musteri secimi zorunludur.";
 
-    if (!editingSaleId && !isStoreScopedUser && !storeId) {
+    if (!editingSaleId && canTenantOnly && !storeId) {
       nextErrors.storeId = "Magaza secimi zorunludur.";
     }
 
@@ -1236,7 +1235,7 @@ export default function SalesPage() {
         setSuccess("Satis kaydi guncellendi.");
       } else {
         const payload: CreateSalePayload = {
-          ...(isStoreScopedUser ? {} : { storeId }),
+          ...(canTenantOnly ? {} : { storeId }),
           customerId,
           meta: {
             note: note.trim() || undefined,
@@ -1273,7 +1272,7 @@ export default function SalesPage() {
         onToggleAdvancedFilters={() => setShowSalesAdvancedFilters((prev) => !prev)}
         onNewSale={openSaleDrawer}
         canCreate={can("SALE_CREATE")}
-        isStoreScopedUser={isStoreScopedUser}
+        canTenantOnly={canTenantOnly}
         storeOptions={storeOptions}
         salesStoreIds={salesStoreIds}
         onSalesStoreIdsChange={setSalesStoreIds}
@@ -1353,7 +1352,7 @@ export default function SalesPage() {
         submitting={submitting}
         scopeReady={scopeReady}
         loadingVariants={loadingVariants}
-        isStoreScopedUser={isStoreScopedUser}
+        canTenantOnly={canTenantOnly}
         storeOptions={storeOptions}
         customerId={customerId}
         onCustomerIdChange={(value) => {

@@ -11,7 +11,7 @@ type SalesFiltersProps = {
   onToggleAdvancedFilters: () => void;
   onNewSale: () => void;
   canCreate?: boolean;
-  isStoreScopedUser: boolean;
+  canTenantOnly: boolean;
   storeOptions: Array<{ value: string; label: string }>;
   salesStoreIds: string[];
   onSalesStoreIdsChange: (values: string[]) => void;
@@ -43,7 +43,7 @@ export default function SalesFilters({
   onToggleAdvancedFilters,
   onNewSale,
   canCreate = true,
-  isStoreScopedUser,
+  canTenantOnly,
   storeOptions,
   salesStoreIds,
   onSalesStoreIdsChange,
@@ -90,7 +90,7 @@ export default function SalesFilters({
 
       {showAdvancedFilters && (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
-          {!isStoreScopedUser && (
+          {canTenantOnly && (
             <div className="xl:col-span-2">
               <label className="mb-1 block text-xs font-semibold text-muted">Magaza Filtrele</label>
               <SearchableMultiSelectDropdown

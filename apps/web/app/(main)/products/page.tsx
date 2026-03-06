@@ -129,18 +129,17 @@ export default function ProductsPage() {
   const [priceOpen, setPriceOpen] = useState(false);
   const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
   const [priceProductId, setPriceProductId] = useState<string | null>(null);
-  const stores = useStores();
+  const canTenantOnly = can("TENANT_ONLY");
+  const stores = canTenantOnly ? useStores() : [];
 
   /* Responsive */
   const isMobile = !useMediaQuery();
   const [scopeReady, setScopeReady] = useState(false);
-  const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
   const [scopedStoreId, setScopedStoreId] = useState("");
 
   useEffect(() => {
     const user = getSessionUser();
     const storeIds = getSessionUserStoreIds(user);
-    setIsStoreScopedUser(false);
     setScopedStoreId(storeIds[0] ?? "");
     setScopeReady(true);
   }, []);
@@ -186,7 +185,6 @@ export default function ProductsPage() {
     defaultSalePriceMaxFilter,
     productStatusFilter,
     variantStatusFilter,
-    isStoreScopedUser,
     scopeReady,
   ]);
 
@@ -518,7 +516,7 @@ export default function ProductsPage() {
       newErrors.lineTotal = "Gecerli bir satir toplami girin.";
     }
 
-    if (!isStoreScopedUser && !form.applyToAllStores && form.storeIds.length === 0) {
+    if (canTenantOnly && !form.applyToAllStores && form.storeIds.length === 0) {
       newErrors.storeIds = "En az bir magaza secin veya tum magazalara uygulayin.";
     }
 
@@ -633,7 +631,7 @@ export default function ProductsPage() {
   });
 
   const buildScopePayload = () =>
-    isStoreScopedUser
+    canTenantOnly
       ? { storeIds: [], applyToAllStores: false }
       : form.applyToAllStores
         ? { storeIds: [], applyToAllStores: true }
@@ -954,7 +952,6 @@ export default function ProductsPage() {
               calculatedLineTotal={calculatedLineTotal}
               storeOptions={storeOptions}
               categoryOptions={categoryOptions}
-              isStoreScopedUser={isStoreScopedUser}
               productInfoOpen={step1ProductInfoOpen}
               onToggleProductInfo={() => setStep1ProductInfoOpen((prev) => !prev)}
               storeScopeOpen={step1StoreScopeOpen}
@@ -963,6 +960,7 @@ export default function ProductsPage() {
               onFormChange={onFormChange}
               onFormPatch={onFormPatch}
               onClearError={onClearError}
+              canTenantOnly={canTenantOnly}
             />
           ) : step === 2 ? (
             <ProductDrawerStep2
@@ -986,8 +984,8 @@ export default function ProductsPage() {
         target={priceTarget}
         allStoreOptions={storeOptions}
         isMobile={isMobile}
-        showStoreScopeControls={!isStoreScopedUser}
-        fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
+        showStoreScopeControls={!canTenantOnly}
+        fixedStoreId={canTenantOnly ? scopedStoreId : undefined}
         onClose={closePriceDrawer}
         onSuccess={() => {
           if (priceTarget?.mode === "product") {

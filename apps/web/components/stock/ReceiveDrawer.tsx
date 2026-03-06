@@ -39,7 +39,7 @@ type ReceiveDrawerProps = {
   onSupplierChange: (id: string) => void;
   initialEntriesByVariant: Record<string, StockEntryInitialEntry[]>;
   isMobile: boolean;
-  showStoreSelector?: boolean;
+  canTenantOnly?: boolean;
   fixedStoreId?: string;
   onClose: () => void;
   onSubmit: (items: InventoryReceiveItem[]) => Promise<void>;
@@ -59,7 +59,7 @@ export default function ReceiveDrawer({
   onSupplierChange,
   initialEntriesByVariant,
   isMobile,
-  showStoreSelector = true,
+  canTenantOnly = true,
   fixedStoreId,
   onClose,
   onSubmit,
@@ -107,7 +107,7 @@ export default function ReceiveDrawer({
               stores={stores}
               initialEntriesByVariant={initialEntriesByVariant}
               mode="receive"
-              showStoreSelector={showStoreSelector}
+              showStoreSelector={canTenantOnly}
               fixedStoreId={fixedStoreId}
               onSubmit={handleSubmit}
               submitting={submitting}

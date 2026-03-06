@@ -541,9 +541,12 @@ export default function StockEntryForm({
             title={
               <span className="flex items-center gap-2">
                 <span>{block.variantName}</span>
+                {(showStoreSelector) && 
                 <span className="rounded-full bg-surface2 px-1.5 py-0.5 text-[10px] font-medium text-muted">
                   {block.entries.length} magaza
                 </span>
+                }
+                
                 {!isAdjustMode && variantTotal > 0 && (
                   <span className="ml-1 rounded-lg bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                     {formatPrice(variantTotal)} TRY
@@ -570,10 +573,13 @@ export default function StockEntryForm({
                   >
                     {/* Entry header */}
                     <div className="flex items-center justify-between">
+                      {(showStoreSelector) &&
                       <span className="text-xs font-semibold text-muted">
                         Magaza #{ei + 1}
                         {storeName && <span className="ml-1 text-text">- {storeName}</span>}
                       </span>
+                      }
+                      
                       <div className="flex items-center gap-2">
                         {!isAdjustMode && entryTotal > 0 && (
                           <span className="text-xs font-medium text-primary">

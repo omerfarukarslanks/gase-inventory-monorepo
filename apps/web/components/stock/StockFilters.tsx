@@ -9,7 +9,7 @@ type StockFiltersProps = {
   storeFilterIds: string[];
   onStoreFilterChange: (ids: string[]) => void;
   storeOptions: { value: string; label: string }[];
-  showStoreFilter?: boolean;
+  canTenantOnly?: boolean;
 };
 
 export default function StockFilters({
@@ -18,7 +18,7 @@ export default function StockFilters({
   storeFilterIds,
   onStoreFilterChange,
   storeOptions,
-  showStoreFilter = true,
+  canTenantOnly = true,
 }: StockFiltersProps) {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -35,7 +35,7 @@ export default function StockFilters({
           placeholder="Urun / varyant / magaza ara..."
           containerClassName="w-full lg:w-72"
         />
-        {showStoreFilter && (
+        {canTenantOnly && (
           <div className="w-full lg:w-72">
             <SearchableMultiSelectDropdown
               options={storeOptions}

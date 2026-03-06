@@ -36,6 +36,7 @@ type Props = {
   stores: Store[];
   suppliers: Supplier[];
   isMobile: boolean;
+  canTenantOnly: boolean;
   onClose: () => void;
   onSuccess: (msg: string) => void;
 };
@@ -89,6 +90,7 @@ export default function ProductInventoryDrawer({
   stores,
   suppliers,
   isMobile,
+  canTenantOnly,
   onClose,
   onSuccess,
 }: Props) {
@@ -393,7 +395,7 @@ export default function ProductInventoryDrawer({
             )}
 
             {/* Store (receive / adjust) */}
-            {operation !== "transfer" && (
+            {operation !== "transfer" && canTenantOnly && (
               <>
                 {operation === "adjust" && (
                   <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">

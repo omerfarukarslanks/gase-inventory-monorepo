@@ -17,12 +17,12 @@ type ProductDrawerStep1Props = {
   calculatedLineTotal: number | null;
   storeOptions: { value: string; label: string }[];
   categoryOptions: { value: string; label: string }[];
-  isStoreScopedUser: boolean;
   productInfoOpen: boolean;
   onToggleProductInfo: () => void;
   storeScopeOpen: boolean;
   onToggleStoreScope: () => void;
   formError: string;
+  canTenantOnly: boolean;
   onFormChange: (field: keyof ProductForm, value: string) => void;
   onFormPatch: (patch: Partial<ProductForm>) => void;
   onClearError: (field: keyof FormErrors) => void;
@@ -34,7 +34,6 @@ export default function ProductDrawerStep1({
   calculatedLineTotal,
   storeOptions,
   categoryOptions,
-  isStoreScopedUser,
   productInfoOpen,
   onToggleProductInfo,
   storeScopeOpen,
@@ -43,6 +42,7 @@ export default function ProductDrawerStep1({
   onFormChange,
   onFormPatch,
   onClearError,
+  canTenantOnly
 }: ProductDrawerStep1Props) {
   return (
     <>
@@ -52,7 +52,7 @@ export default function ProductDrawerStep1({
         <div className="h-1 flex-1 rounded-full bg-border" />
       </div>
 
-      {!isStoreScopedUser && (
+      {canTenantOnly && (
         <CollapsiblePanel
           title="Magaza Kapsami"
           open={storeScopeOpen}

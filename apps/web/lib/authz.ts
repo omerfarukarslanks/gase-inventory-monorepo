@@ -52,6 +52,7 @@ export type PermissionName =
   | "STORE_CREATE"
   | "STORE_UPDATE"
   | "STORE_DELETE"
+  | "STORE_VIEW"
   // Tedarikçi
   | "SUPPLIER_READ"
   | "SUPPLIER_CREATE"
@@ -76,7 +77,9 @@ export type PermissionName =
   // Sistem
   | "EXCHANGE_RATE_READ"
   | "AI_CHAT"
-  | "PERMISSION_MANAGE";
+  | "PERMISSION_MANAGE"
+  // Tenant
+  | 'TENANT_ONLY';
 
 export type SessionUser = {
   role?: string;

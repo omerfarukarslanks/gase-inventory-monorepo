@@ -25,7 +25,7 @@ type SaleDrawerProps = {
   submitting: boolean;
   scopeReady: boolean;
   loadingVariants: boolean;
-  isStoreScopedUser: boolean;
+  canTenantOnly: boolean;
   storeOptions: Array<{ value: string; label: string }>;
   customerId: string;
   onCustomerIdChange: (value: string) => void;
@@ -101,7 +101,7 @@ export default function SaleDrawer({
   submitting,
   scopeReady,
   loadingVariants,
-  isStoreScopedUser,
+  canTenantOnly,
   storeOptions,
   customerId,
   onCustomerIdChange,
@@ -233,7 +233,7 @@ export default function SaleDrawer({
       <div className="space-y-4 p-5">
         <section className="rounded-xl2 border border-border bg-surface p-4">
           <div className="grid gap-3 md:grid-cols-2">
-            {!editMode && !isStoreScopedUser && (
+            {!editMode && canTenantOnly && (
               <div>
                 <label className="mb-1 block text-xs font-semibold text-muted">Magaza *</label>
                 <SearchableDropdown

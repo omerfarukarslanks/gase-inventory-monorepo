@@ -28,7 +28,7 @@ type AdjustDrawerProps = {
   initialEntriesByVariant: Record<string, StockEntryInitialEntry[]>;
   isMobile: boolean;
   showStoreSelector?: boolean;
-  showApplyToAllStores?: boolean;
+  canTenantOnly?: boolean;
   applyToAllStores?: boolean;
   onApplyToAllStoresChange?: (checked: boolean) => void;
   fixedStoreId?: string;
@@ -48,7 +48,7 @@ export default function AdjustDrawer({
   initialEntriesByVariant,
   isMobile,
   showStoreSelector = true,
-  showApplyToAllStores = false,
+  canTenantOnly = false,
   applyToAllStores = false,
   onApplyToAllStoresChange,
   fixedStoreId,
@@ -81,7 +81,7 @@ export default function AdjustDrawer({
           <p className="text-sm text-muted">Magaza bilgileri yukleniyor...</p>
         ) : (
           <>
-            {showApplyToAllStores && (
+            {canTenantOnly && (
               <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">
                 <span className="text-xs font-semibold text-muted">Tum Magazalara Uygula</span>
                 <ToggleSwitch

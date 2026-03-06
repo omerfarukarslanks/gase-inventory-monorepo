@@ -82,9 +82,6 @@ export default function StockPage() {
     Record<string, boolean>
   >({});
 
-  /* ── Stores ── */
-  const stores = useStores();
-
   /* ── Adjust drawer ── */
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustLoading, setAdjustLoading] = useState(false);
@@ -137,6 +134,11 @@ export default function StockPage() {
 
   /* ── Permissions ── */
   const { can } = usePermissions();
+  const canTenantOnly = can("TENANT_ONLY");
+
+
+  /* ── Stores ── */
+  const stores = useStores();
 
   /* ── Responsive ── */
   const isMobile = !useMediaQuery();
@@ -569,7 +571,7 @@ export default function StockPage() {
         storeFilterIds={storeFilterIds}
         onStoreFilterChange={setStoreFilterIds}
         storeOptions={storeOptions}
-        showStoreFilter={!isStoreScopedUser}
+        canTenantOnly={canTenantOnly}
       />
 
       {success && (
@@ -621,8 +623,8 @@ export default function StockPage() {
         stores={stores}
         initialEntriesByVariant={adjustInitial}
         isMobile={isMobile}
-        showStoreSelector={!isStoreScopedUser && !adjustApplyToAllStores}
-        showApplyToAllStores={!isStoreScopedUser}
+        showStoreSelector={canTenantOnly && !adjustApplyToAllStores}
+        canTenantOnly={canTenantOnly}
         applyToAllStores={adjustApplyToAllStores}
         onApplyToAllStoresChange={setAdjustApplyToAllStores}
         fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
@@ -658,7 +660,7 @@ export default function StockPage() {
         onSupplierChange={setReceiveSupplierId}
         initialEntriesByVariant={receiveInitial}
         isMobile={isMobile}
-        showStoreSelector={!isStoreScopedUser}
+        canTenantOnly={canTenantOnly}
         fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
         onClose={closeReceiveDrawer}
         onSubmit={submitReceive}
@@ -669,6 +671,7 @@ export default function StockPage() {
         operation={productDrawerOperation}
         target={productDrawerTarget}
         stores={stores}
+        canTenantOnly={canTenantOnly}
         suppliers={suppliers}
         isMobile={isMobile}
         onClose={closeProductDrawer}
