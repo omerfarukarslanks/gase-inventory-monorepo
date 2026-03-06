@@ -80,8 +80,7 @@ export default function UsersPage() {
       });
       setUsers(res.data);
       setMeta(res.meta);
-    } catch (error) {
-      console.error("Kullanıcılar getirilemedi:", error);
+    } catch {
       setUsers([]);
       setMeta(null);
     } finally {
@@ -114,8 +113,7 @@ export default function UsersPage() {
         isActive: next,
       });
       await fetchUsers();
-    } catch (error) {
-      console.error("Kullanıcı durumu güncellenemedi:", error);
+    } catch {
       alert("Kullanıcı durumu güncellenemedi.");
     } finally {
       setTogglingUserIds((prev) => prev.filter((id) => id !== user.id));
@@ -263,8 +261,7 @@ export default function UsersPage() {
       setIsDrawerOpen(false);
       setFormErrors(EMPTY_USER_FORM_ERRORS);
       await fetchUsers();
-    } catch (error) {
-      console.error("İşlem hatası", error);
+    } catch {
       alert("İşlem başarısız oldu.");
     } finally {
       setSaving(false);

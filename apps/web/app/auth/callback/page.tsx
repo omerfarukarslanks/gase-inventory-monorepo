@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMe } from "@/app/auth/auth";
+import { setAuthCookie } from "@/lib/cookie";
 import Logo from "@/components/ui/Logo";
 import AuthShell from "@/components/auth/AuthShell";
 
@@ -23,6 +24,7 @@ export default function AuthCallbackPage() {
     const handleCallback = async () => {
       try {
         localStorage.setItem("token", token);
+        setAuthCookie(token);
         const user = await getMe(token);
         localStorage.setItem("user", JSON.stringify(user));
         router.replace("/dashboard");

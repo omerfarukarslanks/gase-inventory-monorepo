@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "@/components/ui/Sidebar";
 import Topbar from "@/components/ui/Topbar";
 import { getMe } from "@/app/auth/auth";
+import { setAuthCookie } from "@/lib/cookie";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -11,6 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
+    setAuthCookie(token);
     getMe(token)
       .then((user) => localStorage.setItem("user", JSON.stringify(user)))
       .catch(() => {});

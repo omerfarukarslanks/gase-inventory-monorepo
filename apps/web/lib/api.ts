@@ -1,3 +1,5 @@
+import { clearAuthCookie } from "./cookie";
+
 export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 let unauthorizedRedirectInProgress = false;
 
@@ -36,6 +38,7 @@ export async function apiFetch<T>(
     if (res.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      clearAuthCookie();
 
       if (!unauthorizedRedirectInProgress && !window.location.pathname.startsWith("/auth")) {
         unauthorizedRedirectInProgress = true;

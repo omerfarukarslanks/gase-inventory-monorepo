@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
+import { clearAuthCookie } from "@/lib/cookie";
 import type { PermissionName } from "@/lib/authz";
 import { useLang } from "@/context/LangContext";
 
@@ -160,6 +161,7 @@ export default function Sidebar({
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      clearAuthCookie();
       setLoggingOut(false);
       setMenuOpen(false);
       router.push("/auth/login");

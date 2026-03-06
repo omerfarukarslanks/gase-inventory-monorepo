@@ -10,6 +10,7 @@ import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
 import { login, signup, getMe, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
+import { setAuthCookie } from "@/lib/cookie";
 import Button from "../ui/Button";
 import { useLang } from "@/context/LangContext";
 
@@ -106,6 +107,7 @@ export default function AuthCard({ initialMode }: Props) {
       if (mode === "login") {
         const response = await login(form.email, form.password);
         localStorage.setItem("token", response.access_token);
+        setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
         localStorage.setItem("user", JSON.stringify(user));
         setSuccessMsg(t("auth.loginSuccess"));
@@ -120,6 +122,7 @@ export default function AuthCard({ initialMode }: Props) {
         };
         const response = await signup(body);
         localStorage.setItem("token", response.access_token);
+        setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
         localStorage.setItem("user", JSON.stringify(user));
         await new Promise((r) => setTimeout(r, 1500));
