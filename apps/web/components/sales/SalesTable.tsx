@@ -5,6 +5,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
 import RowActionMenu, { type RowActionMenuItem } from "@/components/ui/RowActionMenu";
+import { useLang } from "@/context/LangContext";
 
 type SalesTableProps = {
   salesReceipts: SaleListItem[];
@@ -42,14 +43,17 @@ function getSaleTotal(sale: SaleListItem) {
   return sale.lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
 }
 
-function getPaymentStatusLabel(status?: string | null) {
-  if (status === "PARTIAL") return "Kismi Odendi";
-  if (status === "PAID") return "Odendi";
-  if (status === "UNPAID") return "Odenmedi";
-  if (status === "PENDING") return "Beklemede";
-  if (status === "CANCELLED") return "Iptal Edildi";
-  if (status === "UPDATED") return "Guncellendi";
-  if (status === "ACTIVE") return "Aktif";
+type TFn = (key: string) => string;
+
+function getPaymentStatusLabel(status?: string | null, t?: TFn) {
+  if (!t) return status ?? "-";
+  if (status === "PARTIAL") return t("sales.paymentPartial");
+  if (status === "PAID") return t("sales.paymentPaid");
+  if (status === "UNPAID") return t("sales.paymentUnpaid");
+  if (status === "PENDING") return t("sales.paymentPending");
+  if (status === "CANCELLED") return t("sales.paymentCancelled");
+  if (status === "UPDATED") return t("sales.paymentUpdated");
+  if (status === "ACTIVE") return t("common.active");
   return status ?? "-";
 }
 
@@ -63,18 +67,20 @@ function getPaymentStatusClass(status?: string | null) {
   return "inline-block rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-muted";
 }
 
-function getSaleStatusLabel(status?: string | null) {
-  if (status === "CONFIRMED") return "Onaylandi";
-  if (status === "CANCELLED") return "Iptal Edildi";
-  if (status === "DRAFT") return "Taslak";
+function getSaleStatusLabel(status?: string | null, t?: TFn) {
+  if (!t) return status ?? "-";
+  if (status === "CONFIRMED") return t("sales.statusConfirmed");
+  if (status === "CANCELLED") return t("sales.statusCancelled");
+  if (status === "DRAFT") return t("sales.statusDraft");
   return status ?? "-";
 }
 
-function getPaymentMethodLabel(paymentMethod?: string | null) {
-  if (paymentMethod === "CASH") return "Nakit";
-  if (paymentMethod === "CARD") return "Kart";
-  if (paymentMethod === "TRANSFER") return "Havale/EFT";
-  if (paymentMethod === "OTHER") return "Diger";
+function getPaymentMethodLabel(paymentMethod?: string | null, t?: TFn) {
+  if (!t) return paymentMethod ?? "-";
+  if (paymentMethod === "CASH") return t("sales.methodCash");
+  if (paymentMethod === "CARD") return t("sales.methodCard");
+  if (paymentMethod === "TRANSFER") return t("sales.methodTransfer");
+  if (paymentMethod === "OTHER") return t("sales.methodOther");
   return paymentMethod ?? "-";
 }
 
@@ -96,6 +102,7 @@ function VirtualSalePaymentsTable({
   onDeletePayment: (saleId: string, payment: SalePayment) => void;
   canUpdatePayments: boolean;
 }) {
+  const { t } = useLang();
   const rowHeight = 44;
   const containerHeight = 280;
   const overscan = 4;
@@ -108,20 +115,20 @@ function VirtualSalePaymentsTable({
   const visiblePayments = payments.slice(startIndex, endIndex);
 
   return (
-    <div className="min-w-[860px]">
+    <div className="min-w-215">
       <div className="grid grid-cols-[1.15fr_0.9fr_0.9fr_0.9fr_0.8fr_1fr_0.9fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
-        <div className="px-3 py-2.5">Guncelleme Tarihi</div>
-        <div className="px-3 py-2.5 text-right">Tutar</div>
-        <div className="px-3 py-2.5">Odeme Yontemi</div>
-        <div className="px-3 py-2.5">Durum</div>
-        <div className="px-3 py-2.5">Para Birimi</div>
-        <div className="px-3 py-2.5">Iptal Tarihi</div>
+        <div className="px-3 py-2.5">{t("sales.updateDate")}</div>
+        <div className="px-3 py-2.5 text-right">{t("sales.amount")}</div>
+        <div className="px-3 py-2.5">{t("sales.paymentMethod")}</div>
+        <div className="px-3 py-2.5">{t("common.status")}</div>
+        <div className="px-3 py-2.5">{t("sales.currency")}</div>
+        <div className="px-3 py-2.5">{t("sales.cancelDate")}</div>
         <div className="bg-surface2/70 px-3 py-2.5 text-right">
-          Islemler
+          {t("common.actions")}
         </div>
       </div>
 
-      <div className="h-[280px] overflow-y-auto" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+      <div className="h-70 overflow-y-auto" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
         <div className="relative" style={{ height: totalHeight }}>
           <div className="absolute inset-x-0" style={{ transform: `translateY(${startIndex * rowHeight}px)` }}>
             {visiblePayments.map((payment) => (
@@ -131,8 +138,8 @@ function VirtualSalePaymentsTable({
               >
                 <div className="px-3 py-2.5">{formatDate(payment.updatedAt)}</div>
                 <div className="px-3 py-2.5 text-right">{formatPrice(payment.amount)}</div>
-                <div className="px-3 py-2.5">{getPaymentMethodLabel(payment.paymentMethod)}</div>
-                <div className="px-3 py-2.5">{getPaymentStatusLabel(payment.status)}</div>
+                <div className="px-3 py-2.5">{getPaymentMethodLabel(payment.paymentMethod, t)}</div>
+                <div className="px-3 py-2.5">{getPaymentStatusLabel(payment.status, t)}</div>
                 <div className="px-3 py-2.5">{payment.currency ?? "-"}</div>
                 <div className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</div>
                 <div className="flex items-center justify-end gap-1 px-3 py-2.5">
@@ -196,6 +203,7 @@ export default function SalesTable({
   canUpdatePayments = true,
   footer,
 }: SalesTableProps) {
+  const { t } = useLang();
   if (salesError) {
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -210,7 +218,7 @@ export default function SalesTable({
   if (salesLoading) {
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        <div className="p-6 text-sm text-muted">Satis fisleri yukleniyor...</div>
+        <div className="p-6 text-sm text-muted">{t("sales.receiptsLoading")}</div>
         {footer}
       </section>
     );
@@ -219,7 +227,7 @@ export default function SalesTable({
   if (salesReceipts.length === 0) {
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        <div className="p-6 text-sm text-muted">Gosterilecek satis fisi bulunamadi.</div>
+        <div className="p-6 text-sm text-muted">{t("sales.receiptsEmpty")}</div>
         {footer}
       </section>
     );
@@ -228,20 +236,20 @@ export default function SalesTable({
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1260px]">
+        <table className="w-full min-w-315">
           <thead className="border-b border-border bg-surface2/70">
             <tr className="text-left text-xs uppercase tracking-wide text-muted">
               <th className="px-4 py-3">#</th>
-              <th className="px-4 py-3">Receipt No</th>
-              <th className="px-4 py-3">Ad</th>
-              <th className="px-4 py-3">Soyad</th>
-              <th className="px-4 py-3">Odeme Durumu</th>
-              <th className="px-4 py-3">Durum</th>
-              <th className="px-4 py-3 text-right">Para Birimi</th>
-              <th className="px-4 py-3 text-right">Toplam</th>
-              <th className="px-4 py-3 text-right">Kalan</th>
-              <th className="sticky right-0 z-20 w-[156px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-                Islemler
+              <th className="px-4 py-3">{t("sales.receiptNo")}</th>
+              <th className="px-4 py-3">{t("sales.firstName")}</th>
+              <th className="px-4 py-3">{t("sales.surname")}</th>
+              <th className="px-4 py-3">{t("sales.paymentStatus")}</th>
+              <th className="px-4 py-3">{t("common.status")}</th>
+              <th className="px-4 py-3 text-right">{t("sales.currency")}</th>
+              <th className="px-4 py-3 text-right">{t("sales.total")}</th>
+              <th className="px-4 py-3 text-right">{t("sales.remaining")}</th>
+              <th className="sticky right-0 z-20 w-39 bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                {t("common.actions")}
               </th>
             </tr>
           </thead>
@@ -260,7 +268,7 @@ export default function SalesTable({
                 if (canDownloadReceipt) {
                   actionItems.push({
                     key: "print",
-                    label: "Yazdir",
+                    label: t("sales.print"),
                     onClick: () => onDownloadReceipt(sale.id),
                   });
                 }
@@ -268,7 +276,7 @@ export default function SalesTable({
                 if (showAddPaymentButton && canCreatePayments) {
                   actionItems.push({
                     key: "add-payment",
-                    label: "Odeme Ekle",
+                    label: t("sales.addPayment"),
                     onClick: () => onAddPayment(sale.id),
                   });
                 }
@@ -277,35 +285,35 @@ export default function SalesTable({
                   if (canUpdate) {
                     actionItems.push({
                       key: "edit",
-                      label: "Duzenle",
+                      label: t("common.edit"),
                       onClick: () => onEdit(sale),
                     });
                   }
                   if (canUpdateLines || canCreateLines) {
                     actionItems.push({
                       key: "manage-lines",
-                      label: "Satirlari Yonet",
+                      label: t("sales.manageLines"),
                       onClick: () => onManageLines(sale),
                     });
                   }
                   if (canReturn) {
                     actionItems.push({
                       key: "return",
-                      label: "Iade Olustur",
+                      label: t("sales.createReturn"),
                       onClick: () => onReturn(sale),
                     });
                   }
                   if (canDownloadReceipt) {
                     actionItems.push({
                       key: "print",
-                      label: "Yazdir",
+                      label: t("sales.print"),
                       onClick: () => onDownloadReceipt(sale.id),
                     });
                   }
                   if (canCancel) {
                     actionItems.push({
                       key: "cancel",
-                      label: "Iptal Et",
+                      label: t("sales.cancelSale"),
                       tone: "danger",
                       onClick: () => onOpenCancel(sale),
                     });
@@ -325,8 +333,8 @@ export default function SalesTable({
                         type="button"
                         onClick={() => onTogglePayments(sale.id)}
                         className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-border text-muted transition-colors hover:bg-surface2 hover:text-text"
-                        aria-label={isExpanded ? "Odeme kayitlarini kapat" : "Odeme kayitlarini ac"}
-                        title={isExpanded ? "Odeme kayitlarini kapat" : "Odeme kayitlarini ac"}
+                        aria-label={isExpanded ? t("sales.paymentCancelled") : t("sales.addPayment")}
+                        title={isExpanded ? t("sales.paymentCancelled") : t("sales.addPayment")}
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -357,7 +365,7 @@ export default function SalesTable({
                     <td className="px-4 py-3 text-sm text-text2">{sale.surname ?? "-"}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={getPaymentStatusClass(sale.paymentStatus)}>
-                        {getPaymentStatusLabel(sale.paymentStatus)}
+                        {getPaymentStatusLabel(sale.paymentStatus, t)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
@@ -370,7 +378,7 @@ export default function SalesTable({
                               : "inline-block rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-muted"
                         }
                       >
-                        {getSaleStatusLabel(sale.status)}
+                        {getSaleStatusLabel(sale.status, t)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-text2">
@@ -382,7 +390,7 @@ export default function SalesTable({
                     <td className="px-4 py-3 text-right text-sm text-text2">
                       {formatPrice(sale.remainingAmount)}
                     </td>
-                    <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
+                    <td className="sticky right-0 z-10 w-39 bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                       {hasActionMenuItems ? (
                         <RowActionMenu items={actionItems} />
                       ) : (
@@ -396,11 +404,11 @@ export default function SalesTable({
                       <td colSpan={10} className="px-4 py-3">
                         <div className="space-y-2 rounded-xl border border-border bg-surface p-3">
                           {loadingPayments ? (
-                            <p className="text-sm text-muted">Odemeler yukleniyor...</p>
+                            <p className="text-sm text-muted">{t("sales.paymentsLoading")}</p>
                           ) : paymentsError ? (
                             <p className="text-sm text-error">{paymentsError}</p>
                           ) : payments.length === 0 ? (
-                            <p className="text-sm text-muted">Bu satis fisine ait odeme kaydi bulunamadi.</p>
+                            <p className="text-sm text-muted">{t("sales.paymentsEmpty")}</p>
                           ) : (
                             <div className="overflow-x-auto rounded-xl border border-border">
                               <VirtualSalePaymentsTable

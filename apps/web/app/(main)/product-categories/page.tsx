@@ -25,6 +25,7 @@ import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import { useLang } from "@/context/LangContext";
 
 type CategoryForm = {
   name: string;
@@ -57,6 +58,7 @@ function slugifyText(value: string): string {
 }
 
 export default function ProductCategoriesPage() {
+  const { t } = useLang();
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
   const canCreate = can("PRODUCT_CATEGORY_CREATE");
@@ -102,7 +104,7 @@ export default function ProductCategoriesPage() {
       setCategories(res.data ?? []);
       setMeta(res.meta ?? null);
     } catch {
-      setError("Urun kategorileri yuklenemedi. Lutfen tekrar deneyin.");
+      setError(t("productCategories.loadError"));
       setCategories([]);
       setMeta(null);
     } finally {
@@ -221,7 +223,7 @@ export default function ProductCategoriesPage() {
       setSlugTouched(true);
       setDrawerOpen(true);
     } catch {
-      setFormError("Kategori detayi yuklenemedi. Lutfen tekrar deneyin.");
+      setFormError(t("common.loadError"));
     } finally {
       setLoadingCategoryDetail(false);
     }
@@ -286,8 +288,8 @@ export default function ProductCategoriesPage() {
     } catch {
       setFormError(
         editingCategoryId
-          ? "Kategori guncellenemedi. Lutfen tekrar deneyin."
-          : "Kategori olusturulamadi. Lutfen tekrar deneyin.",
+          ? t("common.loadError")
+          : t("common.loadError"),
       );
     } finally {
       setSubmitting(false);
@@ -310,7 +312,7 @@ export default function ProductCategoriesPage() {
       });
       await Promise.all([fetchCategories(), fetchAllCategories()]);
     } catch {
-      setError("Kategori durumu guncellenemedi. Lutfen tekrar deneyin.");
+      setError(t("common.loadError"));
     } finally {
       setTogglingCategoryIds((prev) => prev.filter((id) => id !== category.id));
     }
@@ -322,8 +324,8 @@ export default function ProductCategoriesPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text">Urun Kategorileri</h1>
-          <p className="text-sm text-muted">Kategori listesi ve yonetimi</p>
+          <h1 className="text-xl font-semibold text-text">{t("productCategories.title")}</h1>
+          <p className="text-sm text-muted">{t("productCategories.title")}</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
           <SearchInput
@@ -333,14 +335,14 @@ export default function ProductCategoriesPage() {
             containerClassName="w-full lg:w-64"
           />
           <Button
-            label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
+            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
           {canCreate && (
             <Button
-              label="Yeni Kategori"
+              label={t("productCategories.new")}
               onClick={onOpenDrawer}
               variant="primarySoft"
               className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
@@ -352,12 +354,12 @@ export default function ProductCategoriesPage() {
       {showAdvancedFilters && (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Durum</label>
+            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={statusFilter === "all" ? "all" : String(statusFilter)}
               onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder="Tum Durumlar"
+              placeholder={t("common.allStatuses")}
               showEmptyOption={false}
               allowClear={false}
               inputAriaLabel="Kategori durum filtresi"
@@ -366,7 +368,7 @@ export default function ProductCategoriesPage() {
           </div>
           <div className="md:col-span-2 lg:col-span-3">
             <Button
-              label="Filtreleri Temizle"
+              label={t("common.clearFilters")}
               onClick={clearAdvancedFilters}
               variant="secondary"
               className="w-full sm:w-auto"
@@ -377,7 +379,7 @@ export default function ProductCategoriesPage() {
 
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {loading ? (
-          <div className="p-6 text-sm text-muted">Kategoriler yukleniyor...</div>
+          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
         ) : error ? (
           <div className="p-6">
             <p className="text-sm text-error">{error}</p>
@@ -388,19 +390,19 @@ export default function ProductCategoriesPage() {
               <table className="w-full min-w-[980px]">
                 <thead className="border-b border-border bg-surface2/70">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">Kategori Adi</th>
+                    <th className="px-4 py-3">{t("productCategories.title")}</th>
                     <th className="px-4 py-3">Slug</th>
                     <th className="px-4 py-3">Aciklama</th>
                     <th className="px-4 py-3">Ust Kategori</th>
-                    <th className="px-4 py-3">Durum</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                    <th className="px-4 py-3">{t("common.status")}</th>
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {categories.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted">
-                        Kayit bulunamadi.
+                        {t("common.noData")}
                       </td>
                     </tr>
                   ) : (
@@ -421,7 +423,7 @@ export default function ProductCategoriesPage() {
                               category.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                             }`}
                           >
-                            {category.isActive ? "Aktif" : "Pasif"}
+                            {category.isActive ? t("common.active") : t("common.passive")}
                           </span>
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
@@ -472,21 +474,21 @@ export default function ProductCategoriesPage() {
         open={drawerOpen}
         onClose={onCloseDrawer}
         side="right"
-        title={editingCategoryId ? "Kategori Guncelle" : "Yeni Kategori"}
-        description={editingCategoryId ? "Kategori bilgilerini guncelleyin" : "Isim ve slug alanlari zorunludur"}
+        title={editingCategoryId ? t("common.update") : t("productCategories.new")}
+        description={editingCategoryId ? t("common.update") : t("productCategories.new")}
         closeDisabled={submitting || loadingCategoryDetail}
         className={cn(isMobile && "!max-w-none")}
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
-              label="Iptal"
+              label={t("common.cancel")}
               type="button"
               onClick={onCloseDrawer}
               disabled={submitting || loadingCategoryDetail}
               variant="secondary"
             />
             <Button
-              label={submitting ? (editingCategoryId ? "Guncelleniyor..." : "Olusturuluyor...") : "Kaydet"}
+              label={submitting ? (editingCategoryId ? t("common.updating") : t("common.creating")) : t("common.save")}
               type="submit"
               form="category-form"
               disabled={submitting || loadingCategoryDetail}
@@ -497,7 +499,7 @@ export default function ProductCategoriesPage() {
       >
         <form id="category-form" onSubmit={onSubmitCategory} className="space-y-4 p-5">
           {loadingCategoryDetail ? (
-            <div className="text-sm text-muted">Kategori detayi yukleniyor...</div>
+            <div className="text-sm text-muted">{t("common.loading")}</div>
           ) : (
             <>
               <InputField

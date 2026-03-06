@@ -11,6 +11,7 @@ import Logo from "../ui/Logo";
 import { login, signup, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
 import Button from "../ui/Button";
+import { useLang } from "@/context/LangContext";
 
 type Mode = "login" | "signup";
 
@@ -21,6 +22,7 @@ type Props = {
 export default function AuthCard({ initialMode }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useLang();
 
   const mode: Mode = useMemo(() => (pathname?.includes("/signup") ? "signup" : "login"), [pathname]);
 
@@ -67,21 +69,21 @@ export default function AuthCard({ initialMode }: Props) {
     const e: Record<string, string> = {};
 
     if (mode === "signup" && step === 1) {
-      if (!form.tenantName.trim()) e.tenantName = "Firma adı zorunludur";
-      if (!form.name.trim()) e.name = "Ad zorunludur";
-      if (!form.surname.trim()) e.surname = "Soyad zorunludur";
+      if (!form.tenantName.trim()) e.tenantName = t("auth.companyNameRequired");
+      if (!form.name.trim()) e.name = t("auth.nameRequired");
+      if (!form.surname.trim()) e.surname = t("auth.surnameRequired");
     }
 
     if (mode === "login" || (mode === "signup" && step === 2)) {
-      if (!form.email.trim()) e.email = "E-posta zorunludur";
-      else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Geçerli bir e-posta girin";
+      if (!form.email.trim()) e.email = t("auth.emailRequired");
+      else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = t("auth.emailInvalid");
 
-      if (!form.password) e.password = "Şifre zorunludur";
-      else if (form.password.length < 8) e.password = "En az 8 karakter";
+      if (!form.password) e.password = t("auth.passwordRequired");
+      else if (form.password.length < 8) e.password = t("auth.passwordMinLength");
 
       if (mode === "signup") {
-        if (form.password !== form.confirmPassword) e.confirmPassword = "Şifreler eşleşmiyor";
-        if (!agreed) e.terms = "Koşulları kabul edin";
+        if (form.password !== form.confirmPassword) e.confirmPassword = t("auth.passwordsMismatch");
+        if (!agreed) e.terms = t("auth.termsRequired");
       }
     }
 
@@ -105,10 +107,9 @@ export default function AuthCard({ initialMode }: Props) {
         const response = await login(form.email, form.password);
         localStorage.setItem("token", response.access_token);
         localStorage.setItem("user", JSON.stringify(response.user));
-        setSuccessMsg("Giriş başarılı!");
+        setSuccessMsg(t("auth.loginSuccess"));
         setTimeout(() => router.push("/dashboard"), 800);
       } else {
-        // signup mock — henüz endpoint yok
         const body = {
           tenantName: form.tenantName,
           name: form.name,
@@ -120,7 +121,7 @@ export default function AuthCard({ initialMode }: Props) {
         localStorage.setItem("token", response.access_token);
         localStorage.setItem("user", JSON.stringify(response.user));
         await new Promise((r) => setTimeout(r, 1500));
-        setSuccessMsg("Hesap oluşturuldu!");
+        setSuccessMsg(t("auth.accountCreated"));
         setTimeout(() => {
           router.push("/auth/login");
           setSuccessMsg("");
@@ -130,7 +131,7 @@ export default function AuthCard({ initialMode }: Props) {
       if (err instanceof ApiError) {
         setErrorMsg(err.message);
       } else {
-        setErrorMsg("Bir hata oluştu. Lütfen tekrar deneyin.");
+        setErrorMsg(t("auth.genericError"));
       }
     } finally {
       setLoading(false);
@@ -166,14 +167,18 @@ export default function AuthCard({ initialMode }: Props) {
 
       <div className="mb-6">
         <h2 className="text-[22px] font-bold tracking-tight text-text">
-          {mode === "login" ? "Tekrar hoş geldiniz" : step === 1 ? "Firma bilgileri" : "Hesap oluşturun"}
+          {mode === "login"
+            ? t("auth.loginTitle")
+            : step === 1
+            ? t("auth.companyInfoTitle")
+            : t("auth.createAccountTitle")}
         </h2>
         <p className="mt-1 text-[13.5px] text-muted">
           {mode === "login"
-            ? "Hesabınıza giriş yaparak devam edin"
+            ? t("auth.loginSubtitle")
             : step === 1
-            ? "Tenant (firma) bilgilerinizi girin"
-            : "E-posta ve şifre bilgilerinizi belirleyin"}
+            ? t("auth.companyInfoSubtitle")
+            : t("auth.createAccountSubtitle")}
         </p>
       </div>
 
@@ -191,7 +196,7 @@ export default function AuthCard({ initialMode }: Props) {
                 {step > st ? <CheckIcon /> : st}
               </div>
               <span className={`text-[11.5px] font-medium ${step >= st ? "text-text" : "text-muted"}`}>
-                {st === 1 ? "Firma" : "Hesap"}
+                {st === 1 ? t("auth.stepCompany") : t("auth.stepAccount")}
               </span>
               {st === 1 && <div className={`mx-1 h-0.5 w-8 rounded ${step >= 2 ? "bg-primary" : "bg-border"} transition`} />}
             </div>
@@ -203,27 +208,27 @@ export default function AuthCard({ initialMode }: Props) {
       {mode === "signup" && step === 1 && (
         <div className="animate-si">
           <InputField
-            label="Firma (Tenant) Adı"
+            label={t("auth.companyName")}
             type="text"
-            placeholder="Örn: ABC Market A.Ş."
+            placeholder={t("auth.companyNamePlaceholder")}
             icon={BuildIcon}
             value={form.tenantName}
             onChange={(v) => set("tenantName", v)}
             error={errors.tenantName}
           />
           <InputField
-            label="Ad"
+            label={t("auth.name")}
             type="text"
-            placeholder="Adınız"
+            placeholder={t("auth.namePlaceholder")}
             icon={UserIcon}
             value={form.name}
             onChange={(v) => set("name", v)}
             error={errors.name}
           />
           <InputField
-            label="Soyad"
+            label={t("auth.surname")}
             type="text"
-            placeholder="Soyadınız"
+            placeholder={t("auth.surnamePlaceholder")}
             icon={UserIcon}
             value={form.surname}
             onChange={(v) => set("surname", v)}
@@ -235,18 +240,18 @@ export default function AuthCard({ initialMode }: Props) {
       {(mode === "login" || (mode === "signup" && step === 2)) && (
         <div className="animate-si">
           <InputField
-            label="E-posta Adresi"
+            label={t("auth.email")}
             type="email"
-            placeholder="ornek@firma.com"
+            placeholder={t("auth.emailPlaceholder")}
             icon={EmailIcon}
             value={form.email}
             onChange={(v) => set("email", v)}
             error={errors.email}
           />
           <InputField
-            label="Şifre"
+            label={t("auth.password")}
             type="password"
-            placeholder={mode === "login" ? "Şifrenizi girin" : "En az 8 karakter"}
+            placeholder={mode === "login" ? t("auth.passwordPlaceholderLogin") : t("auth.passwordPlaceholderSignup")}
             icon={LockIcon}
             value={form.password}
             onChange={(v) => set("password", v)}
@@ -255,9 +260,9 @@ export default function AuthCard({ initialMode }: Props) {
           {mode === "signup" && <PasswordStrength password={form.password} />}
           {mode === "signup" && (
             <InputField
-              label="Şifre Tekrar"
+              label={t("auth.confirmPassword")}
               type="password"
-              placeholder="Şifrenizi tekrar girin"
+              placeholder={t("auth.confirmPasswordPlaceholder")}
               icon={LockIcon}
               value={form.confirmPassword}
               onChange={(v) => set("confirmPassword", v)}
@@ -281,7 +286,7 @@ export default function AuthCard({ initialMode }: Props) {
             >
               {remember && <CheckIcon />}
             </button>
-            <span className="text-[13px] text-text2">Beni hatırla</span>
+            <span className="text-[13px] text-text2">{t("auth.rememberMe")}</span>
           </label>
 
           <button
@@ -289,7 +294,7 @@ export default function AuthCard({ initialMode }: Props) {
             onClick={() => router.push("/auth/forgot-password")}
             className="text-[13px] font-semibold text-primary hover:opacity-90 cursor-pointer"
           >
-            Şifremi unuttum
+            {t("auth.forgotPassword")}
           </button>
         </div>
       )}
@@ -313,8 +318,10 @@ export default function AuthCard({ initialMode }: Props) {
             </button>
 
             <span className="text-[12.5px] leading-relaxed text-text2">
-              <span className="text-primary font-semibold cursor-pointer">Kullanım Koşulları</span> ve{" "}
-              <span className="text-primary font-semibold cursor-pointer">Gizlilik Politikası</span>'nı okudum ve kabul ediyorum.
+              <span className="text-primary font-semibold cursor-pointer">{t("auth.terms")}</span>{" "}
+              {t("auth.termsAnd")}{" "}
+              <span className="text-primary font-semibold cursor-pointer">{t("auth.privacy")}</span>
+              {"'"}nı {t("auth.termsRead")}
             </span>
           </label>
 
@@ -326,7 +333,7 @@ export default function AuthCard({ initialMode }: Props) {
       <div className="flex gap-2.5">
         {mode === "signup" && step === 2 && (
           <Button
-            label="← Geri"
+            label={t("auth.back")}
             type="button"
             onClick={() => setStep(1)}
             variant="authSecondary"
@@ -334,7 +341,15 @@ export default function AuthCard({ initialMode }: Props) {
         )}
 
         <Button
-          label={loading ? "İşleniyor..." : mode === "login" ? "Giriş Yap" : step === 1 ? "Devam Et →" : "Hesap Oluştur"}
+          label={
+            loading
+              ? t("auth.processing")
+              : mode === "login"
+              ? t("auth.login")
+              : step === 1
+              ? t("auth.continueStep")
+              : t("auth.createAccount")
+          }
           onClick={submit}
           disabled={loading}
           variant="authPrimary"
@@ -345,7 +360,7 @@ export default function AuthCard({ initialMode }: Props) {
       {/* Divider */}
       <div className="my-7 flex items-center gap-4">
         <div className="h-px flex-1 bg-border" />
-        <span className="text-[12px] font-medium text-muted">veya</span>
+        <span className="text-[12px] font-medium text-muted">{t("auth.or")}</span>
         <div className="h-px flex-1 bg-border" />
       </div>
 
@@ -357,9 +372,9 @@ export default function AuthCard({ initialMode }: Props) {
 
       {/* Bottom link */}
       <p className="mt-8 text-center text-[13px] text-muted">
-        {mode === "login" ? "Hesabınız yok mu? " : "Zaten hesabınız var mı? "}
+        {mode === "login" ? t("auth.noAccount") : t("auth.haveAccount")}{" "}
         <Button
-          label={mode === "login" ? "Kayıt olun" : "Giriş yapın"}
+          label={mode === "login" ? t("auth.register") : t("auth.loginLink")}
           onClick={() => router.push(mode === "login" ? "/auth/signup" : "/auth/login")}
           variant="link"
         />

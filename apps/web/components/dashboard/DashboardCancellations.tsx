@@ -2,6 +2,7 @@
 
 import { formatPrice, formatDate } from "@/lib/format";
 import type { CancellationItem } from "@/lib/reports";
+import { useLang } from "@/context/LangContext";
 
 type Props = {
   data: CancellationItem[];
@@ -9,12 +10,14 @@ type Props = {
 };
 
 export default function DashboardCancellations({ data, loading }: Props) {
+  const { t } = useLang();
+
   if (loading) {
-    return <p className="text-sm text-muted">Iptal verileri yukleniyor...</p>;
+    return <p className="text-sm text-muted">{t("dashboard.cancellationsLoading")}</p>;
   }
 
   if (data.length === 0) {
-    return <p className="text-sm text-muted">Son iptal bulunamadi.</p>;
+    return <p className="text-sm text-muted">{t("dashboard.cancellationsEmpty")}</p>;
   }
 
   return (

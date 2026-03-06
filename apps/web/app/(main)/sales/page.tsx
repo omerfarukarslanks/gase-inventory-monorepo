@@ -62,6 +62,7 @@ import SalesTable from "@/components/sales/SalesTable";
 import SalesPagination from "@/components/sales/SalesPagination";
 import SaleDrawer from "@/components/sales/SaleDrawer";
 import SaleDetailModal from "@/components/sales/SaleDetailModal";
+import { useLang } from "@/context/LangContext";
 
 function toFiniteNumber(value: unknown): number | null {
   if (value == null || value === "") return null;
@@ -112,6 +113,7 @@ function resolvePackageItemStockText(item: unknown): string {
 }
 
 export default function SalesPage() {
+  const { t } = useLang();
   const { can } = usePermissions();
   const canTenantOnly = can("TENANT_ONLY");
   const stores = canTenantOnly ? useStores() : [];
@@ -290,7 +292,7 @@ export default function SalesPage() {
       } catch {
         setSalesReceipts([]);
         setSalesMeta(null);
-        setSalesError("Satis fisleri yuklenemedi. Lutfen tekrar deneyin.");
+        setSalesError(t("sales.loadError"));
       } finally {
         setSalesLoading(false);
       }
@@ -352,7 +354,7 @@ export default function SalesPage() {
           optionMap.set(pkg.id, {
             value: pkg.id,
             label: pkg.name,
-            secondaryLabel: stockInfo || "Varyant bilgisi yok",
+            secondaryLabel: stockInfo || t("sales.variantNoInfo"),
           });
 
           if (!presetMap[pkg.id]) {
@@ -494,7 +496,7 @@ export default function SalesPage() {
     } catch {
       setPaymentErrorBySaleId((prev) => ({
         ...prev,
-        [saleId]: "Odeme kayitlari yuklenemedi. Lutfen tekrar deneyin.",
+        [saleId]: t("sales.paymentsLoadError"),
       }));
     } finally {
       setPaymentLoadingBySaleId((prev) => ({ ...prev, [saleId]: false }));
@@ -1488,7 +1490,7 @@ export default function SalesPage() {
                 if (paymentFormError) setPaymentFormError("");
                 setPaymentNoteInput(e.target.value);
               }}
-              className="min-h-[88px] w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              className="min-h-22 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -1793,7 +1795,7 @@ export default function SalesPage() {
                   value={returnNotes}
                   onChange={(e) => setReturnNotes(e.target.value)}
                   placeholder="Iade nedeni veya ek aciklama..."
-                  className="min-h-[80px] w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  className="min-h-20 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
             </>

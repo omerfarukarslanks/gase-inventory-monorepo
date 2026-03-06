@@ -10,6 +10,7 @@ import {
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchInput from "@/components/ui/SearchInput";
+import { useLang } from "@/context/LangContext";
 
 type ProductFiltersProps = {
   searchTerm: string;
@@ -58,29 +59,30 @@ export default function ProductFilters({
   onPurchasePriceMaxChange,
   onClearAdvancedFilters,
 }: ProductFiltersProps) {
+  const { t } = useLang();
   return (
     <>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text">Urunler</h1>
-          <p className="text-sm text-muted">Urun listesi ve yonetimi</p>
+          <h1 className="text-xl font-semibold text-text">{t("products.title")}</h1>
+          <p className="text-sm text-muted">{t("products.subtitle")}</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
           <SearchInput
             value={searchTerm}
             onChange={onSearchChange}
-            placeholder="Ara..."
+            placeholder={t("common.search")}
             containerClassName="w-full lg:w-64"
           />
           <Button
-            label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
+            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
             onClick={onToggleAdvancedFilters}
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
           {canCreate && (
             <Button
-              label="Yeni Urun"
+              label={t("products.new")}
               onClick={onNewProduct}
               variant="primarySoft"
               className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
@@ -92,25 +94,25 @@ export default function ProductFilters({
       {showAdvancedFilters && (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Para Birimi</label>
+            <label className="text-xs font-semibold text-muted">{t("products.currencyLabel")}</label>
             <SearchableDropdown
               options={CURRENCY_FILTER_OPTIONS}
               value={currencyFilter}
               onChange={(value) => onCurrencyFilterChange(value as Currency | "")}
-              placeholder="Tüm Para Birimleri"
-              emptyOptionLabel="Tüm Para Birimleri"
+              placeholder={t("products.allCurrencies")}
+              emptyOptionLabel={t("products.allCurrencies")}
               inputAriaLabel="Para birimi filtresi"
               clearAriaLabel="Para birimi filtresini temizle"
               toggleAriaLabel="Para birimi listesini aç"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Ürün Durumu</label>
+            <label className="text-xs font-semibold text-muted">{t("products.productStatus")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={productStatusFilter === "all" ? "all" : String(productStatusFilter)}
               onChange={(value) => onProductStatusFilterChange(parseIsActiveFilter(value))}
-              placeholder="Ürün Durumu"
+              placeholder={t("products.productStatus")}
               showEmptyOption={false}
               allowClear={false}
               inputAriaLabel="Ürün durum filtresi"
@@ -118,12 +120,12 @@ export default function ProductFilters({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Varyant Durumu</label>
+            <label className="text-xs font-semibold text-muted">{t("products.variantStatus")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={variantStatusFilter === "all" ? "all" : String(variantStatusFilter)}
               onChange={(value) => onVariantStatusFilterChange(parseIsActiveFilter(value))}
-              placeholder="Varyant Durumu"
+              placeholder={t("products.variantStatus")}
               showEmptyOption={false}
               allowClear={false}
               inputAriaLabel="Varyant durum filtresi"
@@ -131,7 +133,7 @@ export default function ProductFilters({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Satış Fiyatı Min</label>
+            <label className="text-xs font-semibold text-muted">{t("products.salePriceMin")}</label>
             <input
               type="number"
               value={salePriceMin}
@@ -141,7 +143,7 @@ export default function ProductFilters({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Satış Fiyatı Max</label>
+            <label className="text-xs font-semibold text-muted">{t("products.salePriceMax")}</label>
             <input
               type="number"
               value={salePriceMax}
@@ -151,7 +153,7 @@ export default function ProductFilters({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Alış Fiyatı Min</label>
+            <label className="text-xs font-semibold text-muted">{t("products.purchasePriceMin")}</label>
             <input
               type="number"
               value={purchasePriceMin}
@@ -161,7 +163,7 @@ export default function ProductFilters({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Alış Fiyatı Max</label>
+            <label className="text-xs font-semibold text-muted">{t("products.purchasePriceMax")}</label>
             <input
               type="number"
               value={purchasePriceMax}
@@ -172,7 +174,7 @@ export default function ProductFilters({
           </div>
           <div className="md:col-span-2 lg:col-span-4">
             <Button
-              label="Detaylı Filtreleri Temizle"
+              label={t("products.clearAdvancedFilters")}
               onClick={onClearAdvancedFilters}
               variant="secondary"
               className="w-full sm:w-auto"

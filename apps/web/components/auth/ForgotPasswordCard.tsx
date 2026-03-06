@@ -8,6 +8,7 @@ import Logo from "@/components/ui/Logo";
 import { CheckIcon, EmailIcon, LockIcon } from "@/components/auth/icon";
 import Button from "../ui/Button";
 import { forgotPassword } from "@/app/auth/auth";
+import { useLang } from "@/context/LangContext";
 
 type Step = "forgot" | "email-sent" | "reset" | "success";
 
@@ -22,6 +23,7 @@ function sleep(ms: number) {
 }
 
 export default function ForgotPasswordCard() {
+  const { t } = useLang();
   const router = useRouter();
   const [step, setStep] = useState<Step>("forgot");
   const [email, setEmail] = useState("");
@@ -31,17 +33,17 @@ export default function ForgotPasswordCard() {
   const [loading, setLoading] = useState(false);
 
   const passwordRules = [
-    { label: "En az 8 karakter", ok: password.length >= 8 },
-    { label: "Buyuk ve kucuk harf", ok: /[a-z]/.test(password) && /[A-Z]/.test(password) },
-    { label: "En az 1 rakam", ok: /\d/.test(password) },
-    { label: "En az 1 ozel karakter", ok: /[^a-zA-Z0-9]/.test(password) },
+    { label: t("auth.ruleMinChars"), ok: password.length >= 8 },
+    { label: t("auth.ruleUpperLower"), ok: /[a-z]/.test(password) && /[A-Z]/.test(password) },
+    { label: t("auth.ruleDigit"), ok: /\d/.test(password) },
+    { label: t("auth.ruleSpecial"), ok: /[^a-zA-Z0-9]/.test(password) },
   ];
 
   const submitForgot = async () => {
     const nextErrors: Errors = {};
 
-    if (!email.trim()) nextErrors.email = "E-posta zorunludur";
-    else if (!/\S+@\S+\.\S+/.test(email)) nextErrors.email = "Gecerli bir e-posta girin";
+    if (!email.trim()) nextErrors.email = t("auth.emailRequired");
+    else if (!/\S+@\S+\.\S+/.test(email)) nextErrors.email = t("auth.emailInvalid");
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -53,10 +55,10 @@ export default function ForgotPasswordCard() {
       if (response && response.success) {
         setStep("email-sent");
       } else {
-        setErrors({ email: "E-posta adresi bulunamadi" });
+        setErrors({ email: t("auth.emailNotFound") });
       }
     } catch {
-      setErrors({ email: "Bir hata olustu. Lutfen tekrar deneyin." });
+      setErrors({ email: t("auth.genericError") });
     } finally {
       setLoading(false);
     }
@@ -66,10 +68,10 @@ export default function ForgotPasswordCard() {
   const submitReset = async () => {
     const nextErrors: Errors = {};
 
-    if (!password) nextErrors.password = "Sifre zorunludur";
-    else if (password.length < 8) nextErrors.password = "En az 8 karakter olmalidir";
+    if (!password) nextErrors.password = t("auth.passwordRequired");
+    else if (password.length < 8) nextErrors.password = t("auth.passwordMinLengthError");
 
-    if (password !== confirmPassword) nextErrors.confirmPassword = "Sifreler eslesmiyor";
+    if (password !== confirmPassword) nextErrors.confirmPassword = t("auth.passwordsMismatch");
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -95,24 +97,24 @@ export default function ForgotPasswordCard() {
         <Logo />
       </div>
 
-      <div className="rounded-2xl border border-border bg-surface px-7 py-8 shadow-[0_4px_24px_rgb(0_0_0_/_0.08)] dark:shadow-[0_4px_24px_rgb(0_0_0_/_0.25)]">
+      <div className="rounded-2xl border border-border bg-surface px-7 py-8 shadow-[0_4px_24px_rgb(0_0_0/0.08)] dark:shadow-[0_4px_24px_rgb(0_0_0/0.25)]">
         {step === "forgot" && (
           <div className="animate-si">
-            <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10">
+            <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl bg-primary/10">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--primary))" strokeWidth="1.5">
                 <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
               </svg>
             </div>
 
-            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">Sifremi Unuttum</h2>
+            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.forgotTitle")}</h2>
             <p className="mb-7 text-center text-[13.5px] leading-relaxed text-muted">
-              E-posta adresinizi girin. Sifre sifirlama baglantisini hemen gonderelim.
+              {t("auth.forgotSubtitle")}
             </p>
 
             <InputField
-              label="E-posta Adresi"
+              label={t("auth.email")}
               type="email"
-              placeholder="ornek@firma.com"
+              placeholder={t("auth.emailPlaceholder")}
               icon={EmailIcon}
               value={email}
               onChange={(value) => {
@@ -123,7 +125,7 @@ export default function ForgotPasswordCard() {
             />
 
             <Button
-              label={loading ? "Gonderiliyor..." : "Sifirlama Baglantisi Gonder"}
+              label={loading ? t("auth.sending") : t("auth.sendResetLink")}
               onClick={submitForgot}
               disabled={loading}
               variant="authPrimary"
@@ -133,9 +135,9 @@ export default function ForgotPasswordCard() {
 
 
             <p className="mt-6 text-center text-[13px] text-muted">
-              Sifrenizi hatirladiniz mi?{" "}
+              {t("auth.rememberPassword")}{" "}
               <Button
-                label="Giris yapin"
+                label={t("auth.loginLink")}
                 onClick={() => router.push("/auth/login")}
                 variant="link"
               />
@@ -155,29 +157,29 @@ export default function ForgotPasswordCard() {
               </div>
             </div>
 
-            <h2 className="mb-2 text-[22px] font-bold tracking-tight text-text">E-posta Gonderildi</h2>
-            <p className="mb-4 text-[13.5px] leading-relaxed text-muted">Asagidaki adrese sifre sifirlama baglantisi gonderdik:</p>
+            <h2 className="mb-2 text-[22px] font-bold tracking-tight text-text">{t("auth.emailSentTitle")}</h2>
+            <p className="mb-4 text-[13.5px] leading-relaxed text-muted">{t("auth.emailSentSubtitle")}</p>
 
             <div className="mb-5 inline-flex items-center gap-2 rounded-xl bg-primary/10 px-4 py-2">
               {EmailIcon}
-              <span className="text-[13px] font-semibold text-primary">{email || "ornek@firma.com"}</span>
+              <span className="text-[13px] font-semibold text-primary">{email || t("auth.emailPlaceholder")}</span>
             </div>
 
             <p className="mb-6 text-[12.5px] leading-relaxed text-muted">
-              E-posta kutunuzu kontrol edin. Baglanti 30 dakika boyunca gecerlidir.
+              {t("auth.emailSentNote")}
             </p>
 
             <div className="flex flex-col gap-2.5">
               <Button
-                label="Tekrar Gonder"
+                label={t("auth.resend")}
                 onClick={submitForgot}
                 variant="authSecondary"
                 fullWidth
-                className="py-[12px] text-[13.5px]"
+                className="py-3 text-[13.5px]"
               />
 
               <Button
-                label="Giris Sayfasina Don"
+                label={t("auth.backToLogin")}
                 onClick={() => router.push("/auth/login")}
                 variant="authPrimary"
                 fullWidth
@@ -188,20 +190,20 @@ export default function ForgotPasswordCard() {
 
         {step === "reset" && (
           <div className="animate-si">
-            <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-primary/10">
+            <div className="mx-auto mb-6 flex h-18 w-18 items-center justify-center rounded-2xl bg-primary/10">
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--primary))" strokeWidth="1.5">
                 <rect x="3" y="11" width="18" height="11" rx="3" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
             </div>
 
-            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">Yeni Sifre Belirleyin</h2>
-            <p className="mb-7 text-center text-[13.5px] leading-relaxed text-muted">Guclu bir sifre olusturarak hesabinizi koruyun.</p>
+            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.newPasswordTitle")}</h2>
+            <p className="mb-7 text-center text-[13.5px] leading-relaxed text-muted">{t("auth.newPasswordSubtitle")}</p>
 
             <InputField
-              label="Yeni Sifre"
+              label={t("auth.newPassword")}
               type="password"
-              placeholder="En az 8 karakter"
+              placeholder={t("auth.passwordMinLength")}
               icon={LockIcon}
               value={password}
               onChange={(value) => {
@@ -217,7 +219,7 @@ export default function ForgotPasswordCard() {
                 <div key={rule.label} className={`flex items-center gap-2 text-[12.5px] ${rule.ok ? "text-primary" : "text-muted"}`}>
                   <div
                     className={[
-                      "flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border-[1.5px] transition-all",
+                      "flex h-4.5 w-4.5 items-center justify-center rounded-[5px] border-[1.5px] transition-all",
                       rule.ok ? "border-primary bg-primary text-white" : "border-border",
                     ].join(" ")}
                   >
@@ -229,9 +231,9 @@ export default function ForgotPasswordCard() {
             </div>
 
             <InputField
-              label="Sifre Tekrar"
+              label={t("auth.confirmPassword")}
               type="password"
-              placeholder="Yeni sifrenizi tekrar girin"
+              placeholder={t("auth.confirmPasswordRepeatPlaceholder")}
               icon={LockIcon}
               value={confirmPassword}
               onChange={(value) => {
@@ -242,8 +244,7 @@ export default function ForgotPasswordCard() {
             />
 
             <Button
-              label={loading ? "Kaydediliyor..." : "Sifreyi Guncelle"
-              }
+              label={loading ? t("auth.processing") : t("auth.updatePassword")}
               loading={loading}
               onClick={submitReset}
               disabled={loading}
@@ -264,20 +265,20 @@ export default function ForgotPasswordCard() {
               </svg>
             </div>
 
-            <h2 className="mb-2 text-[22px] font-bold tracking-tight text-text">Sifreniz Guncellendi</h2>
+            <h2 className="mb-2 text-[22px] font-bold tracking-tight text-text">{t("auth.passwordUpdatedTitle")}</h2>
             <p className="mb-7 text-[13.5px] leading-relaxed text-muted">
-              Yeni sifreniz kaydedildi. Artik giris yaparak devam edebilirsiniz.
+              {t("auth.passwordUpdatedSubtitle")}
             </p>
 
             <Button
-              label="Giris Sayfasina Don"
+              label={t("auth.backToLogin")}
               onClick={() => router.push("/auth/login")}
               variant="authPrimary"
               fullWidth
             />
 
             <Button
-              label="Akisi bastan baslat"
+              label={t("auth.restartFlow")}
               onClick={resetFlow}
               variant="link"
               className="mt-3 w-full text-[12.5px] font-semibold text-text2 underline decoration-border hover:text-text"

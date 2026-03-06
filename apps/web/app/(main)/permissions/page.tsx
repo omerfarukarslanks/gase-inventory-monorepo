@@ -28,6 +28,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { cn } from "@/lib/cn";
+import { useLang } from "@/context/LangContext";
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ const EMPTY_PERM_FORM: PermForm = {
 // ─── Bileşen ──────────────────────────────────────────────────────────────────
 
 export default function PermissionsPage() {
+  const { t } = useLang();
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();

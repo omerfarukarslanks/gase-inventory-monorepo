@@ -25,6 +25,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
 import { usePermissions } from "@/hooks/usePermissions";
 import { normalizeStoreItems, normalizeProducts, getPaginationValue } from "@/lib/normalize";
+import { useLang } from "@/context/LangContext";
 
 import StockFilters from "@/components/stock/StockFilters";
 import StockTable, { type VariantActionParams, type ProductActionParams } from "@/components/stock/StockTable";
@@ -43,6 +44,7 @@ import ProductInventoryDrawer, {
 /* ── Page ── */
 
 export default function StockPage() {
+  const { t } = useLang();
   /* ── List state ── */
   const [products, setProducts] = useState<InventoryProductStockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -218,7 +220,7 @@ export default function StockPage() {
     } catch {
       setProducts([]);
       setTotal(0);
-      setError("Stok ozeti yuklenemedi. Lutfen tekrar deneyin.");
+      setError(t("stock.loadError"));
     } finally {
       setLoading(false);
     }
@@ -319,7 +321,7 @@ export default function StockPage() {
   const submitReceive = async (items: InventoryReceiveItem[]) => {
     if (!receiveTarget) return;
     if (items.length === 0) {
-      setReceiveFormError("En az bir magaza satiri doldurulmalidir.");
+      setReceiveFormError(t("stock.atLeastOneStoreRow"));
       return;
     }
 
@@ -331,14 +333,14 @@ export default function StockPage() {
       } else {
         await receiveInventoryBulk(items);
       }
-      setSuccess("Stok girisi kaydedildi.");
+      setSuccess(t("stock.receiveSuccess"));
       closeReceiveDrawer();
       await fetchTenantSummary();
       if (receiveTarget.productVariantId) {
         await fetchVariantStores(receiveTarget.productVariantId);
       }
     } catch {
-      setReceiveFormError("Stok girisi yapilamadi.");
+      setReceiveFormError(t("stock.receiveError"));
     } finally {
       setReceiveSubmitting(false);
     }
@@ -417,14 +419,14 @@ export default function StockPage() {
     if (!adjustTarget) return;
 
     if (items.length === 0) {
-      setAdjustFormError("En az bir magaza satiri doldurulmalidir.");
+      setAdjustFormError(t("stock.atLeastOneStoreRow"));
       return;
     }
 
     const usedStoreIds = new Set<string>();
     for (const item of items) {
       if (usedStoreIds.has(item.storeId)) {
-        setAdjustFormError("Ayni magaza birden fazla kez secilemez.");
+        setAdjustFormError(t("stock.sameStoreTwice"));
         return;
       }
       usedStoreIds.add(item.storeId);
@@ -460,12 +462,12 @@ export default function StockPage() {
       } else {
         await adjustInventory(adjustItems[0]);
       }
-      setSuccess("Stok duzeltme kaydedildi.");
+      setSuccess(t("stock.adjustSuccess"));
       closeAdjustDrawer();
       await fetchTenantSummary();
       await fetchVariantStores(adjustTarget.productVariantId);
     } catch {
-      setAdjustFormError("Stok duzeltme yapilamadi.");
+      setAdjustFormError(t("stock.adjustError"));
     } finally {
       setAdjustSubmitting(false);
     }
@@ -509,19 +511,19 @@ export default function StockPage() {
   const submitTransfer = async () => {
     if (!transferTarget) return;
     if (!transferForm.fromStoreId) {
-      setTransferFormError("Kaynak magaza secimi zorunludur.");
+      setTransferFormError(t("stock.sourceStoreRequired"));
       return;
     }
     if (!transferForm.toStoreId) {
-      setTransferFormError("Hedef magaza secimi zorunludur.");
+      setTransferFormError(t("stock.targetStoreRequired"));
       return;
     }
     if (transferForm.fromStoreId === transferForm.toStoreId) {
-      setTransferFormError("Kaynak ve hedef magaza ayni olamaz.");
+      setTransferFormError(t("stock.sameStoreError"));
       return;
     }
     if (!transferForm.quantity || Number(transferForm.quantity) <= 0) {
-      setTransferFormError("Adet 0'dan buyuk olmalidir.");
+      setTransferFormError(t("stock.quantityPositive"));
       return;
     }
 
@@ -531,7 +533,7 @@ export default function StockPage() {
     );
     const available = Number(fromStore?.quantity ?? 0);
     if (qty > available) {
-      setTransferFormError("Transfer adedi, kaynak magazadaki stoktan fazla olamaz.");
+      setTransferFormError(t("stock.transferExceedsStock"));
       return;
     }
 
@@ -550,12 +552,12 @@ export default function StockPage() {
     setTransferFormError("");
     try {
       await transferInventory(payload);
-      setSuccess("Stok transferi kaydedildi.");
+      setSuccess(t("stock.transferSuccess"));
       closeTransferDrawer();
       await fetchTenantSummary();
       await fetchVariantStores(transferTarget.productVariantId);
     } catch {
-      setTransferFormError("Stok transferi yapilamadi.");
+      setTransferFormError(t("stock.transferError"));
     } finally {
       setTransferSubmitting(false);
     }

@@ -9,6 +9,7 @@ import type {
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import RowActionMenu from "@/components/ui/RowActionMenu";
 import { cn } from "@/lib/cn";
+import { useLang } from "@/context/LangContext";
 
 function formatNumber(value: number | null | undefined) {
   const numeric = Number(value ?? 0);
@@ -84,6 +85,7 @@ function VirtualVariantRows({
   canReceive,
   canAdjust,
   canTransfer,
+  t,
 }: {
   variants: InventoryVariantStockItem[];
   productName: string;
@@ -94,6 +96,7 @@ function VirtualVariantRows({
   canReceive: boolean;
   canAdjust: boolean;
   canTransfer: boolean;
+  t: (key: string) => string;
 }) {
   const rowHeight = 44;
   const containerHeight = 280;
@@ -102,7 +105,7 @@ function VirtualVariantRows({
 
   if (variants.length === 0) {
     return (
-      <div className="px-3 py-4 text-sm text-muted">Bu urun icin varyant bulunamadi.</div>
+      <div className="px-3 py-4 text-sm text-muted">{t("stock.noVariants")}</div>
     );
   }
 
@@ -121,7 +124,7 @@ function VirtualVariantRows({
 
   return (
     <div
-      className="h-[280px] overflow-y-auto"
+      className="h-70 overflow-y-auto"
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
     >
       <div className="relative" style={{ height: totalHeight }}>
@@ -136,7 +139,7 @@ function VirtualVariantRows({
             >
               <div className="min-w-0">
                 <div className="truncate text-xs font-medium text-text">
-                  {variant.variantName ?? "Ozellik yok"}
+                  {variant.variantName ?? t("stock.variantNoName")}
                 </div>
                 <div className="truncate text-[11px] text-muted">{variant.variantCode ?? "-"}</div>
               </div>
@@ -147,7 +150,7 @@ function VirtualVariantRows({
                     type="button"
                     onClick={() => onReceive(makeParams(variant))}
                     className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                    title="Stok Girisi"
+                    title={t("stock.receive")}
                   >
                     <ReceiveIcon />
                   </button>
@@ -157,7 +160,7 @@ function VirtualVariantRows({
                     type="button"
                     onClick={() => onAdjust(makeParams(variant))}
                     className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                    title="Stok Duzeltme"
+                    title={t("stock.adjust")}
                   >
                     <EditIcon />
                   </button>
@@ -167,7 +170,7 @@ function VirtualVariantRows({
                     type="button"
                     onClick={() => onTransfer(makeParams(variant))}
                     className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] text-text2 hover:border-primary/40 hover:text-primary"
-                    title="Transfer"
+                    title={t("stock.transfer")}
                   >
                     <TransferIcon />
                   </button>
@@ -216,6 +219,7 @@ export default function StockTable({
   canTransfer = true,
   footer,
 }: StockTableProps) {
+  const { t } = useLang();
   const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
   const totalStockQuantity = useMemo(
     () => products.reduce((sum, product) => sum + Number(product.totalQuantity ?? 0), 0),
@@ -233,22 +237,22 @@ export default function StockTable({
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       {loading ? (
-        <div className="p-6 text-sm text-muted">Stok ozeti yukleniyor...</div>
+        <div className="p-6 text-sm text-muted">{t("stock.loading")}</div>
       ) : error ? (
         <div className="p-6 text-sm text-error">{error}</div>
       ) : products.length === 0 ? (
         <div className="p-8 text-center text-sm text-muted">
-          Gosterilecek stok verisi bulunamadi.
+          {t("stock.noData")}
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px]">
+          <table className="w-full min-w-240">
             <thead className="border-b border-border bg-surface2/70">
               <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="w-10 px-2 py-3"></th>
-                <th className="px-4 py-3">Urun</th>
-                <th className="px-4 py-3 text-right">Miktar</th>
-                <th className="px-4 py-3 text-right">Islem</th>
+                <th className="px-4 py-3">{t("stock.product")}</th>
+                <th className="px-4 py-3 text-right">{t("stock.quantity")}</th>
+                <th className="px-4 py-3 text-right">{t("stock.action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -294,7 +298,7 @@ export default function StockTable({
                           items={[
                             {
                               key: "receive",
-                              label: "Stok Girisi",
+                              label: t("stock.receive"),
                               hidden: !canReceive,
                               onClick: () =>
                                 onProductReceive({
@@ -305,7 +309,7 @@ export default function StockTable({
                             },
                             {
                               key: "adjust",
-                              label: "Stok Duzeltme",
+                              label: t("stock.adjust"),
                               hidden: !canAdjust,
                               onClick: () =>
                                 onProductAdjust({
@@ -316,7 +320,7 @@ export default function StockTable({
                             },
                             {
                               key: "transfer",
-                              label: "Transfer",
+                              label: t("stock.transfer"),
                               hidden: !canTransfer,
                               onClick: () =>
                                 onProductTransfer({
@@ -335,9 +339,9 @@ export default function StockTable({
                         <td colSpan={4} className="px-4 py-3">
                           <div className="overflow-hidden rounded-xl border border-border bg-surface">
                             <div className="grid grid-cols-[1.5fr_1fr_1.2fr] border-b border-border bg-surface2/70 text-left text-[11px] uppercase tracking-wide text-muted">
-                              <div className="px-3 py-2">Varyant</div>
-                              <div className="px-3 py-2 text-right">Miktar</div>
-                              <div className="px-3 py-2 text-right">Islemler</div>
+                              <div className="px-3 py-2">{t("stock.variant")}</div>
+                              <div className="px-3 py-2 text-right">{t("stock.quantity")}</div>
+                              <div className="px-3 py-2 text-right">{t("common.actions")}</div>
                             </div>
                             <VirtualVariantRows
                               variants={product.variants ?? []}
@@ -349,6 +353,7 @@ export default function StockTable({
                               canReceive={canReceive}
                               canAdjust={canAdjust}
                               canTransfer={canTransfer}
+                              t={t}
                             />
                           </div>
                         </td>
@@ -364,7 +369,7 @@ export default function StockTable({
       {!loading && !error && products.length > 0 && (
         <div className="border-t border-border bg-surface2/40 px-4 py-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-text2">Toplam Stok</span>
+            <span className="font-medium text-text2">{t("stock.totalStock")}</span>
             <span className="font-semibold text-text">{formatNumber(totalStockQuantity)}</span>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/format";
 import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { cn } from "@/lib/cn";
+import { useLang } from "@/context/LangContext";
 
 function formatPercentOrAmount(percent: number | string | null | undefined, amount: number | string | null | undefined) {
   if (percent != null && String(percent) !== "") return `%${percent}`;
@@ -21,12 +22,14 @@ function VirtualVariantList({
   togglingVariantIds,
   onToggleVariantActive,
   canUpdate,
+  t,
 }: {
   variants: ProductVariant[];
   fallbackCurrency: string;
   togglingVariantIds: string[];
   onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
   canUpdate: boolean;
+  t: (key: string) => string;
 }) {
   const rowHeight = 64;
   const containerHeight = 240;
@@ -47,15 +50,15 @@ function VirtualVariantList({
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
       <div className="grid grid-cols-[minmax(180px,2fr)_100px_120px_120px_120px_92px] border-b border-border bg-surface2/70 px-3 py-2 text-left text-[11px] uppercase tracking-wide text-muted">
-        <div>Varyant</div>
-        <div className="text-right">Para Birimi</div>
-        <div className="text-right">Satış</div>
-        <div className="text-right">Vergi</div>
-        <div className="text-right">İndirim</div>
-        <div className="text-right">İşlemler</div>
+        <div>{t("products.variantCount")}</div>
+        <div className="text-right">{t("products.currencyLabel")}</div>
+        <div className="text-right">{t("products.salePrice")}</div>
+        <div className="text-right">{t("products.tax")}</div>
+        <div className="text-right">{t("products.discount")}</div>
+        <div className="text-right">{t("common.actions")}</div>
       </div>
       <div
-        className="h-[240px] overflow-y-auto"
+        className="h-60 overflow-y-auto"
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       >
         <div className="relative" style={{ height: totalHeight }}>
@@ -70,7 +73,7 @@ function VirtualVariantList({
               >
                 <div className="min-w-0">
                   <div className="truncate text-xs font-medium text-text">
-                    {variant.name ?? "Ozellik yok"}
+                    {variant.name ?? t("products.noAttribute")}
                   </div>
                   <div className="truncate text-[11px] text-muted">{variant.code ?? "-"}</div>
                 </div>
@@ -147,30 +150,31 @@ export default function ProductTable({
   canPriceUpdate = true,
   footer,
 }: ProductTableProps) {
+  const { t } = useLang();
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       {loading ? (
-        <div className="p-6 text-sm text-muted">Urunler yukleniyor...</div>
+        <div className="p-6 text-sm text-muted">{t("products.loading")}</div>
       ) : error ? (
         <div className="p-6">
           <p className="text-sm text-error">{error}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-250">
             <thead className="border-b border-border bg-surface2/70">
               <tr className="text-left text-xs uppercase tracking-wide text-muted">
                 <th className="w-10 px-2 py-3 text-center"></th>
-                <th className="px-4 py-3">Urun Adi</th>
-                <th className="px-4 py-3">SKU</th>
-                <th className="px-4 py-3">Para Birimi</th>
-                <th className="px-4 py-3 text-right">Satis Fiyati</th>
-                <th className="px-4 py-3 text-right">Alis Fiyati</th>
-                <th className="px-4 py-3 text-right">Vergi</th>
-                <th className="px-4 py-3 text-right">Indirim</th>
-                <th className="px-4 py-3 text-center">Varyant</th>
-                <th className="sticky right-0 z-20 w-[156px] bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
-                  Islemler
+                <th className="px-4 py-3">{t("products.productName")}</th>
+                <th className="px-4 py-3">{t("products.sku")}</th>
+                <th className="px-4 py-3">{t("products.currencyLabel")}</th>
+                <th className="px-4 py-3 text-right">{t("products.salePrice")}</th>
+                <th className="px-4 py-3 text-right">{t("products.purchasePrice")}</th>
+                <th className="px-4 py-3 text-right">{t("products.tax")}</th>
+                <th className="px-4 py-3 text-right">{t("products.discount")}</th>
+                <th className="px-4 py-3 text-center">{t("products.variantCount")}</th>
+                <th className="sticky right-0 z-20 w-39 bg-surface2/70 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)]">
+                  {t("common.actions")}
                 </th>
               </tr>
             </thead>
@@ -178,7 +182,7 @@ export default function ProductTable({
               {products.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-4 py-8 text-center text-sm text-muted">
-                    Henuz urun bulunmuyor.
+                    {t("products.noData")}
                   </td>
                 </tr>
               ) : (
@@ -254,7 +258,7 @@ export default function ProductTable({
                           {product.variantCount ?? product.variants?.length ?? 0}
                         </span>
                       </td>
-                      <td className="sticky right-0 z-10 w-[156px] bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
+                      <td className="sticky right-0 z-10 w-39 bg-surface px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.2)] group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
                           {canPriceUpdate && (
                             <button
@@ -262,8 +266,8 @@ export default function ProductTable({
                               onClick={() => onProductPrice(product)}
                               disabled={togglingProductIds.includes(product.id)}
                               className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors disabled:opacity-50"
-                              aria-label="Urun fiyatini duzenle"
-                              title="Fiyat Duzenle"
+                              aria-label={t("products.editPrice")}
+                              title={t("products.editPrice")}
                             >
                               <PriceIcon />
                             </button>
@@ -274,8 +278,8 @@ export default function ProductTable({
                               onClick={() => onEdit(product.id)}
                               disabled={togglingProductIds.includes(product.id)}
                               className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
-                              aria-label="Urunu duzenle"
-                              title="Duzenle"
+                              aria-label={t("products.edit")}
+                              title={t("products.edit")}
                             >
                               <EditIcon />
                             </button>
@@ -295,7 +299,7 @@ export default function ProductTable({
                         <td colSpan={10} className="px-4 py-3">
                           {loadingVariants ? (
                             <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
-                              Varyantlar yükleniyor...
+                              {t("products.variantsLoading")}
                             </div>
                           ) : variantsError ? (
                             <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">
@@ -303,7 +307,7 @@ export default function ProductTable({
                             </div>
                           ) : tableVariants.length === 0 ? (
                             <div className="rounded-xl border border-border bg-surface2/40 p-3 text-sm text-muted">
-                              Secilen filtrede varyant bulunmuyor.
+                              {t("products.noVariantsInFilter")}
                             </div>
                           ) : (
                             <VirtualVariantList
@@ -314,6 +318,7 @@ export default function ProductTable({
                                 onToggleVariantActive(product.id, variant, next)
                               }
                               canUpdate={canUpdate}
+                              t={t}
                             />
                           )}
                         </td>

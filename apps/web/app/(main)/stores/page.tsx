@@ -26,6 +26,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { Currency } from "@/lib/products";
 import { CURRENCY_OPTIONS, STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import { useLang } from "@/context/LangContext";
 
 type StoreForm = {
   name: string;
@@ -53,6 +54,7 @@ export default function StoresPage() {
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();
+  const { t } = useLang();
 
   const [stores, setStores] = useState<Store[]>([]);
   const [meta, setMeta] = useState<StoresListMeta | null>(null);
@@ -74,8 +76,8 @@ export default function StoresPage() {
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
   const debouncedSearch = useDebounceStr(searchTerm, 500);
   const STORE_TYPE_OPTIONS = [
-    { value: "RETAIL", label: "Perakende" },
-    { value: "WHOLESALE", label: "Toptan" },
+    { value: "RETAIL", label: t("stores.storeTypeRetail") },
+    { value: "WHOLESALE", label: t("stores.storeTypeWholesale") },
   ] as const;
   const normalizeCurrency = (value: string): Currency =>
     value === "USD" || value === "EUR" ? value : "TRY";
@@ -90,7 +92,7 @@ export default function StoresPage() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setError("Session not found. Please sign in again.");
+        setError(t("common.sessionNotFound"));
         setStores([]);
         setMeta(null);
         return;
@@ -107,7 +109,7 @@ export default function StoresPage() {
       setStores(res.data);
       setMeta(res.meta);
     } catch {
-      setError("Stores could not be loaded. Please try again.");
+      setError(t("stores.loadError"));
       setStores([]);
       setMeta(null);
     } finally {
@@ -166,7 +168,7 @@ export default function StoresPage() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setFormError("Session not found. Please sign in again.");
+        setFormError(t("common.sessionNotFound"));
         return;
       }
 
@@ -185,7 +187,7 @@ export default function StoresPage() {
       setEditingStoreIsActive(detail.isActive);
       setDrawerOpen(true);
     } catch {
-      setFormError("Store detail could not be loaded. Please try again.");
+      setFormError(t("stores.detailLoadError"));
     } finally {
       setLoadingStoreDetail(false);
     }
@@ -197,18 +199,18 @@ export default function StoresPage() {
     setNameError("");
 
     if (!form.name.trim()) {
-      setNameError("Name field is required.");
+      setNameError(t("stores.nameRequired"));
       return;
     }
 
     if (form.name.trim().length < 2) {
-      setNameError("Name must be at least 2 characters.");
+      setNameError(t("stores.nameMinLength"));
       return;
     }
 
     const token = localStorage.getItem("token");
     if (!token) {
-      setFormError("Session not found. Please sign in again.");
+      setFormError(t("common.sessionNotFound"));
       return;
     }
 
@@ -251,7 +253,7 @@ export default function StoresPage() {
       setEditingStoreIsActive(true);
       await fetchStores();
     } catch {
-      setFormError(editingStoreId ? "Store could not be updated. Please try again." : "Store could not be created. Please try again.");
+      setFormError(editingStoreId ? t("stores.updateError") : t("stores.createError"));
     } finally {
       setSubmitting(false);
     }
@@ -266,7 +268,7 @@ export default function StoresPage() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setError("Session not found. Please sign in again.");
+        setError(t("common.sessionNotFound"));
         return;
       }
 
@@ -285,7 +287,7 @@ export default function StoresPage() {
       );
       await fetchStores();
     } catch {
-      setError("Store status could not be updated. Please try again.");
+      setError(t("stores.toggleError"));
     } finally {
       setTogglingStoreIds((prev) => prev.filter((id) => id !== store.id));
     }
@@ -295,25 +297,25 @@ export default function StoresPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text">Stores</h1>
-          <p className="text-sm text-muted">Store list from service</p>
+          <h1 className="text-xl font-semibold text-text">{t("stores.title")}</h1>
+          <p className="text-sm text-muted">{t("stores.subtitle")}</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
           <SearchInput
             value={searchTerm}
             onChange={setSearchTerm}
-            placeholder="Ara..."
+            placeholder={t("common.search")}
             containerClassName="w-full lg:w-64"
           />
           <Button
-            label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
+            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
           {can("STORE_CREATE") && (
             <Button
-              label="New Store"
+              label={t("stores.new")}
               onClick={onOpenDrawer}
               variant="primarySoft"
               className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
@@ -325,21 +327,21 @@ export default function StoresPage() {
       {showAdvancedFilters && (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Durum</label>
+            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={statusFilter === "all" ? "all" : String(statusFilter)}
               onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder="Tum Durumlar"
+              placeholder={t("common.allStatuses")}
               showEmptyOption={false}
               allowClear={false}
-              inputAriaLabel="Magaza durum filtresi"
-              toggleAriaLabel="Magaza durum listesini ac"
+              inputAriaLabel={t("stores.statusFilter")}
+              toggleAriaLabel={t("stores.statusFilter")}
             />
           </div>
           <div className="md:col-span-2 lg:col-span-3">
             <Button
-              label="Filtreleri Temizle"
+              label={t("common.clearFilters")}
               onClick={clearAdvancedFilters}
               variant="secondary"
               className="w-full sm:w-auto"
@@ -350,7 +352,7 @@ export default function StoresPage() {
 
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {loading ? (
-          <div className="p-6 text-sm text-muted">Loading stores...</div>
+          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
         ) : error ? (
           <div className="p-6">
             <p className="text-sm text-error">{error}</p>
@@ -361,12 +363,12 @@ export default function StoresPage() {
               <table className="w-full min-w-[900px]">
                 <thead className="border-b border-border bg-surface2/70">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Code</th>
-                    <th className="px-4 py-3">Address</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Slug</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                    <th className="px-4 py-3">{t("stores.colName")}</th>
+                    <th className="px-4 py-3">{t("stores.colCode")}</th>
+                    <th className="px-4 py-3">{t("stores.colAddress")}</th>
+                    <th className="px-4 py-3">{t("stores.colStatus")}</th>
+                    <th className="px-4 py-3">{t("stores.colSlug")}</th>
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("stores.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -380,7 +382,7 @@ export default function StoresPage() {
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                             }`}
                         >
-                          {store.isActive ? "Active" : "Passive"}
+                          {store.isActive ? t("common.active") : t("common.passive")}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
@@ -431,21 +433,21 @@ export default function StoresPage() {
         open={drawerOpen}
         onClose={onCloseDrawer}
         side={"right"}
-        title={editingStoreId ? "Update Store" : "Create Store"}
-        description={editingStoreId ? "Update store information" : "Only name is required"}
+        title={editingStoreId ? t("stores.update") : t("stores.create")}
+        description={editingStoreId ? t("stores.update") : t("stores.name")}
         closeDisabled={submitting || loadingStoreDetail}
         className={cn(isMobile && "!max-w-none")}
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
-              label="Cancel"
+              label={t("common.cancel")}
               type="button"
               onClick={onCloseDrawer}
               disabled={submitting || loadingStoreDetail}
               variant="secondary"
             />
             <Button
-              label={submitting ? (editingStoreId ? "Updating..." : "Creating...") : editingStoreId ? "Update Store" : "Create Store"}
+              label={submitting ? (editingStoreId ? t("common.updating") : t("common.creating")) : editingStoreId ? t("stores.update") : t("stores.create")}
               type="submit"
               form="create-store-form"
               disabled={submitting || loadingStoreDetail}
@@ -456,87 +458,87 @@ export default function StoresPage() {
       >
         <form id="create-store-form" onSubmit={onSubmitStore} className="space-y-4 p-5">
           {loadingStoreDetail ? (
-            <div className="text-sm text-muted">Loading store detail...</div>
+            <div className="text-sm text-muted">{t("stores.loadingDetail")}</div>
           ) : (
             <>
           <InputField
-            label="Name *"
+            label={t("stores.name")}
             type="text"
             value={form.name}
             onChange={(v) => onFormChange("name", v)}
-            placeholder="Store name"
+            placeholder={t("stores.namePlaceholder")}
             error={nameError}
           />
 
           <InputField
-            label="Code"
+            label={t("stores.code")}
             type="text"
             value={form.code}
             onChange={(v) => onFormChange("code", v)}
-            placeholder="BES-01"
+            placeholder={t("stores.codePlaceholder")}
           />
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Store Type</label>
+            <label className="text-xs font-semibold text-muted">{t("stores.storeType")}</label>
             <SearchableDropdown
               options={[...STORE_TYPE_OPTIONS]}
               value={form.storeType}
               onChange={(value) => onFormChange("storeType", normalizeStoreType(value))}
-              placeholder="Store type seciniz"
+              placeholder={t("stores.storeTypePlaceholder")}
               showEmptyOption={false}
               allowClear={false}
-              inputAriaLabel="Magaza tipi"
-              toggleAriaLabel="Magaza tipi listesini ac"
+              inputAriaLabel={t("stores.storeType")}
+              toggleAriaLabel={t("stores.storeType")}
               disabled={Boolean(editingStoreId)}
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Currency</label>
+            <label className="text-xs font-semibold text-muted">{t("stores.currency")}</label>
             <SearchableDropdown
               options={CURRENCY_OPTIONS}
               value={form.currency}
               onChange={(value) => onFormChange("currency", normalizeCurrency(value))}
-              placeholder="Currency seciniz"
+              placeholder={t("stores.currencyPlaceholder")}
               showEmptyOption={false}
               allowClear={false}
-              inputAriaLabel="Magaza para birimi"
-              toggleAriaLabel="Magaza para birimi listesini ac"
+              inputAriaLabel={t("stores.currency")}
+              toggleAriaLabel={t("stores.currency")}
               disabled={Boolean(editingStoreId)}
             />
           </div>
 
           <InputField
-            label="Address"
+            label={t("stores.address")}
             type="text"
             value={form.address}
             onChange={(v) => onFormChange("address", v)}
-            placeholder="Address"
+            placeholder={t("stores.addressPlaceholder")}
           />
 
           <InputField
-            label="Slug"
+            label={t("stores.slug")}
             type="text"
             value={form.slug}
             onChange={(v) => onFormChange("slug", v)}
-            placeholder="store-slug"
+            placeholder={t("stores.slugPlaceholder")}
           />
 
           <InputField
-            label="Logo URL"
+            label={t("stores.logo")}
             type="text"
             value={form.logo}
             onChange={(v) => onFormChange("logo", v)}
-            placeholder="https://example.com/logo.png"
+            placeholder={t("stores.logoPlaceholder")}
           />
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Description</label>
+            <label className="text-xs font-semibold text-muted">{t("stores.description")}</label>
             <textarea
               value={form.description}
               onChange={(e) => onFormChange("description", e.target.value)}
               className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-              placeholder="Short store description"
+              placeholder={t("stores.descPlaceholder")}
             />
           </div>
 

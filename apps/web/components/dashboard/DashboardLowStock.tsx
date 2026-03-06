@@ -1,6 +1,7 @@
 "use client";
 
 import type { LowStockItem } from "@/lib/reports";
+import { useLang } from "@/context/LangContext";
 
 type Props = {
   data: LowStockItem[];
@@ -8,12 +9,14 @@ type Props = {
 };
 
 export default function DashboardLowStock({ data, loading }: Props) {
+  const { t } = useLang();
+
   if (loading) {
-    return <p className="text-sm text-muted">Dusuk stok verileri yukleniyor...</p>;
+    return <p className="text-sm text-muted">{t("dashboard.lowStockLoading")}</p>;
   }
 
   if (data.length === 0) {
-    return <p className="text-sm text-muted">Dusuk stok uyarisi bulunamadi.</p>;
+    return <p className="text-sm text-muted">{t("dashboard.lowStockEmpty")}</p>;
   }
 
   return (
@@ -30,7 +33,7 @@ export default function DashboardLowStock({ data, loading }: Props) {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm font-bold text-red-500">{item.quantity ?? 0} adet</div>
+            <div className="text-sm font-bold text-red-500">{item.quantity ?? 0} {t("dashboard.units")}</div>
           </div>
         </div>
       ))}

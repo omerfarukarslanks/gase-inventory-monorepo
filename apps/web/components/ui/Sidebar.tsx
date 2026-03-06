@@ -6,10 +6,11 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { logout } from "@/app/auth/auth";
 import type { PermissionName } from "@/lib/authz";
+import { useLang } from "@/context/LangContext";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: string;
   icon: string;
   badge?: string;
   permission?: PermissionName;
@@ -17,23 +18,23 @@ type NavItem = {
 };
 
 const items: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "D" },
-  { href: "/products", label: "Urunler", icon: "U", permission: "PRODUCT_READ" },
-  { href: "/product-packages", label: "Paketler", icon: "PK" },
-  { href: "/stock", label: "Stok Yonetimi", icon: "S", badge: "3", permission: "STOCK_LIST_READ" },
-  { href: "/sales", label: "Satislar", icon: "TL", permission: "SALE_READ" },
-  { href: "/chat", label: "AI Chat", icon: "AI", permission: "AI_CHAT" },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: "D" },
+  { href: "/products", labelKey: "nav.products", icon: "U", permission: "PRODUCT_READ" },
+  { href: "/product-packages", labelKey: "nav.packages", icon: "PK" },
+  { href: "/stock", labelKey: "nav.stock", icon: "S", badge: "3", permission: "STOCK_LIST_READ" },
+  { href: "/sales", labelKey: "nav.sales", icon: "TL", permission: "SALE_READ" },
+  { href: "/chat", labelKey: "nav.chat", icon: "AI", permission: "AI_CHAT" },
 ];
 
 const adminItems: NavItem[] = [
-  { href: "/attributes", label: "Ozellikler", icon: "O", permission: "PRODUCT_ATTRIBUTE_READ" },
-  { href: "/product-categories", label: "Urun Kategorileri", icon: "UK", permission: "PRODUCT_CATEGORY_READ" },
-  { href: "/stores", label: "Magazalar", icon: "M", permission: "STORE_VIEW" },
-  { href: "/suppliers", label: "Tedarikciler", icon: "T", permission: "SUPPLIER_READ" },
-  { href: "/customers", label: "Musteriler", icon: "C", permission: "CUSTOMER_READ" },
-  { href: "/users", label: "Kullanicilar", icon: "K", permission: "USER_READ" },
-  { href: "/permissions", label: "Yetkiler", icon: "YT", permission: "PERMISSION_MANAGE" },
-  { href: "/reports", label: "Raporlar", icon: "R", anyPermission: ["REPORT_SALES_READ", "REPORT_STOCK_READ", "REPORT_FINANCIAL_READ"] },
+  { href: "/attributes", labelKey: "nav.attributes", icon: "O", permission: "PRODUCT_ATTRIBUTE_READ" },
+  { href: "/product-categories", labelKey: "nav.productCategories", icon: "UK", permission: "PRODUCT_CATEGORY_READ" },
+  { href: "/stores", labelKey: "nav.stores", icon: "M", permission: "STORE_VIEW" },
+  { href: "/suppliers", labelKey: "nav.suppliers", icon: "T", permission: "SUPPLIER_READ" },
+  { href: "/customers", labelKey: "nav.customers", icon: "C", permission: "CUSTOMER_READ" },
+  { href: "/users", labelKey: "nav.users", icon: "K", permission: "USER_READ" },
+  { href: "/permissions", labelKey: "nav.permissions", icon: "YT", permission: "PERMISSION_MANAGE" },
+  { href: "/reports", labelKey: "nav.reports", icon: "R", anyPermission: ["REPORT_SALES_READ", "REPORT_STOCK_READ", "REPORT_FINANCIAL_READ"] },
 ];
 
 type LocalUser = {
@@ -88,9 +89,10 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [displayName, setDisplayName] = useState("Kullanici");
+  const [displayName, setDisplayName] = useState(t("nav.dashboard"));
   const [displayRole, setDisplayRole] = useState("Admin");
   const [canSeePackages, setCanSeePackages] = useState(false);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
@@ -99,7 +101,7 @@ export default function Sidebar({
     try {
       const rawUser = localStorage.getItem("user");
       if (!rawUser) {
-        setDisplayName("Kullanici");
+        setDisplayName("User");
         setDisplayRole("User");
         setCanSeePackages(false);
         setUserPermissions([]);
@@ -107,12 +109,12 @@ export default function Sidebar({
       }
       const parsed = JSON.parse(rawUser) as LocalUser;
       const fullName = [parsed.name, parsed.surname].filter(Boolean).join(" ").trim();
-      setDisplayName(fullName || "Kullanici");
+      setDisplayName(fullName || "User");
       setDisplayRole(parsed.role || "Admin");
       setCanSeePackages(resolveUserStoreType(parsed) === "WHOLESALE");
       setUserPermissions(parsed.permissions ?? []);
     } catch {
-      setDisplayName("Kullanici");
+      setDisplayName("User");
       setDisplayRole("User");
       setCanSeePackages(false);
       setUserPermissions([]);
@@ -171,10 +173,10 @@ export default function Sidebar({
     <aside
       className={cn(
         "sticky top-0 flex h-screen flex-col border-r border-border bg-surface transition-all duration-200",
-        collapsed ? "w-[76px]" : "w-[260px]",
+        collapsed ? "w-19" : "w-65",
       )}
     >
-      <div className="flex h-16 flex-shrink-0 items-center justify-between px-4">
+      <div className="flex h-16 shrink-0 items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl2 bg-primary/15 text-primary">
             SP
@@ -204,7 +206,7 @@ export default function Sidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 pb-4">
         <div className={cn("px-3 py-2 text-[10px] font-semibold tracking-widest text-muted", collapsed && "text-center")}>
-          {!collapsed ? "ANA MENU" : "*"}
+          {!collapsed ? t("nav.mainMenu") : "*"}
         </div>
 
         <div className="space-y-1">
@@ -233,7 +235,7 @@ export default function Sidebar({
               </span>
               {!collapsed && (
                 <>
-                  <span className="flex-1">{it.label}</span>
+                  <span className="flex-1">{t(it.labelKey)}</span>
                   {it.badge && (
                     <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span>
                   )}
@@ -244,7 +246,7 @@ export default function Sidebar({
         </div>
 
         <div className={cn("mt-5 px-3 py-2 text-[10px] font-semibold tracking-widest text-muted", collapsed && "text-center")}>
-          {!collapsed ? "YONETIM" : "*"}
+          {!collapsed ? t("nav.management") : "*"}
         </div>
 
         <div className="space-y-1">
@@ -269,13 +271,13 @@ export default function Sidebar({
               >
                 {it.icon}
               </span>
-              {!collapsed && <span className="flex-1">{it.label}</span>}
+              {!collapsed && <span className="flex-1">{t(it.labelKey)}</span>}
             </Link>
             ))}
         </div>
       </div>
 
-      <div className="flex-shrink-0 border-t border-border bg-surface p-3" ref={menuRef}>
+      <div className="shrink-0 border-t border-border bg-surface p-3" ref={menuRef}>
         {menuOpen && (
           <div className="mb-2 rounded-xl2 border border-border bg-surface p-1 shadow-xl">
             <Link
@@ -283,7 +285,7 @@ export default function Sidebar({
               onClick={() => setMenuOpen(false)}
               className="block rounded-lg px-3 py-2 text-sm text-text hover:bg-surface2"
             >
-              Profil
+              {t("nav.profile")}
             </Link>
             <button
               type="button"
@@ -291,7 +293,7 @@ export default function Sidebar({
               disabled={loggingOut}
               className="block w-full rounded-lg px-3 py-2 cursor-pointer text-left text-sm text-error hover:bg-error/10 disabled:opacity-60"
             >
-              {loggingOut ? "Cikis yapiliyor..." : "Logout"}
+              {loggingOut ? t("nav.loggingOut") : t("nav.logout")}
             </button>
           </div>
         )}

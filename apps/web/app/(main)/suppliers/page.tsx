@@ -24,6 +24,7 @@ import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import { useLang } from "@/context/LangContext";
 
 type SupplierForm = {
   name: string;
@@ -42,6 +43,7 @@ const EMPTY_FORM: SupplierForm = {
 };
 
 export default function SuppliersPage() {
+  const { t } = useLang();
   const accessChecked = useAdminGuard();
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();
@@ -83,7 +85,7 @@ export default function SuppliersPage() {
       setSuppliers(res.data);
       setMeta(res.meta);
     } catch {
-      setError("Tedarikciler yuklenemedi. Lutfen tekrar deneyin.");
+      setError(t("common.loadError"));
       setSuppliers([]);
       setMeta(null);
     } finally {
@@ -157,7 +159,7 @@ export default function SuppliersPage() {
       setEditingSupplierIsActive(detail.isActive ?? true);
       setDrawerOpen(true);
     } catch {
-      setFormError("Tedarikci detayi yuklenemedi. Lutfen tekrar deneyin.");
+      setFormError(t("suppliers.loadingDetail"));
     } finally {
       setLoadingSupplierDetail(false);
     }
@@ -215,8 +217,8 @@ export default function SuppliersPage() {
     } catch {
       setFormError(
         editingSupplierId
-          ? "Tedarikci guncellenemedi. Lutfen tekrar deneyin."
-          : "Tedarikci olusturulamadi. Lutfen tekrar deneyin.",
+          ? t("common.loadError")
+          : t("common.loadError"),
       );
     } finally {
       setSubmitting(false);
@@ -240,7 +242,7 @@ export default function SuppliersPage() {
       });
       await fetchSuppliers();
     } catch {
-      setError("Tedarikci durumu guncellenemedi. Lutfen tekrar deneyin.");
+      setError(t("common.loadError"));
     } finally {
       setTogglingSupplierIds((prev) => prev.filter((id) => id !== supplier.id));
     }
@@ -250,8 +252,8 @@ export default function SuppliersPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-text">Tedarikciler</h1>
-          <p className="text-sm text-muted">Tedarikci listesi ve yonetimi</p>
+          <h1 className="text-xl font-semibold text-text">{t("suppliers.title")}</h1>
+          <p className="text-sm text-muted">{t("suppliers.title")}</p>
         </div>
         <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
           <SearchInput
@@ -261,14 +263,14 @@ export default function SuppliersPage() {
             containerClassName="w-full lg:w-64"
           />
           <Button
-            label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
+            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
             onClick={() => setShowAdvancedFilters((prev) => !prev)}
             variant="secondary"
             className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
           />
           {can("SUPPLIER_CREATE") && (
             <Button
-              label="Yeni Tedarikci"
+              label={t("suppliers.new")}
               onClick={onOpenDrawer}
               variant="primarySoft"
               className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
@@ -280,12 +282,12 @@ export default function SuppliersPage() {
       {showAdvancedFilters && (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Durum</label>
+            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={statusFilter === "all" ? "all" : String(statusFilter)}
               onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-              placeholder="Tum Durumlar"
+              placeholder={t("common.allStatuses")}
               showEmptyOption={false}
               allowClear={false}
               inputAriaLabel="Tedarikci durum filtresi"
@@ -294,7 +296,7 @@ export default function SuppliersPage() {
           </div>
           <div className="md:col-span-2 lg:col-span-3">
             <Button
-              label="Filtreleri Temizle"
+              label={t("common.clearFilters")}
               onClick={clearAdvancedFilters}
               variant="secondary"
               className="w-full sm:w-auto"
@@ -305,7 +307,7 @@ export default function SuppliersPage() {
 
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {loading ? (
-          <div className="p-6 text-sm text-muted">Tedarikciler yukleniyor...</div>
+          <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
         ) : error ? (
           <div className="p-6">
             <p className="text-sm text-error">{error}</p>
@@ -316,20 +318,20 @@ export default function SuppliersPage() {
               <table className="w-full min-w-[960px]">
                 <thead className="border-b border-border bg-surface2/70">
                   <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">Isim</th>
-                    <th className="px-4 py-3">Soyisim</th>
-                    <th className="px-4 py-3">Telefon</th>
-                    <th className="px-4 py-3">E-posta</th>
-                    <th className="px-4 py-3">Adres</th>
-                    <th className="px-4 py-3">Durum</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                    <th className="px-4 py-3">{t("suppliers.colName")}</th>
+                    <th className="px-4 py-3">{t("suppliers.colSurname")}</th>
+                    <th className="px-4 py-3">{t("suppliers.colPhone")}</th>
+                    <th className="px-4 py-3">{t("suppliers.colEmail")}</th>
+                    <th className="px-4 py-3">{t("suppliers.colAddress")}</th>
+                    <th className="px-4 py-3">{t("common.status")}</th>
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {suppliers.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted">
-                        Kayit bulunamadi.
+                        {t("common.noData")}
                       </td>
                     </tr>
                   ) : (
@@ -349,7 +351,7 @@ export default function SuppliersPage() {
                               supplier.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                             }`}
                           >
-                            {supplier.isActive ? "Aktif" : "Pasif"}
+                            {supplier.isActive ? t("common.active") : t("common.passive")}
                           </span>
                         </td>
                         <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
@@ -400,21 +402,21 @@ export default function SuppliersPage() {
         open={drawerOpen}
         onClose={onCloseDrawer}
         side="right"
-        title={editingSupplierId ? "Tedarikci Guncelle" : "Yeni Tedarikci"}
-        description={editingSupplierId ? "Tedarikci bilgilerini guncelleyin" : "Sadece isim alani zorunludur"}
+        title={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
+        description={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
         closeDisabled={submitting || loadingSupplierDetail}
         className={cn(isMobile && "!max-w-none")}
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
-              label="Iptal"
+              label={t("common.cancel")}
               type="button"
               onClick={onCloseDrawer}
               disabled={submitting || loadingSupplierDetail}
               variant="secondary"
             />
             <Button
-              label={submitting ? (editingSupplierId ? "Guncelleniyor..." : "Olusturuluyor...") : "Kaydet"}
+              label={submitting ? (editingSupplierId ? t("common.updating") : t("common.creating")) : t("common.save")}
               type="submit"
               form="supplier-form"
               disabled={submitting || loadingSupplierDetail}
@@ -425,56 +427,56 @@ export default function SuppliersPage() {
       >
         <form id="supplier-form" onSubmit={onSubmitSupplier} className="space-y-4 p-5">
           {loadingSupplierDetail ? (
-            <div className="text-sm text-muted">Tedarikci detayi yukleniyor...</div>
+            <div className="text-sm text-muted">{t("suppliers.loadingDetail")}</div>
           ) : (
             <>
               <InputField
-                label="Isim *"
+                label={`${t("suppliers.name")} *`}
                 type="text"
                 value={form.name}
                 onChange={(value) => onFormChange("name", value)}
-                placeholder="Tekstil A.S."
+                placeholder={t("suppliers.namePlaceholder")}
                 error={nameError}
               />
 
               <InputField
-                label="Soyisim"
+                label={t("suppliers.surname")}
                 type="text"
                 value={form.surname}
                 onChange={(value) => onFormChange("surname", value)}
-                placeholder="Yilmaz"
+                placeholder={t("suppliers.surnamePlaceholder")}
               />
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Adres</label>
+                <label className="text-xs font-semibold text-muted">{t("suppliers.address")}</label>
                 <textarea
                   value={form.address}
                   onChange={(e) => onFormChange("address", e.target.value)}
                   className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-                  placeholder="Bagcilar, Istanbul"
+                  placeholder={t("suppliers.addressPlaceholder")}
                 />
               </div>
 
               <InputField
-                label="Telefon"
+                label={t("suppliers.phone")}
                 type="text"
                 value={form.phoneNumber}
                 onChange={(value) => onFormChange("phoneNumber", value)}
-                placeholder="+905321234567"
+                placeholder={t("suppliers.phonePlaceholder")}
               />
 
               <InputField
-                label="E-posta"
+                label={t("suppliers.email")}
                 type="email"
                 value={form.email}
                 onChange={(value) => onFormChange("email", value)}
-                placeholder="info@tekstil.com"
+                placeholder={t("suppliers.emailPlaceholder")}
                 error={emailError}
               />
 
               {editingSupplierId && (
                 <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">
-                  <span className="text-xs font-semibold text-muted">Aktif</span>
+                  <span className="text-xs font-semibold text-muted">{t("suppliers.active")}</span>
                   <ToggleSwitch
                     checked={editingSupplierIsActive}
                     onChange={setEditingSupplierIsActive}

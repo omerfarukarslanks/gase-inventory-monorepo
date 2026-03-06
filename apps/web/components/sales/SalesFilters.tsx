@@ -5,6 +5,7 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { PAYMENT_STATUS_OPTIONS, SALES_STATUS_OPTIONS } from "@/components/sales/types";
+import { useLang } from "@/context/LangContext";
 
 type SalesFiltersProps = {
   showAdvancedFilters: boolean;
@@ -69,18 +70,19 @@ export default function SalesFilters({
   onIncludeLinesChange,
   onResetPage,
 }: SalesFiltersProps) {
+  const { t } = useLang();
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Button
-          label={showAdvancedFilters ? "Detayli Filtreyi Gizle" : "Detayli Filtre"}
+          label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
           onClick={onToggleAdvancedFilters}
           variant="secondary"
           className="px-3 py-1.5"
         />
         {canCreate && (
           <Button
-            label="Yeni Satis"
+            label={t("sales.new")}
             onClick={onNewSale}
             variant="primarySoft"
             className="px-3 py-1.5"
@@ -92,7 +94,7 @@ export default function SalesFilters({
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
           {canTenantOnly && (
             <div className="xl:col-span-2">
-              <label className="mb-1 block text-xs font-semibold text-muted">Magaza Filtrele</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.filterByStore")}</label>
               <SearchableMultiSelectDropdown
                 options={storeOptions}
                 values={salesStoreIds}
@@ -100,7 +102,7 @@ export default function SalesFilters({
                   onSalesStoreIdsChange(values);
                   onResetPage();
                 }}
-                placeholder="Tum magazalar"
+                placeholder={t("sales.allStores")}
               />
             </div>
           )}
@@ -117,7 +119,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Ad</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.firstName")}</label>
             <input
               type="text"
               value={nameFilter}
@@ -129,7 +131,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Soyad</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.surname")}</label>
             <input
               type="text"
               value={surnameFilter}
@@ -141,7 +143,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Durum</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableMultiSelectDropdown
               options={SALES_STATUS_OPTIONS}
               values={statusFilters}
@@ -149,11 +151,11 @@ export default function SalesFilters({
                 onStatusFiltersChange(values);
                 onResetPage();
               }}
-              placeholder="Durum secin"
+              placeholder={t("sales.statusSelect")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Odeme Durumu</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.paymentStatus")}</label>
             <SearchableDropdown
               options={PAYMENT_STATUS_OPTIONS}
               value={paymentStatusFilter}
@@ -161,12 +163,12 @@ export default function SalesFilters({
                 onPaymentStatusFilterChange(value);
                 onResetPage();
               }}
-              placeholder="Odeme durumu secin"
-              emptyOptionLabel="Tum Odeme Durumlari"
+              placeholder={t("sales.paymentStatusSelect")}
+              emptyOptionLabel={t("sales.allPaymentStatuses")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Min Birim Fiyat</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minUnitPrice")}</label>
             <input
               type="number"
               min={0}
@@ -180,7 +182,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Max Birim Fiyat</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxUnitPrice")}</label>
             <input
               type="number"
               min={0}
@@ -194,7 +196,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Min Satir Toplami</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minLineTotal")}</label>
             <input
               type="number"
               min={0}
@@ -208,7 +210,7 @@ export default function SalesFilters({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">Max Satir Toplami</label>
+            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxLineTotal")}</label>
             <input
               type="number"
               min={0}
@@ -223,7 +225,7 @@ export default function SalesFilters({
           </div>
           <div className="flex items-end">
             <div className="flex w-full items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2">
-              <span className="text-xs font-semibold text-muted">Satir Detayi Dahil Et</span>
+              <span className="text-xs font-semibold text-muted">{t("sales.includeLines")}</span>
               <ToggleSwitch
                 checked={includeLines}
                 onChange={(checked) => {

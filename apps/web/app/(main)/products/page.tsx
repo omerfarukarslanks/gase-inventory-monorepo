@@ -40,6 +40,7 @@ import {
   normalizeVariantsResponse,
 } from "@/components/products/types";
 import ProductFilters from "@/components/products/ProductFilters";
+import { useLang } from "@/context/LangContext";
 import ProductTable from "@/components/products/ProductTable";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductDrawerStep1 from "@/components/products/ProductDrawerStep1";
@@ -49,6 +50,7 @@ import ProductDrawerStep2 from "@/components/products/ProductDrawerStep2";
 
 export default function ProductsPage() {
   const { can } = usePermissions();
+  const { t } = useLang();
 
   /* List state */
   const [products, setProducts] = useState<Product[]>([]);
@@ -168,7 +170,7 @@ export default function ProductsPage() {
       setProducts(res.data);
       setMeta(res.meta);
     } catch {
-      setError("Urunler yuklenemedi. Lutfen tekrar deneyin.");
+      setError(t("products.loadError"));
       setProducts([]);
       setMeta(null);
     } finally {
@@ -901,20 +903,20 @@ export default function ProductsPage() {
         open={drawerOpen}
         onClose={onCloseDrawer}
         side="right"
-        title={editingProductId ? "Urunu Guncelle" : "Yeni Urun Olustur"}
-        description={step === 1 ? "Adim 1/2 - Urun Bilgileri" : "Adim 2/2 - Varyantlar"}
+        title={editingProductId ? t("products.update") : t("products.create")}
+        description={step === 1 ? `1/2 - ${t("products.step1")}` : `2/2 - ${t("products.step2")}`}
         closeDisabled={submitting || loadingDetail}
         className={cn(isMobile ? "!max-w-none" : "!max-w-[540px]")}
         footer={
           <div className="flex items-center justify-between">
             <div>
               {step === 2 && (
-                <Button label="Geri" type="button" onClick={goToStep1} disabled={submitting} variant="secondary" />
+                <Button label={t("common.back")} type="button" onClick={goToStep1} disabled={submitting} variant="secondary" />
               )}
             </div>
             <div className="flex items-center gap-2">
               <Button
-                label="Iptal"
+                label={t("common.cancel")}
                 type="button"
                 onClick={onCloseDrawer}
                 disabled={submitting || loadingDetail}
@@ -922,7 +924,7 @@ export default function ProductsPage() {
               />
               {step === 1 ? (
                 <Button
-                  label="Devam Et"
+                  label={t("common.continue")}
                   type="submit"
                   form="product-form"
                   disabled={submitting || loadingDetail}
@@ -930,7 +932,7 @@ export default function ProductsPage() {
                 />
               ) : step === 2 ? (
                 <Button
-                  label={submitting ? (editingProductId ? "Guncelleniyor..." : "Olusturuluyor...") : "Kaydet"}
+                  label={submitting ? (editingProductId ? t("common.updating") : t("common.creating")) : t("common.save")}
                   type="submit"
                   form="product-form"
                   disabled={submitting || loadingDetail}
@@ -944,7 +946,7 @@ export default function ProductsPage() {
       >
         <form id="product-form" onSubmit={onSubmitProduct} className="space-y-4 p-5">
           {loadingDetail ? (
-            <div className="text-sm text-muted">Urun detayi yukleniyor...</div>
+            <div className="text-sm text-muted">{t("common.loading")}</div>
           ) : step === 1 ? (
             <ProductDrawerStep1
               form={form}

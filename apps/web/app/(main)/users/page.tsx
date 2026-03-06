@@ -17,12 +17,14 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
+import { useLang } from "@/context/LangContext";
 
 // Basit ikonlar
 const SortAscIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h10" /><path d="M11 16h10" /><path d="M11 20h10" /></svg>;
 const SortDescIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="M11 12h10" /><path d="M11 8h10" /><path d="M11 4h10" /></svg>;
 
 export default function UsersPage() {
+    const { t } = useLang();
     const accessChecked = useAdminGuard();
     const { can } = usePermissions();
     const isMobile = !useMediaQuery();

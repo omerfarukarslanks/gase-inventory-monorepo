@@ -2,6 +2,7 @@
 
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import SearchInput from "@/components/ui/SearchInput";
+import { useLang } from "@/context/LangContext";
 
 type StockFiltersProps = {
   searchTerm: string;
@@ -20,19 +21,18 @@ export default function StockFilters({
   storeOptions,
   canTenantOnly = true,
 }: StockFiltersProps) {
+  const { t } = useLang();
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
-        <h1 className="text-xl font-semibold text-text">Stok Yonetimi</h1>
-        <p className="text-sm text-muted">
-          Urun {">"} varyant {">"} magaza bazinda stok ozetini yonetin
-        </p>
+        <h1 className="text-xl font-semibold text-text">{t("stock.title")}</h1>
+        <p className="text-sm text-muted">{t("stock.subtitle")}</p>
       </div>
       <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
         <SearchInput
           value={searchTerm}
           onChange={onSearchChange}
-          placeholder="Urun / varyant / magaza ara..."
+          placeholder={t("stock.searchPlaceholder")}
           containerClassName="w-full lg:w-72"
         />
         {canTenantOnly && (
@@ -41,7 +41,7 @@ export default function StockFilters({
               options={storeOptions}
               values={storeFilterIds}
               onChange={onStoreFilterChange}
-              placeholder="Tum Magazalar"
+              placeholder={t("common.allStores")}
             />
           </div>
         )}
