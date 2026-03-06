@@ -1,563 +1,333 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { getUsers, updateUser, createUser, type User, type Meta } from "@/lib/users";
-import InputField from "@/components/ui/InputField";
-import Button from "@/components/ui/Button";
-import Drawer from "@/components/ui/Drawer";
-import IconButton from "@/components/ui/IconButton";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import UsersFilters from "@/components/users/UsersFilters";
+import UserDrawer from "@/components/users/UserDrawer";
+import UsersTable from "@/components/users/UsersTable";
+import {
+  EMPTY_USER_FORM,
+  EMPTY_USER_FORM_ERRORS,
+  type UserForm,
+  type UserFormErrors,
+} from "@/components/users/types";
 import TablePagination from "@/components/ui/TablePagination";
-import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
-import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
-import { useLang } from "@/context/LangContext";
-
-// Basit ikonlar
-const SortAscIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 8 4-4 4 4" /><path d="M7 4v16" /><path d="M11 12h10" /><path d="M11 16h10" /><path d="M11 20h10" /></svg>;
-const SortDescIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="M11 12h10" /><path d="M11 8h10" /><path d="M11 4h10" /></svg>;
+import { createUser, getUsers, updateUser, type Meta, type User } from "@/lib/users";
 
 export default function UsersPage() {
-    const { t } = useLang();
-    const accessChecked = useAdminGuard();
-    const { can } = usePermissions();
-    const isMobile = !useMediaQuery();
-    const stores = useStores();
+  const accessChecked = useAdminGuard();
+  const { can } = usePermissions();
+  const isMobile = !useMediaQuery();
+  const stores = useStores();
 
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
-    // Local State
-    const [currentPage, setCurrentPage] = useState(1);
-    const [limit, setLimit] = useState(10);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [storeFilter, setStoreFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-    const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [storeFilter, setStoreFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | undefined>(undefined);
+  const [users, setUsers] = useState<User[]>([]);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [togglingUserIds, setTogglingUserIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<"edit" | "create">("create");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [form, setForm] = useState<UserForm>(EMPTY_USER_FORM);
+  const [formErrors, setFormErrors] = useState<UserFormErrors>(EMPTY_USER_FORM_ERRORS);
+  const [saving, setSaving] = useState(false);
 
-    const debouncedSearch = useDebounceStr(searchTerm, 500);
+  const debouncedSearch = useDebounceStr(searchTerm, 500);
+  const canCreate = can("USER_CREATE");
+  const canUpdate = can("USER_UPDATE");
 
-    const [users, setUsers] = useState<User[]>([]);
-    const [meta, setMeta] = useState<Meta | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [togglingUserIds, setTogglingUserIds] = useState<string[]>([]);
+  const storeFilterOptions = useMemo(
+    () => stores.map((store) => ({ value: store.id, label: store.name })),
+    [stores],
+  );
 
-    // Edit/Create Drawer State
-    const [mode, setMode] = useState<"edit" | "create">("create");
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const roleOptions = useMemo(
+    () => [
+      { value: "STAFF", label: "STAFF" },
+      { value: "MANAGER", label: "MANAGER" },
+      { value: "ADMIN", label: "ADMIN" },
+    ],
+    [],
+  );
 
-    // Form state (combined for edit/create)
-    const [form, setForm] = useState({
-        name: "",
-        surname: "",
-        role: "STAFF",
-        email: "",
-        password: "",
-        storeId: "",
+  const fetchUsers = useCallback(async () => {
+    if (!accessChecked) return;
+
+    setLoading(true);
+    try {
+      const res = await getUsers({
+        page: currentPage,
+        limit,
+        search: debouncedSearch,
+        storeId: storeFilter || undefined,
+        isActive: statusFilter,
+        sortBy,
+        sortOrder,
+      });
+      setUsers(res.data);
+      setMeta(res.meta);
+    } catch (error) {
+      console.error("Kullanıcılar getirilemedi:", error);
+      setUsers([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [accessChecked, currentPage, debouncedSearch, limit, sortBy, sortOrder, statusFilter, storeFilter]);
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    if (debouncedSearch !== "") {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [storeFilter, statusFilter]);
+
+  const onToggleUserActive = async (user: User, next: boolean) => {
+    setTogglingUserIds((prev) => [...prev, user.id]);
+    try {
+      await updateUser(user.id, {
+        name: user.name,
+        surname: user.surname,
+        role: user.role,
+        storeIds: user.userStores?.map((userStore) => userStore.store.id) || [],
+        isActive: next,
+      });
+      await fetchUsers();
+    } catch (error) {
+      console.error("Kullanıcı durumu güncellenemedi:", error);
+      alert("Kullanıcı durumu güncellenemedi.");
+    } finally {
+      setTogglingUserIds((prev) => prev.filter((id) => id !== user.id));
+    }
+  };
+
+  const clearAdvancedFilters = () => {
+    setStoreFilter("");
+    setStatusFilter("all");
+  };
+
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder((prev) => (prev === "ASC" ? "DESC" : "ASC"));
+      return;
+    }
+    setSortBy(key);
+    setSortOrder("ASC");
+  };
+
+  const totalPages = meta ? meta.totalPages : 1;
+
+  const handlePageChange = (newPage: number) => {
+    if (loading || newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+  };
+
+  const onChangePageSize = (newPageSize: number) => {
+    setLimit(newPageSize);
+    setCurrentPage(1);
+  };
+
+  const resetForm = () => {
+    setForm(EMPTY_USER_FORM);
+    setFormErrors(EMPTY_USER_FORM_ERRORS);
+  };
+
+  const openCreate = () => {
+    setMode("create");
+    setSelectedUser(null);
+    resetForm();
+    setIsDrawerOpen(true);
+  };
+
+  const openEdit = (user: User) => {
+    setMode("edit");
+    setSelectedUser(user);
+    setForm({
+      name: user.name,
+      surname: user.surname,
+      role: user.role,
+      email: user.email,
+      password: "",
+      storeId: user.userStores?.[0]?.store.id ?? "",
     });
-    const [createErrors, setCreateErrors] = useState({
-        name: "",
-        surname: "",
-        email: "",
-        password: "",
-    });
+    setFormErrors(EMPTY_USER_FORM_ERRORS);
+    setIsDrawerOpen(true);
+  };
 
-    const [saving, setSaving] = useState(false);
+  const closeDrawer = () => {
+    if (saving) return;
+    setIsDrawerOpen(false);
+    setFormErrors(EMPTY_USER_FORM_ERRORS);
+  };
 
-    const storeFilterOptions = useMemo(
-        () => stores.map((store) => ({ value: store.id, label: store.name })),
-        [stores],
-    );
-    const roleOptions = useMemo(
-        () => [
-            { value: "STAFF", label: "STAFF" },
-            { value: "MANAGER", label: "MANAGER" },
-            { value: "ADMIN", label: "ADMIN" },
-        ],
-        [],
-    );
+  const onFormChange = <K extends keyof UserForm>(field: K, value: UserForm[K]) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
 
-    // Fetch Users
-    const fetchUsers = useCallback(async () => {
-        if (!accessChecked) return;
-        setLoading(true);
-        try {
-            const res = await getUsers({
-                page: currentPage,
-                limit,
-                search: debouncedSearch,
-                storeId: storeFilter || undefined,
-                isActive: statusFilter,
-                sortBy,
-                sortOrder,
-            });
-            setUsers(res.data);
-            setMeta(res.meta);
-        } catch (error) {
-            console.error("Kullanıcılar getirilemedi:", error);
-            setUsers([]);
-            setMeta(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [currentPage, limit, debouncedSearch, storeFilter, statusFilter, sortBy, sortOrder, accessChecked]);
+    if (mode !== "create") return;
 
-    // Initial Fetch & Update when deps change
-    useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
+    if (field === "name" && formErrors.name) {
+      setFormErrors((prev) => ({ ...prev, name: "" }));
+    }
+    if (field === "surname" && formErrors.surname) {
+      setFormErrors((prev) => ({ ...prev, surname: "" }));
+    }
+    if (field === "email" && formErrors.email) {
+      setFormErrors((prev) => ({ ...prev, email: "" }));
+    }
+    if (field === "password" && formErrors.password) {
+      setFormErrors((prev) => ({ ...prev, password: "" }));
+    }
+  };
 
-    // Search değişince sayfa 1'e donsun
-    useEffect(() => {
-        if (debouncedSearch !== "") {
-            setCurrentPage(1);
-        }
-    }, [debouncedSearch]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [storeFilter, statusFilter]);
-
-    const onToggleUserActive = async (user: User, next: boolean) => {
-        setTogglingUserIds((prev) => [...prev, user.id]);
-        try {
-            await updateUser(user.id, {
-                name: user.name,
-                surname: user.surname,
-                role: user.role,
-                storeIds: user.userStores?.map((userStore) => userStore.store.id) || [],
-                isActive: next,
-            });
-            await fetchUsers();
-        } catch (error) {
-            console.error("Kullanıcı durumu güncellenemedi:", error);
-            alert("Kullanıcı durumu güncellenemedi.");
-        } finally {
-            setTogglingUserIds((prev) => prev.filter((id) => id !== user.id));
-        }
+  const validateCreateForm = () => {
+    const nextErrors: UserFormErrors = {
+      name: "",
+      surname: "",
+      email: "",
+      password: "",
     };
 
-    const clearAdvancedFilters = () => {
-        setStoreFilter("");
-        setStatusFilter("all");
-    };
+    if (!form.name.trim()) {
+      nextErrors.name = "Ad zorunludur.";
+    } else if (form.name.trim().length < 2) {
+      nextErrors.name = "Ad en az 2 karakter olmalıdır.";
+    }
 
+    if (!form.surname.trim()) {
+      nextErrors.surname = "Soyad zorunludur.";
+    } else if (form.surname.trim().length < 2) {
+      nextErrors.surname = "Soyad en az 2 karakter olmalıdır.";
+    }
 
-    const handleSort = (key: string) => {
-        if (sortBy === key) {
-            setSortOrder(prev => prev === "ASC" ? "DESC" : "ASC");
-        } else {
-            setSortBy(key);
-            setSortOrder("ASC");
-        }
-    };
+    if (!form.email.trim()) {
+      nextErrors.email = "E-posta zorunludur.";
+    } else if (!emailPattern.test(form.email.trim())) {
+      nextErrors.email = "Geçerli bir e-posta giriniz.";
+    }
 
-    const handlePageChange = (newPage: number) => {
-        if (loading || newPage < 1 || newPage > totalPages || newPage === currentPage) return;
-        setCurrentPage(newPage);
-    };
+    if (!form.password) {
+      nextErrors.password = "Şifre zorunludur.";
+    } else if (!passwordPattern.test(form.password)) {
+      nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
+    }
 
-    const onChangePageSize = (newPageSize: number) => {
-        setLimit(newPageSize);
-        setCurrentPage(1);
-    };
+    setFormErrors(nextErrors);
+    return Object.values(nextErrors).every((value) => !value);
+  };
 
-    const totalPages = meta ? meta.totalPages : 1;
+  const handleSave = async () => {
+    if (mode === "create" && !validateCreateForm()) return;
 
-    const openCreate = () => {
-        setMode("create");
-        setSelectedUser(null);
-        setForm({ name: "", surname: "", role: "STAFF", email: "", password: "", storeId: "" });
-        setCreateErrors({ name: "", surname: "", email: "", password: "" });
-        setIsDrawerOpen(true);
-    };
-
-    const openEdit = (user: User) => {
-        setMode("edit");
-        setSelectedUser(user);
-        const firstStoreId = user.userStores?.[0]?.store.id ?? "";
-
-        setForm({
-            name: user.name,
-            surname: user.surname,
-            role: user.role,
-            email: user.email,
-            password: "", // Edit modunda şifre boş gelir, backendde opsiyonel olmalı update için
-            storeId: firstStoreId,
+    setSaving(true);
+    try {
+      if (mode === "create") {
+        await createUser({
+          email: form.email.trim(),
+          password: form.password,
+          name: form.name.trim(),
+          surname: form.surname.trim(),
+          role: form.role,
+          storeIds: form.storeId ? [form.storeId] : [],
         });
-        setCreateErrors({ name: "", surname: "", email: "", password: "" });
-        setIsDrawerOpen(true);
-    };
+      } else {
+        if (!selectedUser) return;
+        await updateUser(selectedUser.id, {
+          name: form.name,
+          surname: form.surname,
+          role: form.role,
+          storeIds: form.storeId ? [form.storeId] : [],
+        });
+      }
 
-    const validateCreateForm = () => {
-        const nextErrors = {
-            name: "",
-            surname: "",
-            email: "",
-            password: "",
-        };
+      setIsDrawerOpen(false);
+      setFormErrors(EMPTY_USER_FORM_ERRORS);
+      await fetchUsers();
+    } catch (error) {
+      console.error("İşlem hatası", error);
+      alert("İşlem başarısız oldu.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-        if (!form.name.trim()) {
-            nextErrors.name = "Ad zorunludur.";
-        } else if (form.name.trim().length < 2) {
-            nextErrors.name = "Ad en az 2 karakter olmalıdır.";
+  return (
+    <div className="space-y-6">
+      <UsersFilters
+        searchTerm={searchTerm}
+        onSearchTermChange={setSearchTerm}
+        showAdvancedFilters={showAdvancedFilters}
+        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+        canCreate={canCreate}
+        onCreate={openCreate}
+        storeFilter={storeFilter}
+        onStoreFilterChange={setStoreFilter}
+        storeFilterOptions={storeFilterOptions}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onClearFilters={clearAdvancedFilters}
+      />
+
+      <UsersTable
+        users={users}
+        loading={loading}
+        canUpdate={canUpdate}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        togglingUserIds={togglingUserIds}
+        onSort={handleSort}
+        onEdit={openEdit}
+        onToggleUserActive={(user, next) => void onToggleUserActive(user, next)}
+        footer={
+          meta ? (
+            <TablePagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={meta.total}
+              pageSize={limit}
+              pageSizeId="users-page-size"
+              loading={loading}
+              onPageChange={handlePageChange}
+              onPageSizeChange={onChangePageSize}
+            />
+          ) : null
         }
+      />
 
-        if (!form.surname.trim()) {
-            nextErrors.surname = "Soyad zorunludur.";
-        } else if (form.surname.trim().length < 2) {
-            nextErrors.surname = "Soyad en az 2 karakter olmalıdır.";
-        }
-
-        if (!form.email.trim()) {
-            nextErrors.email = "E-posta zorunludur.";
-        } else if (!emailPattern.test(form.email.trim())) {
-            nextErrors.email = "Geçerli bir e-posta giriniz.";
-        }
-
-        if (!form.password) {
-            nextErrors.password = "Şifre zorunludur.";
-        } else if (!passwordPattern.test(form.password)) {
-            nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
-        }
-
-        setCreateErrors(nextErrors);
-        return Object.values(nextErrors).every((value) => !value);
-    };
-
-    const handleSave = async () => {
-        if (mode === "create" && !validateCreateForm()) return;
-
-        setSaving(true);
-        try {
-            if (mode === "create") {
-                await createUser({
-                    email: form.email.trim(),
-                    password: form.password,
-                    name: form.name.trim(),
-                    surname: form.surname.trim(),
-                    role: form.role,
-                    storeIds: form.storeId ? [form.storeId] : [],
-                });
-            } else {
-                if (!selectedUser) return;
-                await updateUser(selectedUser.id, {
-                    name: form.name,
-                    surname: form.surname,
-                    role: form.role,
-                    storeIds: form.storeId ? [form.storeId] : [],
-                });
-            }
-            setIsDrawerOpen(false);
-            setCreateErrors({ name: "", surname: "", email: "", password: "" });
-            fetchUsers(); // Listeyi yenile
-        } catch (error) {
-            console.error("İşlem hatası", error);
-            alert("İşlem başarısız oldu.");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-text">Kullanıcılar</h1>
-                    <p className="text-sm text-muted">Sisteme kayıtlı kullanıcıları yönetin.</p>
-                </div>
-                <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-                    <SearchInput
-                        value={searchTerm}
-                        onChange={setSearchTerm}
-                        placeholder="Ara..."
-                        containerClassName="w-full lg:w-64"
-                    />
-                    <Button
-                        label={showAdvancedFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
-                        onClick={() => setShowAdvancedFilters((prev) => !prev)}
-                        variant="secondary"
-                        className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-                    />
-                    {can("USER_CREATE") && (
-                        <Button
-                            label="Yeni Kullanıcı"
-                            onClick={openCreate}
-                            variant="primarySoft"
-                            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-                        />
-                    )}
-                </div>
-            </div>
-
-            {showAdvancedFilters && (
-                <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Mağaza</label>
-                        <SearchableDropdown
-                            options={storeFilterOptions}
-                            value={storeFilter}
-                            onChange={setStoreFilter}
-                            placeholder="Tüm Mağazalar"
-                            emptyOptionLabel="Tüm Mağazalar"
-                            inputAriaLabel="Mağaza filtresi"
-                            clearAriaLabel="Mağaza filtresini temizle"
-                            toggleAriaLabel="Mağaza listesini aç"
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Durum</label>
-                        <SearchableDropdown
-                            options={STATUS_FILTER_OPTIONS}
-                            value={statusFilter === "all" ? "all" : String(statusFilter)}
-                            onChange={(value) => setStatusFilter(parseIsActiveFilter(value))}
-                            placeholder="Tüm Durumlar"
-                            showEmptyOption={false}
-                            allowClear={false}
-                            inputAriaLabel="Kullanıcı durum filtresi"
-                            toggleAriaLabel="Kullanıcı durum listesini aç"
-                        />
-                    </div>
-                    <div className="md:col-span-2 lg:col-span-3">
-                        <Button
-                            label="Filtreleri Temizle"
-                            onClick={clearAdvancedFilters}
-                            variant="secondary"
-                            className="w-full sm:w-auto"
-                        />
-                    </div>
-                </div>
-            )}
-
-            <div className="overflow-hidden rounded-xl2 border border-border bg-surface shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[900px] text-left text-sm">
-                        <thead className="border-b border-border bg-surface2/70 text-xs uppercase text-muted">
-                            <tr>
-                                <th className="px-6 py-4 font-semibold cursor-pointer select-none hover:text-text" onClick={() => handleSort("name")}>
-                                    <div className="flex items-center gap-1">
-                                        Ad Soyad {sortBy === "name" && (sortOrder === "ASC" ? <SortAscIcon /> : <SortDescIcon />)}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 font-semibold cursor-pointer select-none hover:text-text" onClick={() => handleSort("email")}>
-                                    <div className="flex items-center gap-1">
-                                        E-Posta {sortBy === "email" && (sortOrder === "ASC" ? <SortAscIcon /> : <SortDescIcon />)}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 font-semibold cursor-pointer select-none hover:text-text" onClick={() => handleSort("role")}>
-                                    <div className="flex items-center gap-1">
-                                        Rol {sortBy === "role" && (sortOrder === "ASC" ? <SortAscIcon /> : <SortDescIcon />)}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 font-semibold text-muted">Mağaza</th>
-                                <th className="sticky right-0 z-20 bg-surface2/70 px-6 py-4 text-right font-semibold">İşlemler</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="p-8 text-center text-muted">Yükleniyor...</td>
-                                </tr>
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="p-8 text-center text-muted">Kayıt bulunamadı.</td>
-                                </tr>
-                            ) : (
-                                users.map((user) => (
-                                    <tr key={user.id} className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors">
-                                        <td className="px-6 py-3 font-medium text-text">
-                                            {user.name} {user.surname}
-                                        </td>
-                                        <td className="px-6 py-3 text-text2">{user.email}</td>
-                                        <td className="px-6 py-3">
-                                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                                                {user.role}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-3 text-text2">
-                                            {user.userStores && user.userStores.length > 0
-                                                ? user.userStores.map((userStore) => userStore.store.name).join(", ")
-                                                : "-"}
-                                        </td>
-                                        <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
-                                            <div className="inline-flex items-center gap-2">
-                                                {can("USER_UPDATE") && (
-                                                    <IconButton
-                                                        onClick={() => openEdit(user)}
-                                                        disabled={togglingUserIds.includes(user.id)}
-                                                        aria-label="Kullanici duzenle"
-                                                        title="Duzenle"
-                                                    >
-                                                        <EditIcon />
-                                                    </IconButton>
-                                                )}
-                                                {can("USER_UPDATE") && (
-                                                    <ToggleSwitch
-                                                        checked={Boolean(user.isActive)}
-                                                        onChange={(next) => onToggleUserActive(user, next)}
-                                                        disabled={togglingUserIds.includes(user.id)}
-                                                    />
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                {meta && (
-                    <TablePagination
-                        page={currentPage}
-                        totalPages={totalPages}
-                        total={meta.total}
-                        pageSize={limit}
-                        pageSizeId="users-page-size"
-                        loading={loading}
-                        onPageChange={handlePageChange}
-                        onPageSizeChange={onChangePageSize}
-                    />
-                )}
-            </div>
-
-            <Drawer
-                open={isDrawerOpen}
-                onClose={() => {
-                    setIsDrawerOpen(false);
-                    setCreateErrors({ name: "", surname: "", email: "", password: "" });
-                }}
-                side={isMobile ? "right" : "right"}
-                title={mode === "create" ? "Yeni Kullanıcı" : "Kullanıcı Düzenle"}
-                description={mode === "create" ? "Yeni bir kullanıcı hesabı oluşturun." : "Kullanıcı bilgilerini güncelleyin."}
-                closeDisabled={saving}
-                className={isMobile ? "!max-w-none" : ""}
-                footer={
-                    <div className="flex items-center justify-end gap-2">
-                        <Button
-                            label="İptal"
-                            type="button"
-                            onClick={() => {
-                                setIsDrawerOpen(false);
-                                setCreateErrors({ name: "", surname: "", email: "", password: "" });
-                            }}
-                            disabled={saving}
-                            variant="secondary"
-                        />
-                        <Button
-                            label={saving ? "Kaydediliyor..." : "Kaydet"}
-                            type="button"
-                            onClick={handleSave}
-                            disabled={saving}
-                            variant="primarySolid"
-                        />
-                    </div>
-                }
-            >
-                <div className="space-y-4 p-5">
-                    <InputField
-                        label="Ad *"
-                        type="text"
-                        value={form.name}
-                        onChange={(v) => {
-                            setForm(p => ({ ...p, name: v }));
-                            if (mode === "create" && createErrors.name) {
-                                setCreateErrors((prev) => ({ ...prev, name: "" }));
-                            }
-                        }}
-                        error={mode === "create" ? createErrors.name : undefined}
-                    />
-                    <InputField
-                        label="Soyad *"
-                        type="text"
-                        value={form.surname}
-                        onChange={(v) => {
-                            setForm(p => ({ ...p, surname: v }));
-                            if (mode === "create" && createErrors.surname) {
-                                setCreateErrors((prev) => ({ ...prev, surname: "" }));
-                            }
-                        }}
-                        error={mode === "create" ? createErrors.surname : undefined}
-                    />
-
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Rol</label>
-                        <SearchableDropdown
-                            options={roleOptions}
-                            value={form.role}
-                            onChange={(role) => setForm((p) => ({ ...p, role }))}
-                            placeholder="Rol seçin"
-                            inputAriaLabel="Rol seçimi"
-                            toggleAriaLabel="Rol listesini aç"
-                            allowClear={false}
-                            showEmptyOption={false}
-                        />
-                    </div>
-
-                    {mode === "create" && (
-                        <>
-                            <InputField
-                                label="E-Posta *"
-                                type="email"
-                                value={form.email}
-                                onChange={(v) => {
-                                    setForm(p => ({ ...p, email: v }));
-                                    if (createErrors.email) {
-                                        setCreateErrors((prev) => ({ ...prev, email: "" }));
-                                    }
-                                }}
-                                error={createErrors.email}
-                            />
-                            <InputField
-                                label="Şifre"
-                                type="password"
-                                value={form.password}
-                                onChange={(v) => {
-                                    setForm(p => ({ ...p, password: v }));
-                                    if (createErrors.password) {
-                                        setCreateErrors((prev) => ({ ...prev, password: "" }));
-                                    }
-                                }}
-                                error={createErrors.password}
-                            />
-                        </>
-                    )}
-
-                    {mode === "edit" && (
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted">Email (Değiştirilemez)</label>
-                            <div className="w-full rounded-xl2 border border-border bg-surface2 px-4 py-2.5 text-sm text-text2">
-                                {selectedUser?.email}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Mağaza Yetkisi</label>
-                        <SearchableDropdown
-                            options={storeFilterOptions}
-                            value={form.storeId}
-                            onChange={(storeId) => setForm((p) => ({ ...p, storeId }))}
-                            placeholder="Mağaza seçin"
-                            emptyOptionLabel="Mağaza seçin"
-                            inputAriaLabel="Mağaza seçimi"
-                            clearAriaLabel="Mağaza seçimini temizle"
-                            toggleAriaLabel="Mağaza listesini aç"
-                        />
-                        {stores.length === 0 && <div className="text-xs text-muted px-1">Mağaza bulunamadı.</div>}
-                    </div>
-                </div>
-            </Drawer>
-        </div>
-    );
+      <UserDrawer
+        open={isDrawerOpen}
+        mode={mode}
+        selectedUser={selectedUser}
+        saving={saving}
+        isMobile={isMobile}
+        form={form}
+        errors={formErrors}
+        roleOptions={roleOptions}
+        storeOptions={storeFilterOptions}
+        onClose={closeDrawer}
+        onSave={handleSave}
+        onFormChange={onFormChange}
+      />
+    </div>
+  );
 }

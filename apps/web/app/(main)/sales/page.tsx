@@ -42,26 +42,26 @@ import {
 import type { Currency } from "@/lib/products";
 import { toNumberOrNull } from "@/lib/format";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
-import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
-import SearchableDropdown from "@/components/ui/SearchableDropdown";
 
 import {
-  PAYMENT_METHOD_OPTIONS,
   type SaleLineForm,
   type FieldErrors,
+  type ManagedLineEditForm,
+  type ReturnLineForm,
   type VariantPreset,
   type VariantStorePreset,
   createLineRow,
-  calcLineTotal,
 } from "@/components/sales/types";
-import { CURRENCY_OPTIONS } from "@/components/products/types";
 import { normalizeSalesResponse, normalizeSaleDetail } from "@/lib/sales-normalize";
 import SalesFilters from "@/components/sales/SalesFilters";
 import SalesTable from "@/components/sales/SalesTable";
 import SalesPagination from "@/components/sales/SalesPagination";
 import SaleDrawer from "@/components/sales/SaleDrawer";
 import SaleDetailModal from "@/components/sales/SaleDetailModal";
+import SalePaymentDrawer from "@/components/sales/SalePaymentDrawer";
+import SaleReturnDrawer from "@/components/sales/SaleReturnDrawer";
+import SaleLinesDrawer from "@/components/sales/SaleLinesDrawer";
 import { useLang } from "@/context/LangContext";
 
 function toFiniteNumber(value: unknown): number | null {
@@ -162,11 +162,18 @@ export default function SalesPage() {
   const [linesDrawerLoading, setLinesDrawerLoading] = useState(false);
   const [linesDrawerError, setLinesDrawerError] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
-  const [editLineForm, setEditLineForm] = useState<{
-    quantity: string; unitPrice: string; currency: string;
-    discountMode: "percent" | "amount"; discountPercent: string; discountAmount: string;
-    taxMode: "percent" | "amount"; taxPercent: string; taxAmount: string; campaignCode: string;
-  }>({ quantity: "", unitPrice: "", currency: "TRY", discountMode: "percent", discountPercent: "", discountAmount: "", taxMode: "percent", taxPercent: "", taxAmount: "", campaignCode: "" });
+  const [editLineForm, setEditLineForm] = useState<ManagedLineEditForm>({
+    quantity: "",
+    unitPrice: "",
+    currency: "TRY",
+    discountMode: "percent",
+    discountPercent: "",
+    discountAmount: "",
+    taxMode: "percent",
+    taxPercent: "",
+    taxAmount: "",
+    campaignCode: "",
+  });
   const [lineOpSubmitting, setLineOpSubmitting] = useState(false);
   const [lineOpError, setLineOpError] = useState("");
   const [deleteLineTarget, setDeleteLineTarget] = useState<string | null>(null);
@@ -178,27 +185,7 @@ export default function SalesPage() {
   /* ── Return drawer ── */
   const [returnDrawerOpen, setReturnDrawerOpen] = useState(false);
   const [returnTargetSale, setReturnTargetSale] = useState<SaleListItem | null>(null);
-  const [returnLines, setReturnLines] = useState<
-    Array<{
-      saleLineId: string;
-      lineName: string;
-      originalQuantity: number;
-      returnedQuantity: number;
-      completePackagesRemaining: number | null;
-      partialPackage: { exists: boolean; incompletePackageCount?: number | null; missingVariants: string[]; presentVariants: string[] } | null;
-      isPackageLine: boolean;
-      returnMode: "quantity" | "variants";
-      returnQuantity: string;
-      packageVariantReturns: Array<{
-        productVariantId: string;
-        name: string;
-        qtyPerPackage?: number;
-        remaining?: number | null;
-        returnQuantity: string;
-      }>;
-      refundAmount: string;
-    }>
-  >([]);
+  const [returnLines, setReturnLines] = useState<ReturnLineForm[]>([]);
   const [returnNotes, setReturnNotes] = useState("");
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnFormError, setReturnFormError] = useState("");
@@ -867,7 +854,7 @@ export default function SalesPage() {
     setEditLineForm({
       quantity: line.quantity != null ? String(line.quantity) : "",
       unitPrice: line.unitPrice != null ? String(line.unitPrice) : "",
-      currency: (line.currency as string) ?? "TRY",
+      currency: (line.currency as Currency) ?? "TRY",
       discountMode: line.discountAmount != null ? "amount" : "percent",
       discountPercent: line.discountPercent != null ? String(line.discountPercent) : "",
       discountAmount: line.discountAmount != null ? String(line.discountAmount) : "",
@@ -1400,103 +1387,39 @@ export default function SalesPage() {
         onSubmit={onSubmit}
       />
 
-      <Drawer
+      <SalePaymentDrawer
         open={paymentDrawerOpen}
+        editingPaymentId={editingPaymentId}
+        paymentSubmitting={paymentSubmitting}
+        paymentAmount={paymentAmount}
+        paymentPaidAtInput={paymentPaidAtInput}
+        paymentMethodInput={paymentMethodInput}
+        paymentCurrency={paymentCurrency}
+        paymentNoteInput={paymentNoteInput}
+        paymentFormError={paymentFormError}
         onClose={closePaymentDrawer}
-        side="right"
-        title={editingPaymentId ? "Odeme Guncelle" : "Odeme Ekle"}
-        description="Satis fisine odeme adimi ekleyin veya duzenleyin."
-        closeDisabled={paymentSubmitting}
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label="Iptal"
-              onClick={closePaymentDrawer}
-              variant="secondary"
-              disabled={paymentSubmitting}
-            />
-            <Button
-              label={paymentSubmitting ? "Kaydediliyor..." : "Kaydet"}
-              onClick={submitPayment}
-              variant="primarySolid"
-              loading={paymentSubmitting}
-            />
-          </div>
-        }
-      >
-        <div className="space-y-4 p-5">
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Tutar *</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={paymentAmount}
-              onChange={(e) => {
-                if (paymentFormError) setPaymentFormError("");
-                setPaymentAmount(e.target.value);
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Odeme Tarihi</label>
-            <input
-              type="date"
-              value={paymentPaidAtInput}
-              onChange={(e) => {
-                if (paymentFormError) setPaymentFormError("");
-                setPaymentPaidAtInput(e.target.value);
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Odeme Yontemi *</label>
-            <SearchableDropdown
-              options={PAYMENT_METHOD_OPTIONS}
-              value={paymentMethodInput}
-              onChange={(value) => {
-                if (paymentFormError) setPaymentFormError("");
-                setPaymentMethodInput(normalizePaymentMethod(value));
-              }}
-              placeholder="Odeme yontemi secin"
-              showEmptyOption={false}
-              allowClear={false}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Para Birimi *</label>
-            <SearchableDropdown
-              options={CURRENCY_OPTIONS}
-              value={paymentCurrency}
-              onChange={(value) => {
-                if (paymentFormError) setPaymentFormError("");
-                setPaymentCurrency(normalizeCurrency(value));
-              }}
-              showEmptyOption={false}
-              allowClear={false}
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Not</label>
-            <textarea
-              value={paymentNoteInput}
-              onChange={(e) => {
-                if (paymentFormError) setPaymentFormError("");
-                setPaymentNoteInput(e.target.value);
-              }}
-              className="min-h-22 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          {paymentFormError && <p className="text-sm text-error">{paymentFormError}</p>}
-        </div>
-      </Drawer>
+        onSubmit={submitPayment}
+        onPaymentAmountChange={(value) => {
+          if (paymentFormError) setPaymentFormError("");
+          setPaymentAmount(value);
+        }}
+        onPaymentPaidAtInputChange={(value) => {
+          if (paymentFormError) setPaymentFormError("");
+          setPaymentPaidAtInput(value);
+        }}
+        onPaymentMethodInputChange={(value) => {
+          if (paymentFormError) setPaymentFormError("");
+          setPaymentMethodInput(normalizePaymentMethod(value));
+        }}
+        onPaymentCurrencyChange={(value) => {
+          if (paymentFormError) setPaymentFormError("");
+          setPaymentCurrency(normalizeCurrency(value));
+        }}
+        onPaymentNoteInputChange={(value) => {
+          if (paymentFormError) setPaymentFormError("");
+          setPaymentNoteInput(value);
+        }}
+      />
 
       <ConfirmDialog
         open={cancelDialogOpen}
@@ -1552,470 +1475,85 @@ export default function SalesPage() {
         onClose={closeSaleDetailDialog}
       />
 
-      <Drawer
+      <SaleReturnDrawer
         open={returnDrawerOpen}
+        returnTargetSale={returnTargetSale}
+        returnSubmitting={returnSubmitting}
+        returnDetailLoading={returnDetailLoading}
+        returnLines={returnLines}
+        returnNotes={returnNotes}
+        returnFormError={returnFormError}
         onClose={closeReturnDrawer}
-        side="right"
-        title="Iade Olustur"
-        description={
-          returnTargetSale
-            ? `Fis: ${returnTargetSale.receiptNo ?? returnTargetSale.id}`
-            : "Iade edilecek satirlari ve adetleri secin."
-        }
-        closeDisabled={returnSubmitting}
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label="Iptal"
-              onClick={closeReturnDrawer}
-              variant="secondary"
-              disabled={returnSubmitting}
-            />
-            <Button
-              label={returnSubmitting ? "Gonderiliyor..." : "Iadeyi Onayla"}
-              onClick={submitReturn}
-              variant="primarySolid"
-              loading={returnSubmitting}
-            />
-          </div>
-        }
-      >
-        <div className="space-y-4 p-5">
-          {returnDetailLoading ? (
-            <p className="text-sm text-muted">Satis satirlari yukleniyor...</p>
-          ) : returnLines.length === 0 && !returnFormError ? (
-            <p className="text-sm text-muted">Bu satisa ait satir bulunamadi.</p>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {returnLines.map((line, idx) => (
-                  <div
-                    key={line.saleLineId}
-                    className="rounded-xl border border-border bg-surface2/40 p-3 space-y-2"
-                  >
-                    <p className="text-sm font-medium text-text">
-                      {line.lineName}
-                      {!line.isPackageLine && (
-                        <span className="ml-2 text-xs text-muted font-normal">
-                          (Satılan: {line.originalQuantity}
-                          {line.returnedQuantity > 0 && `, İade: ${line.returnedQuantity}`})
-                        </span>
-                      )}
-                      {line.isPackageLine && (
-                        <span className="ml-2 text-xs text-muted font-normal">
-                          ({line.completePackagesRemaining ?? 0} tam paket
-                          {line.partialPackage?.exists && `, ${line.partialPackage.incompletePackageCount ?? 1} eksik paket`})
-                        </span>
-                      )}
-                    </p>
+        onSubmit={submitReturn}
+        onReturnModeChange={(lineIndex, value) => {
+          if (returnFormError) setReturnFormError("");
+          setReturnLines((prev) =>
+            prev.map((line, index) => (index === lineIndex ? { ...line, returnMode: value } : line)),
+          );
+        }}
+        onReturnQuantityChange={(lineIndex, value) => {
+          if (returnFormError) setReturnFormError("");
+          setReturnLines((prev) =>
+            prev.map((line, index) => (index === lineIndex ? { ...line, returnQuantity: value } : line)),
+          );
+        }}
+        onRefundAmountChange={(lineIndex, value) => {
+          if (returnFormError) setReturnFormError("");
+          setReturnLines((prev) =>
+            prev.map((line, index) => (index === lineIndex ? { ...line, refundAmount: value } : line)),
+          );
+        }}
+        onPackageVariantReturnQuantityChange={(lineIndex, variantIndex, value) => {
+          if (returnFormError) setReturnFormError("");
+          setReturnLines((prev) =>
+            prev.map((line, index) => {
+              if (index !== lineIndex) return line;
+              return {
+                ...line,
+                packageVariantReturns: line.packageVariantReturns.map((variant, innerIndex) =>
+                  innerIndex === variantIndex ? { ...variant, returnQuantity: value } : variant,
+                ),
+              };
+            }),
+          );
+        }}
+        onReturnNotesChange={setReturnNotes}
+      />
 
-                    {/* Eksik paket bilgisi */}
-                    {line.isPackageLine && line.partialPackage?.exists && (
-                      <div className="rounded-lg bg-warning/10 border border-warning/30 px-3 py-2 space-y-1">
-                        <p className="text-xs font-semibold text-warning">Eksik Paket</p>
-                        {line.partialPackage.presentVariants.length > 0 && (
-                          <p className="text-xs text-muted">
-                            <span className="font-medium text-text">Mevcut:</span>{" "}
-                            {line.partialPackage.presentVariants.join(", ")}
-                          </p>
-                        )}
-                        {line.partialPackage.missingVariants.length > 0 && (
-                          <p className="text-xs text-muted">
-                            <span className="font-medium text-text">Eksik:</span>{" "}
-                            {line.partialPackage.missingVariants.join(", ")}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Paket satırı: mod seçimi */}
-                    {line.isPackageLine && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (returnFormError) setReturnFormError("");
-                            setReturnLines((prev) =>
-                              prev.map((l, i) => i === idx ? { ...l, returnMode: "quantity" } : l),
-                            );
-                          }}
-                          className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
-                            line.returnMode === "quantity"
-                              ? "bg-primary text-white border-primary"
-                              : "bg-surface2 text-muted border-border"
-                          }`}
-                        >
-                          Tam Paket (Adet)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (returnFormError) setReturnFormError("");
-                            setReturnLines((prev) =>
-                              prev.map((l, i) => i === idx ? { ...l, returnMode: "variants" } : l),
-                            );
-                          }}
-                          className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-colors ${
-                            line.returnMode === "variants"
-                              ? "bg-primary text-white border-primary"
-                              : "bg-surface2 text-muted border-border"
-                          }`}
-                        >
-                          Varyant Bazli
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Mod A veya Perakende: adet girişi */}
-                    {(!line.isPackageLine || line.returnMode === "quantity") && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted">
-                            {line.isPackageLine
-                              ? `Iade Adedi (maks. ${line.completePackagesRemaining ?? line.originalQuantity})`
-                              : `Iade Adedi (maks. ${line.originalQuantity - line.returnedQuantity})`}
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={
-                              line.isPackageLine
-                                ? (line.completePackagesRemaining ?? line.originalQuantity)
-                                : line.originalQuantity - line.returnedQuantity
-                            }
-                            step={1}
-                            value={line.returnQuantity}
-                            onChange={(e) => {
-                              if (returnFormError) setReturnFormError("");
-                              setReturnLines((prev) =>
-                                prev.map((l, i) =>
-                                  i === idx ? { ...l, returnQuantity: e.target.value } : l,
-                                ),
-                              );
-                            }}
-                            placeholder="0"
-                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted">
-                            Iade Tutari (opsiyonel)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={line.refundAmount}
-                            onChange={(e) => {
-                              if (returnFormError) setReturnFormError("");
-                              setReturnLines((prev) =>
-                                prev.map((l, i) =>
-                                  i === idx ? { ...l, refundAmount: e.target.value } : l,
-                                ),
-                              );
-                            }}
-                            placeholder="0.00"
-                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Mod B: varyant bazlı iade */}
-                    {line.isPackageLine && line.returnMode === "variants" && (
-                      <div className="space-y-2">
-                        {line.packageVariantReturns.length === 0 ? (
-                          <p className="text-xs text-muted">Bu paket icin varyant bilgisi bulunamadi.</p>
-                        ) : (
-                          line.packageVariantReturns.map((pv, pvIdx) => (
-                            <div key={pv.productVariantId} className="flex items-center gap-2">
-                              <span className="flex-1 text-xs text-text truncate">
-                                {pv.name}
-                                {pv.qtyPerPackage != null && (
-                                  <span className="ml-1 text-muted font-normal">(x{pv.qtyPerPackage})</span>
-                                )}
-                                {pv.remaining != null && (
-                                  <span className="ml-1 text-xs text-muted font-normal">(kalan: {pv.remaining})</span>
-                                )}
-                              </span>
-                              <input
-                                type="number"
-                                min={0}
-                                max={pv.remaining ?? undefined}
-                                step={1}
-                                value={pv.returnQuantity}
-                                onChange={(e) => {
-                                  if (returnFormError) setReturnFormError("");
-                                  setReturnLines((prev) =>
-                                    prev.map((l, i) => {
-                                      if (i !== idx) return l;
-                                      const updated = l.packageVariantReturns.map((p, pi) =>
-                                        pi === pvIdx ? { ...p, returnQuantity: e.target.value } : p,
-                                      );
-                                      return { ...l, packageVariantReturns: updated };
-                                    }),
-                                  );
-                                }}
-                                placeholder="0"
-                                className="h-9 w-24 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                              />
-                            </div>
-                          ))
-                        )}
-                        <div className="space-y-1 pt-1">
-                          <label className="text-xs font-semibold text-muted">
-                            Iade Tutari (opsiyonel)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={line.refundAmount}
-                            onChange={(e) => {
-                              if (returnFormError) setReturnFormError("");
-                              setReturnLines((prev) =>
-                                prev.map((l, i) =>
-                                  i === idx ? { ...l, refundAmount: e.target.value } : l,
-                                ),
-                              );
-                            }}
-                            placeholder="0.00"
-                            className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Notlar</label>
-                <textarea
-                  value={returnNotes}
-                  onChange={(e) => setReturnNotes(e.target.value)}
-                  placeholder="Iade nedeni veya ek aciklama..."
-                  className="min-h-20 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </>
-          )}
-
-          {returnFormError && (
-            <p className="text-sm text-error">{returnFormError}</p>
-          )}
-        </div>
-      </Drawer>
-
-      {/* ── Lines management drawer ── */}
-      <Drawer
+      <SaleLinesDrawer
         open={linesDrawerOpen}
+        sale={linesDrawerSale}
+        managedLines={managedLines}
+        loading={linesDrawerLoading}
+        error={linesDrawerError}
+        editingLineId={editingLineId}
+        editLineForm={editLineForm}
+        lineOpSubmitting={lineOpSubmitting}
+        lineOpError={lineOpError}
+        deletingLine={deletingLine}
+        addLineExpanded={addLineExpanded}
+        addLineForm={addLineForm}
+        isWholesaleStoreType={isWholesaleStoreType}
+        variantOptions={variantOptions}
         onClose={closeManageLinesDrawer}
-        side="right"
-        title="Satirlari Yonet"
-        description={linesDrawerSale ? `Fis: ${linesDrawerSale.receiptNo ?? linesDrawerSale.id}` : ""}
-        closeDisabled={lineOpSubmitting || deletingLine}
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button label="Kapat" onClick={closeManageLinesDrawer} variant="secondary" disabled={lineOpSubmitting || deletingLine} />
-          </div>
-        }
-      >
-        <div className="space-y-4 p-5">
-          {linesDrawerLoading ? (
-            <p className="text-sm text-muted">Satirlar yukleniyor...</p>
-          ) : linesDrawerError ? (
-            <p className="text-sm text-error">{linesDrawerError}</p>
-          ) : (
-            <>
-              {/* Current lines */}
-              <div className="space-y-2">
-                {managedLines.length === 0 && (
-                  <p className="text-sm text-muted">Bu satisa ait satir bulunamadi.</p>
-                )}
-                {managedLines.map((line) => {
-                  const isEditing = editingLineId === line.id;
-                  const lineName = line.productVariantName ?? line.productPackageName ?? line.productName ?? line.id;
-                  return (
-                    <div key={line.id} className="rounded-xl border border-border bg-surface2/30 p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-text">{lineName}</p>
-                          <p className="text-xs text-muted">
-                            Adet: {line.quantity ?? "-"} · Birim: {line.unitPrice != null ? line.unitPrice : "-"} · Toplam: {line.lineTotal != null ? line.lineTotal : "-"}
-                          </p>
-                        </div>
-                        {!isEditing && (
-                          <div className="flex shrink-0 items-center gap-1">
-                            <button type="button" onClick={() => startEditLine(line)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                              title="Duzenle">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                            </button>
-                            <button type="button" onClick={() => requestDeleteLine(line.id)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
-                              title="Sil">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {isEditing && (
-                        <div className="space-y-3 border-t border-border pt-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted">Adet *</label>
-                              <input type="number" min={1} step={1} value={editLineForm.quantity}
-                                onChange={(e) => { setLineOpError(""); setEditLineForm((f) => ({ ...f, quantity: e.target.value })); }}
-                                className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted">Birim Fiyat *</label>
-                              <input type="number" min={0} step="0.01" value={editLineForm.unitPrice}
-                                onChange={(e) => { setLineOpError(""); setEditLineForm((f) => ({ ...f, unitPrice: e.target.value })); }}
-                                className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted">
-                                {editLineForm.discountMode === "percent" ? "Indirim %" : "Indirim Tutari"}
-                                <button type="button" onClick={() => setEditLineForm((f) => ({ ...f, discountMode: f.discountMode === "percent" ? "amount" : "percent" }))}
-                                  className="ml-1 text-primary hover:underline">
-                                  ({editLineForm.discountMode === "percent" ? "tutara gec" : "%'ye gec"})
-                                </button>
-                              </label>
-                              {editLineForm.discountMode === "percent" ? (
-                                <input type="number" min={0} max={100} step="0.01" value={editLineForm.discountPercent}
-                                  onChange={(e) => setEditLineForm((f) => ({ ...f, discountPercent: e.target.value }))}
-                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                              ) : (
-                                <input type="number" min={0} step="0.01" value={editLineForm.discountAmount}
-                                  onChange={(e) => setEditLineForm((f) => ({ ...f, discountAmount: e.target.value }))}
-                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                              )}
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted">
-                                {editLineForm.taxMode === "percent" ? "Vergi %" : "Vergi Tutari"}
-                                <button type="button" onClick={() => setEditLineForm((f) => ({ ...f, taxMode: f.taxMode === "percent" ? "amount" : "percent" }))}
-                                  className="ml-1 text-primary hover:underline">
-                                  ({editLineForm.taxMode === "percent" ? "tutara gec" : "%'ye gec"})
-                                </button>
-                              </label>
-                              {editLineForm.taxMode === "percent" ? (
-                                <input type="number" min={0} max={100} step="0.01" value={editLineForm.taxPercent}
-                                  onChange={(e) => setEditLineForm((f) => ({ ...f, taxPercent: e.target.value }))}
-                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                              ) : (
-                                <input type="number" min={0} step="0.01" value={editLineForm.taxAmount}
-                                  onChange={(e) => setEditLineForm((f) => ({ ...f, taxAmount: e.target.value }))}
-                                  className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted">Kampanya Kodu</label>
-                            <input type="text" value={editLineForm.campaignCode}
-                              onChange={(e) => setEditLineForm((f) => ({ ...f, campaignCode: e.target.value }))}
-                              className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button label={lineOpSubmitting ? "Kaydediliyor..." : "Kaydet"} onClick={() => void submitEditLine(line.id)} variant="primarySolid" loading={lineOpSubmitting} />
-                            <Button label="Vazgec" onClick={cancelEditLine} variant="secondary" disabled={lineOpSubmitting} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Add new line section */}
-              <div className="rounded-xl border border-border">
-                <button type="button"
-                  onClick={() => { setAddLineExpanded((v) => !v); setLineOpError(""); }}
-                  className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-surface2/40 rounded-xl transition-colors">
-                  <span>Satir Ekle</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                    className={addLineExpanded ? "rotate-180 transition-transform" : "transition-transform"}>
-                    <path d="m6 9 6 6 6-6"/>
-                  </svg>
-                </button>
-                {addLineExpanded && (
-                  <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted">{isWholesaleStoreType ? "Paket *" : "Varyant *"}</label>
-                      <SearchableDropdown
-                        options={variantOptions}
-                        value={addLineForm.productVariantId}
-                        onChange={(val) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, productVariantId: val ?? "" })); }}
-                        placeholder={isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Adet *</label>
-                        <input type="number" min={1} step={1} value={addLineForm.quantity}
-                          onChange={(e) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, quantity: e.target.value })); }}
-                          className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">Birim Fiyat *</label>
-                        <input type="number" min={0} step="0.01" value={addLineForm.unitPrice}
-                          onChange={(e) => { setLineOpError(""); setAddLineForm((f) => ({ ...f, unitPrice: e.target.value })); }}
-                          className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">
-                          {addLineForm.discountMode === "percent" ? "Indirim %" : "Indirim Tutari"}
-                          <button type="button" onClick={() => setAddLineForm((f) => ({ ...f, discountMode: f.discountMode === "percent" ? "amount" : "percent" }))}
-                            className="ml-1 text-primary hover:underline">
-                            ({addLineForm.discountMode === "percent" ? "tutara gec" : "%'ye gec"})
-                          </button>
-                        </label>
-                        {addLineForm.discountMode === "percent" ? (
-                          <input type="number" min={0} max={100} step="0.01" value={addLineForm.discountPercent}
-                            onChange={(e) => setAddLineForm((f) => ({ ...f, discountPercent: e.target.value }))}
-                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                        ) : (
-                          <input type="number" min={0} step="0.01" value={addLineForm.discountAmount}
-                            onChange={(e) => setAddLineForm((f) => ({ ...f, discountAmount: e.target.value }))}
-                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-muted">
-                          {addLineForm.taxMode === "percent" ? "Vergi %" : "Vergi Tutari"}
-                          <button type="button" onClick={() => setAddLineForm((f) => ({ ...f, taxMode: f.taxMode === "percent" ? "amount" : "percent" }))}
-                            className="ml-1 text-primary hover:underline">
-                            ({addLineForm.taxMode === "percent" ? "tutara gec" : "%'ye gec"})
-                          </button>
-                        </label>
-                        {addLineForm.taxMode === "percent" ? (
-                          <input type="number" min={0} max={100} step="0.01" value={addLineForm.taxPercent}
-                            onChange={(e) => setAddLineForm((f) => ({ ...f, taxPercent: e.target.value }))}
-                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                        ) : (
-                          <input type="number" min={0} step="0.01" value={addLineForm.taxAmount}
-                            onChange={(e) => setAddLineForm((f) => ({ ...f, taxAmount: e.target.value }))}
-                            className="h-9 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-                        )}
-                      </div>
-                    </div>
-                    <Button label={lineOpSubmitting ? "Ekleniyor..." : "Satiri Ekle"} onClick={() => void submitAddLine()} variant="primarySolid" loading={lineOpSubmitting} />
-                  </div>
-                )}
-              </div>
-
-              {lineOpError && <p className="text-sm text-error">{lineOpError}</p>}
-            </>
-          )}
-        </div>
-      </Drawer>
+        onStartEditLine={startEditLine}
+        onRequestDeleteLine={requestDeleteLine}
+        onCancelEditLine={cancelEditLine}
+        onSubmitEditLine={(lineId) => void submitEditLine(lineId)}
+        onEditLineFormChange={(patch) => {
+          setLineOpError("");
+          setEditLineForm((prev) => ({ ...prev, ...patch }));
+        }}
+        onToggleAddLineExpanded={() => {
+          setAddLineExpanded((prev) => !prev);
+          setLineOpError("");
+        }}
+        onAddLineFormChange={(patch) => {
+          setLineOpError("");
+          setAddLineForm((prev) => ({ ...prev, ...patch }));
+        }}
+        onSubmitAddLine={() => void submitAddLine()}
+      />
 
       <ConfirmDialog
         open={deleteLineDialogOpen}

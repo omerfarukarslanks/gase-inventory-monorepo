@@ -27,6 +27,46 @@ export type FieldErrors = {
   lines?: string;
 };
 
+export type ManagedLineEditForm = {
+  quantity: string;
+  unitPrice: string;
+  currency: Currency;
+  discountMode: LineMode;
+  discountPercent: string;
+  discountAmount: string;
+  taxMode: LineMode;
+  taxPercent: string;
+  taxAmount: string;
+  campaignCode: string;
+};
+
+export type ReturnLinePackageVariant = {
+  productVariantId: string;
+  name: string;
+  qtyPerPackage?: number;
+  remaining?: number | null;
+  returnQuantity: string;
+};
+
+export type ReturnLineForm = {
+  saleLineId: string;
+  lineName: string;
+  originalQuantity: number;
+  returnedQuantity: number;
+  completePackagesRemaining: number | null;
+  partialPackage: {
+    exists: boolean;
+    incompletePackageCount?: number | null;
+    missingVariants: string[];
+    presentVariants: string[];
+  } | null;
+  isPackageLine: boolean;
+  returnMode: "quantity" | "variants";
+  returnQuantity: string;
+  packageVariantReturns: ReturnLinePackageVariant[];
+  refundAmount: string;
+};
+
 export type VariantStorePreset = {
   storeId: string;
   currency: Currency;
