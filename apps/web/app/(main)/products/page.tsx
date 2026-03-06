@@ -132,7 +132,8 @@ export default function ProductsPage() {
   const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
   const [priceProductId, setPriceProductId] = useState<string | null>(null);
   const canTenantOnly = can("TENANT_ONLY");
-  const stores = canTenantOnly ? useStores() : [];
+  const allStores = useStores();
+  const stores = canTenantOnly ? allStores : [];
 
   /* Responsive */
   const isMobile = !useMediaQuery();

@@ -7,6 +7,8 @@ import { cn } from "@/lib/cn";
 const LANGS: { value: Lang; label: string; nativeLabel: string }[] = [
   { value: "tr", label: "TR", nativeLabel: "Türkçe" },
   { value: "en", label: "EN", nativeLabel: "English" },
+  { value: "es", label: "ES", nativeLabel: "Español" },
+  { value: "de", label: "DE", nativeLabel: "Deutsch" },
 ];
 
 const GlobeIcon = () => (

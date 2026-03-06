@@ -10,7 +10,14 @@ export default function Topbar() {
   const { t, lang } = useLang();
   const { can } = usePermissions();
 
-  const dateStr = new Date().toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", {
+  const localeMap = {
+    tr: "tr-TR",
+    en: "en-US",
+    es: "es-ES",
+    de: "de-DE",
+  } as const;
+
+  const dateStr = new Date().toLocaleDateString(localeMap[lang], {
     weekday: "long",
     year: "numeric",
     month: "long",

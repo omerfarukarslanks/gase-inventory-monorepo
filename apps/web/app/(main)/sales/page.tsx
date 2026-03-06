@@ -116,7 +116,8 @@ export default function SalesPage() {
   const { t } = useLang();
   const { can } = usePermissions();
   const canTenantOnly = can("TENANT_ONLY");
-  const stores = canTenantOnly ? useStores() : [];
+  const allStores = useStores();
+  const stores = canTenantOnly ? allStores : [];
 
   /* ── Sales list state ── */
   const [salesReceipts, setSalesReceipts] = useState<SaleListItem[]>([]);

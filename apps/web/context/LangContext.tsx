@@ -3,8 +3,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import tr from "@/locales/tr";
 import en from "@/locales/en";
+import es from "@/locales/es";
+import de from "@/locales/de";
 
-export type Lang = "tr" | "en";
+export type Lang = "tr" | "en" | "es" | "de";
 
 type Dict = typeof tr;
 
@@ -20,6 +22,13 @@ const LangContext = createContext<LangContextValue>({
   t: (key) => key,
 });
 
+const DICTS: Record<Lang, Dict> = {
+  tr,
+  en,
+  es,
+  de,
+};
+
 export function LangProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     if (typeof window === "undefined") return "tr";
@@ -32,8 +41,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   const setLang = (next: Lang) => setLangState(next);
-
-  const dict: Dict = lang === "tr" ? tr : en;
+  const dict = DICTS[lang] ?? tr;
 
   const t = (key: string): string => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
