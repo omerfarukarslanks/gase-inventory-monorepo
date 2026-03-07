@@ -206,78 +206,82 @@ export default function Sidebar({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 pb-4">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-2 pb-4" aria-label={t("nav.mainMenu")}>
         <div className={cn("px-3 py-2 text-[10px] font-semibold tracking-widest text-muted", collapsed && "text-center")}>
           {!collapsed ? t("nav.mainMenu") : "*"}
         </div>
 
-        <div className="space-y-1">
+        <ul className="space-y-1">
           {items
             .filter((it) => canSeeItem(it) && (canSeePackages || it.href !== "/product-packages"))
             .map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
-                isActiveItem(it.href)
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-transparent text-text2 hover:border-border hover:bg-surface2",
-              )}
-            >
-              <span
+            <li key={it.href}>
+              <Link
+                href={it.href}
+                aria-current={isActiveItem(it.href) ? "page" : undefined}
                 className={cn(
-                  "grid h-9 w-9 place-items-center rounded-xl2 border",
+                  "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
                   isActiveItem(it.href)
                     ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border bg-surface2",
+                    : "border-transparent text-text2 hover:border-border hover:bg-surface2",
                 )}
               >
-                {it.icon}
-              </span>
-              {!collapsed && (
-                <>
-                  <span className="flex-1">{t(it.labelKey)}</span>
-                  {it.badge && (
-                    <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span>
+                <span
+                  className={cn(
+                    "grid h-9 w-9 place-items-center rounded-xl2 border",
+                    isActiveItem(it.href)
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-border bg-surface2",
                   )}
-                </>
-              )}
-            </Link>
+                >
+                  {it.icon}
+                </span>
+                {!collapsed && (
+                  <>
+                    <span className="flex-1">{t(it.labelKey)}</span>
+                    {it.badge && (
+                      <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">{it.badge}</span>
+                    )}
+                  </>
+                )}
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
 
         <div className={cn("mt-5 px-3 py-2 text-[10px] font-semibold tracking-widest text-muted", collapsed && "text-center")}>
           {!collapsed ? t("nav.management") : "*"}
         </div>
 
-        <div className="space-y-1">
+        <ul className="space-y-1">
           {adminItems.filter(canSeeItem).map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
-                isActiveItem(it.href)
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-transparent text-text2 hover:border-border hover:bg-surface2",
-              )}
-            >
-              <span
+            <li key={it.href}>
+              <Link
+                href={it.href}
+                aria-current={isActiveItem(it.href) ? "page" : undefined}
                 className={cn(
-                  "grid h-9 w-9 place-items-center rounded-xl2 border",
+                  "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
                   isActiveItem(it.href)
                     ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border bg-surface2",
+                    : "border-transparent text-text2 hover:border-border hover:bg-surface2",
                 )}
               >
-                {it.icon}
-              </span>
-              {!collapsed && <span className="flex-1">{t(it.labelKey)}</span>}
-            </Link>
-            ))}
-        </div>
-      </div>
+                <span
+                  className={cn(
+                    "grid h-9 w-9 place-items-center rounded-xl2 border",
+                    isActiveItem(it.href)
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-border bg-surface2",
+                  )}
+                >
+                  {it.icon}
+                </span>
+                {!collapsed && <span className="flex-1">{t(it.labelKey)}</span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <div className="shrink-0 border-t border-border bg-surface p-3" ref={menuRef}>
         {menuOpen && (

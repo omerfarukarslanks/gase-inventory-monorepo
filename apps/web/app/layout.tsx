@@ -7,6 +7,7 @@ import { LangProvider } from "@/context/LangContext";
 const dm = DM_Sans({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://app.stockpulse.com"),
   title: {
     default: "StockPulse — Stok & Satış Yönetimi",
     template: "%s | StockPulse",
@@ -34,10 +35,30 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "StockPulse",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "StockPulse ile stok takibi, satış yönetimi ve raporlamayı tek platformdan kolayca yönetin.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "TRY",
+  },
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr" suppressHydrationWarning>
       <body className={dm.className}>
+        {/* eslint-disable-next-line @next/next/no-before-interactive-script-component */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <ThemeProvider>
           <LangProvider>{children}</LangProvider>
         </ThemeProvider>

@@ -106,7 +106,7 @@ export default function ForgotPasswordCard() {
               </svg>
             </div>
 
-            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.forgotTitle")}</h2>
+            <h1 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.forgotTitle")}</h1>
             <p className="mb-7 text-center text-[13.5px] leading-relaxed text-muted">
               {t("auth.forgotSubtitle")}
             </p>
@@ -197,7 +197,7 @@ export default function ForgotPasswordCard() {
               </svg>
             </div>
 
-            <h2 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.newPasswordTitle")}</h2>
+            <h1 className="mb-2 text-center text-[22px] font-bold tracking-tight text-text">{t("auth.newPasswordTitle")}</h1>
             <p className="mb-7 text-center text-[13.5px] leading-relaxed text-muted">{t("auth.newPasswordSubtitle")}</p>
 
             <InputField
@@ -255,7 +255,7 @@ export default function ForgotPasswordCard() {
 
           </div>
         )}
-
+ 
         {step === "success" && (
           <div className="animate-su text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-white shadow-glow">

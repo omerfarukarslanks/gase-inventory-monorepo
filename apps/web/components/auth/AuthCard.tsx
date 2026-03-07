@@ -10,7 +10,7 @@ import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
 import { login, signup, getMe, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
-import { setAuthCookie } from "@/lib/cookie";
+import { clearAuthCookie, setAuthCookie } from "@/lib/cookie";
 import Button from "../ui/Button";
 import { useLang } from "@/context/LangContext";
 
@@ -106,6 +106,9 @@ export default function AuthCard({ initialMode }: Props) {
     try {
       if (mode === "login") {
         const response = await login(form.email, form.password);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        clearAuthCookie();
         localStorage.setItem("token", response.access_token);
         setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
@@ -121,6 +124,9 @@ export default function AuthCard({ initialMode }: Props) {
           password: form.password,
         };
         const response = await signup(body);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        clearAuthCookie();
         localStorage.setItem("token", response.access_token);
         setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
@@ -171,13 +177,13 @@ export default function AuthCard({ initialMode }: Props) {
       )}
 
       <div className="mb-6">
-        <h2 className="text-[22px] font-bold tracking-tight text-text">
+        <h1 className="text-[22px] font-bold tracking-tight text-text">
           {mode === "login"
             ? t("auth.loginTitle")
             : step === 1
             ? t("auth.companyInfoTitle")
             : t("auth.createAccountTitle")}
-        </h2>
+        </h1>
         <p className="mt-1 text-[13.5px] text-muted">
           {mode === "login"
             ? t("auth.loginSubtitle")

@@ -12,9 +12,10 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   error?: string;
+  disabled?: boolean;
 };
 
-export default function InputField({ label, type, placeholder, icon, value, onChange, error }: Props) {
+export default function InputField({ label, type, placeholder, icon, value, onChange, error, disabled }: Props) {
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
   const isPw = type === "password";
@@ -50,7 +51,8 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          className="w-full flex-1 appearance-none bg-transparent px-3.5 py-[13px] text-[14px] text-text outline-none placeholder:text-muted"
+          disabled={disabled}
+          className="w-full flex-1 appearance-none bg-transparent px-3.5 py-[13px] text-[14px] text-text outline-none placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed"
         />
 
         {isPw && (

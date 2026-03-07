@@ -6,7 +6,12 @@
       "Bash(/usr/local/bin/node_modules/.bin/tsc:*)",
       "Bash(/usr/bin/env node node_modules/.bin/tsc:*)",
       "Bash(node_modules/.bin/tsc:*)",
-      "Bash(~/.nvm/versions/node/v22.12.0/bin/node node_modules/.bin/tsc:*)"
+      "Bash(~/.nvm/versions/node/v22.12.0/bin/node node_modules/.bin/tsc:*)",
+      "Bash(BASE=\"/Users/omerfarukarslan/Desktop/projects/gase-inventory-web/app/\\(main\\)\")",
+      "Bash(for page in dashboard products sales stock users stores suppliers customers attributes product-categories)",
+      "Bash(do)",
+      "Bash(cp \"$BASE/$page/page.tsx\" \"$BASE/$page/PageClient.tsx\")",
+      "Bash(done)"
     ]
   }
 }

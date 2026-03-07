@@ -1,0 +1,685 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getSessionUser, getSessionUserStoreIds } from "@/lib/authz";
+import {
+  adjustInventory,
+  getTenantStockSummary,
+  getVariantStockByStore,
+  receiveInventory,
+  receiveInventoryBulk,
+  transferInventory,
+  type InventoryAdjustItem,
+  type InventoryAdjustSinglePayload,
+  type InventoryReceiveItem,
+  type InventoryProductStockItem,
+  type InventoryStoreStockItem,
+  type InventoryTransferPayload,
+  type InventoryVariantStockItem,
+} from "@/lib/inventory";
+import { getAllSuppliers, type Supplier } from "@/lib/suppliers";
+import type { Currency, ProductVariant } from "@/lib/products";
+import type { StockEntryInitialEntry } from "@/components/inventory/StockEntryForm";
+import { useDebounceStr } from "@/hooks/useDebounce";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useStores } from "@/hooks/useStores";
+import { usePermissions } from "@/hooks/usePermissions";
+import { normalizeStoreItems, normalizeProducts, getPaginationValue } from "@/lib/normalize";
+import { useLang } from "@/context/LangContext";
+
+import StockFilters from "@/components/stock/StockFilters";
+import StockTable, { type VariantActionParams, type ProductActionParams } from "@/components/stock/StockTable";
+import StockPagination from "@/components/stock/StockPagination";
+import AdjustDrawer, { type AdjustTarget } from "@/components/stock/AdjustDrawer";
+import TransferDrawer, {
+  type TransferTarget,
+  type TransferFormState,
+} from "@/components/stock/TransferDrawer";
+import ReceiveDrawer, { type ReceiveTarget } from "@/components/stock/ReceiveDrawer";
+import ProductInventoryDrawer, {
+  type ProductInventoryOperation,
+  type ProductInventoryTarget,
+} from "@/components/stock/ProductInventoryDrawer";
+
+/* ── Page ── */
+
+export default function StockPage() {
+  const { t } = useLang();
+  /* ── List state ── */
+  const [products, setProducts] = useState<InventoryProductStockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [storeFilterIds, setStoreFilterIds] = useState<string[]>([]);
+  const debouncedSearch = useDebounceStr(searchTerm, 400);
+  const [scopeReady, setScopeReady] = useState(false);
+  const [isStoreScopedUser, setIsStoreScopedUser] = useState(false);
+  const [scopedStoreId, setScopedStoreId] = useState("");
+
+  useEffect(() => {
+    const user = getSessionUser();
+    const storeIds = getSessionUserStoreIds(user);
+    setIsStoreScopedUser(false);
+    setScopedStoreId(storeIds[0] ?? "");
+    setScopeReady(true);
+  }, []);
+  const applyStoreScope = useCallback(
+    (items: InventoryStoreStockItem[]) => {
+      if (!isStoreScopedUser) return items;
+      return items.filter((item) => item.storeId === scopedStoreId);
+    },
+    [isStoreScopedUser, scopedStoreId],
+  );
+
+  /* ── Variant store cache ── */
+  const [variantStoresById, setVariantStoresById] = useState<
+    Record<string, InventoryStoreStockItem[]>
+  >({});
+  const [variantStoresLoadingById, setVariantStoresLoadingById] = useState<
+    Record<string, boolean>
+  >({});
+
+  /* ── Adjust drawer ── */
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+  const [adjustFormError, setAdjustFormError] = useState("");
+  const [adjustTarget, setAdjustTarget] = useState<AdjustTarget | null>(null);
+  const [adjustInitial, setAdjustInitial] = useState<
+    Record<string, StockEntryInitialEntry[]>
+  >({});
+  const [adjustApplyToAllStores, setAdjustApplyToAllStores] = useState(false);
+
+  /* ── Transfer drawer ── */
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferSubmitting, setTransferSubmitting] = useState(false);
+  const [transferFormError, setTransferFormError] = useState("");
+  const [transferTarget, setTransferTarget] = useState<TransferTarget | null>(null);
+  const [transferForm, setTransferForm] = useState<TransferFormState>({
+    fromStoreId: "",
+    toStoreId: "",
+    quantity: "",
+    reason: "",
+    note: "",
+  });
+
+  /* ── Suppliers ── */
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    getAllSuppliers({ isActive: true })
+      .then(setSuppliers)
+      .catch(() => setSuppliers([]));
+  }, []);
+
+  /* ── Receive drawer (variant-level) ── */
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [receiveLoading, setReceiveLoading] = useState(false);
+  const [receiveSubmitting, setReceiveSubmitting] = useState(false);
+  const [receiveFormError, setReceiveFormError] = useState("");
+  const [receiveTarget, setReceiveTarget] = useState<ReceiveTarget | null>(null);
+  const [receiveVariants, setReceiveVariants] = useState<ProductVariant[]>([]);
+  const [receiveInitial, setReceiveInitial] = useState<Record<string, StockEntryInitialEntry[]>>({});
+  const [receiveSupplierId, setReceiveSupplierId] = useState("");
+  const [receiveCurrency, setReceiveCurrency] = useState<Currency>("TRY");
+
+  /* ── Product inventory drawer ── */
+  const [productDrawerOpen, setProductDrawerOpen] = useState(false);
+  const [productDrawerOperation, setProductDrawerOperation] = useState<ProductInventoryOperation | null>(null);
+  const [productDrawerTarget, setProductDrawerTarget] = useState<ProductInventoryTarget | null>(null);
+
+  /* ── Permissions ── */
+  const { can } = usePermissions();
+  const canTenantOnly = can("TENANT_ONLY");
+
+
+  /* ── Stores ── */
+  const stores = useStores();
+
+  /* ── Responsive ── */
+  const isMobile = !useMediaQuery();
+
+  /* ── Derived ── */
+  const storeOptions = useMemo(
+    () => stores.map((s) => ({ value: s.id, label: s.name })),
+    [stores],
+  );
+
+  const adjustFormVariant = useMemo<ProductVariant[]>(
+    () =>
+      adjustTarget
+        ? [
+            {
+              id: adjustTarget.productVariantId,
+              name: adjustTarget.variantName,
+              code: adjustTarget.variantName,
+            },
+          ]
+        : [],
+    [adjustTarget],
+  );
+
+  const adjustFormCurrency = useMemo<Currency>(() => {
+    if (!adjustTarget) return "TRY";
+    const storesForVariant = variantStoresById[adjustTarget.productVariantId] ?? [];
+    const currency = storesForVariant[0]?.currency;
+    if (currency === "TRY" || currency === "USD" || currency === "EUR") return currency;
+    return "TRY";
+  }, [adjustTarget, variantStoresById]);
+
+  const filteredProducts = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((product) => {
+      if (product.productName.toLowerCase().includes(q)) return true;
+      return (product.variants ?? []).some((variant) => {
+        if (variant.variantName.toLowerCase().includes(q)) return true;
+        if ((variant.variantCode ?? "").toLowerCase().includes(q)) return true;
+        return (variantStoresById[variant.productVariantId] ?? variant.stores ?? []).some(
+          (store) => store.storeName.toLowerCase().includes(q),
+        );
+      });
+    });
+  }, [products, debouncedSearch, variantStoresById]);
+
+  /* ── Fetchers ── */
+
+  const fetchTenantSummary = useCallback(async () => {
+    if (!scopeReady) return;
+    setLoading(true);
+    setError("");
+    try {
+      const effectiveStoreIds =
+        !isStoreScopedUser && storeFilterIds.length > 0
+          ? storeFilterIds
+          : undefined;
+
+      const res = await getTenantStockSummary({
+        page,
+        limit,
+        storeIds: effectiveStoreIds,
+        search: debouncedSearch || undefined,
+      });
+      setProducts(normalizeProducts(res));
+      setTotal(getPaginationValue(res, "total"));
+
+      const nextTotalPages = getPaginationValue(res, "totalPages");
+      if (nextTotalPages > 0) {
+        setTotalPages(nextTotalPages);
+      } else {
+        const total = getPaginationValue(res, "total");
+        if (total > 0) setTotalPages(Math.max(1, Math.ceil(total / limit)));
+        else setTotalPages(1);
+      }
+    } catch {
+      setProducts([]);
+      setTotal(0);
+      setError(t("stock.loadError"));
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, storeFilterIds, debouncedSearch, isStoreScopedUser, scopeReady]);
+
+  const fetchVariantStores = useCallback(
+    async (variantId: string) => {
+      if (!variantId || variantStoresLoadingById[variantId]) return;
+      setVariantStoresLoadingById((prev) => ({ ...prev, [variantId]: true }));
+      try {
+        const res = await getVariantStockByStore(variantId);
+        const scopedItems = applyStoreScope(normalizeStoreItems(res));
+        setVariantStoresById((prev) => ({
+          ...prev,
+          [variantId]: scopedItems,
+        }));
+      } catch {
+        setVariantStoresById((prev) => ({ ...prev, [variantId]: [] }));
+      } finally {
+        setVariantStoresLoadingById((prev) => ({ ...prev, [variantId]: false }));
+      }
+    },
+    [variantStoresLoadingById, applyStoreScope],
+  );
+
+  useEffect(() => {
+    fetchTenantSummary();
+  }, [fetchTenantSummary]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [storeFilterIds, debouncedSearch]);
+
+  const getVariantStores = useCallback(
+    (variant: InventoryVariantStockItem) => {
+      const cached = variantStoresById[variant.productVariantId];
+      if (cached && cached.length > 0) return cached;
+      return variant.stores ?? [];
+    },
+    [variantStoresById],
+  );
+
+  /* ── Resolve stores for a variant (fetch if missing) ── */
+
+  const resolveVariantStores = async (
+    variantId: string,
+    fallback: InventoryStoreStockItem[],
+  ): Promise<InventoryStoreStockItem[]> => {
+    if (fallback.length > 0) return fallback;
+    try {
+      const res = await getVariantStockByStore(variantId);
+      const normalized = applyStoreScope(normalizeStoreItems(res));
+      setVariantStoresById((prev) => ({ ...prev, [variantId]: normalized }));
+      return normalized;
+    } catch {
+      return [];
+    }
+  };
+
+  /* ── Receive handlers ── */
+
+  const openReceiveDrawer = async (params: VariantActionParams) => {
+    setReceiveFormError("");
+    setReceiveLoading(true);
+    setReceiveTarget({
+      productVariantId: params.productVariantId,
+      productName: params.productName,
+      variantName: params.variantName,
+    });
+    setReceiveVariants([
+      {
+        id: params.productVariantId,
+        name: params.variantName,
+        code: params.variantName,
+      },
+    ]);
+    setReceiveSupplierId("");
+
+    const normalizedStores = await resolveVariantStores(params.productVariantId, params.stores);
+    const currency = normalizedStores[0]?.currency;
+    setReceiveCurrency(
+      currency === "TRY" || currency === "USD" || currency === "EUR" ? currency : "TRY",
+    );
+    setReceiveInitial({});
+    setReceiveOpen(true);
+    setReceiveLoading(false);
+  };
+
+  const closeReceiveDrawer = () => {
+    if (receiveSubmitting) return;
+    setReceiveOpen(false);
+    setReceiveTarget(null);
+    setReceiveInitial({});
+    setReceiveSupplierId("");
+    setReceiveFormError("");
+  };
+
+  const submitReceive = async (items: InventoryReceiveItem[]) => {
+    if (!receiveTarget) return;
+    if (items.length === 0) {
+      setReceiveFormError(t("stock.atLeastOneStoreRow"));
+      return;
+    }
+
+    setReceiveSubmitting(true);
+    setReceiveFormError("");
+    try {
+      if (items.length === 1) {
+        await receiveInventory(items[0]);
+      } else {
+        await receiveInventoryBulk(items);
+      }
+      setSuccess(t("stock.receiveSuccess"));
+      closeReceiveDrawer();
+      await fetchTenantSummary();
+      if (receiveTarget.productVariantId) {
+        await fetchVariantStores(receiveTarget.productVariantId);
+      }
+    } catch {
+      setReceiveFormError(t("stock.receiveError"));
+    } finally {
+      setReceiveSubmitting(false);
+    }
+  };
+
+  /* ── Product inventory drawer handlers ── */
+
+  const openProductDrawer = (operation: ProductInventoryOperation, params: ProductActionParams) => {
+    setProductDrawerOperation(operation);
+    setProductDrawerTarget({
+      productId: params.productId,
+      productName: params.productName,
+      variants: params.variants,
+    });
+    setProductDrawerOpen(true);
+  };
+
+  const closeProductDrawer = () => {
+    setProductDrawerOpen(false);
+    setProductDrawerOperation(null);
+    setProductDrawerTarget(null);
+  };
+
+  const handleProductSuccess = async (msg: string) => {
+    setSuccess(msg);
+    closeProductDrawer();
+    await fetchTenantSummary();
+  };
+
+  /* ── Adjust handlers ── */
+
+  const openAdjustDrawer = async (params: VariantActionParams) => {
+    setAdjustFormError("");
+    setAdjustLoading(true);
+    setAdjustTarget({
+      productVariantId: params.productVariantId,
+      productName: params.productName,
+      variantName: params.variantName,
+    });
+
+    const normalizedStores = await resolveVariantStores(
+      params.productVariantId,
+      params.stores,
+    );
+
+    setAdjustInitial({
+      [params.productVariantId]: normalizedStores.map((store) => ({
+        storeId: store.storeId,
+        quantity: store.quantity,
+        unitPrice: store.salePrice ?? 0,
+        currency:
+          store.currency === "TRY" || store.currency === "USD" || store.currency === "EUR"
+            ? store.currency
+            : "TRY",
+        taxMode: "percent",
+        taxPercent: store.taxPercent ?? undefined,
+        discountMode: "percent",
+        discountPercent: store.discountPercent ?? undefined,
+      })),
+    });
+
+    setAdjustOpen(true);
+    setAdjustLoading(false);
+  };
+
+  const closeAdjustDrawer = () => {
+    if (adjustSubmitting) return;
+    setAdjustOpen(false);
+    setAdjustTarget(null);
+    setAdjustInitial({});
+    setAdjustApplyToAllStores(false);
+    setAdjustFormError("");
+  };
+
+  const submitAdjust = async (items: InventoryReceiveItem[]) => {
+    if (!adjustTarget) return;
+
+    if (items.length === 0) {
+      setAdjustFormError(t("stock.atLeastOneStoreRow"));
+      return;
+    }
+
+    const usedStoreIds = new Set<string>();
+    for (const item of items) {
+      if (usedStoreIds.has(item.storeId)) {
+        setAdjustFormError(t("stock.sameStoreTwice"));
+        return;
+      }
+      usedStoreIds.add(item.storeId);
+    }
+
+    setAdjustSubmitting(true);
+    setAdjustFormError("");
+    try {
+      const adjustItems: InventoryAdjustItem[] = items.map((item) => ({
+        storeId: item.storeId,
+        productVariantId: item.productVariantId ?? "",
+        newQuantity: item.quantity,
+        meta: item.meta ? { reason: item.meta.reason, note: item.meta.note } : {},
+      }));
+
+      if (isStoreScopedUser) {
+        const scopedPayload: InventoryAdjustSinglePayload = {
+          productVariantId: adjustTarget.productVariantId,
+          newQuantity: adjustItems[0]?.newQuantity ?? 0,
+          meta: adjustItems[0]?.meta ?? {},
+        };
+        await adjustInventory(scopedPayload);
+      } else if (adjustApplyToAllStores) {
+        const applyAllPayload: InventoryAdjustSinglePayload = {
+          productVariantId: adjustTarget.productVariantId,
+          newQuantity: adjustItems[0]?.newQuantity ?? 0,
+          applyToAllStores: true,
+          meta: adjustItems[0]?.meta ?? {},
+        };
+        await adjustInventory(applyAllPayload);
+      } else if (adjustItems.length > 1) {
+        await adjustInventory({ items: adjustItems });
+      } else {
+        await adjustInventory(adjustItems[0]);
+      }
+      setSuccess(t("stock.adjustSuccess"));
+      closeAdjustDrawer();
+      await fetchTenantSummary();
+      await fetchVariantStores(adjustTarget.productVariantId);
+    } catch {
+      setAdjustFormError(t("stock.adjustError"));
+    } finally {
+      setAdjustSubmitting(false);
+    }
+  };
+
+  /* ── Transfer handlers ── */
+
+  const openTransferDrawer = async (params: VariantActionParams) => {
+    setTransferFormError("");
+    setTransferLoading(true);
+
+    const normalizedStores = await resolveVariantStores(
+      params.productVariantId,
+      params.stores,
+    );
+
+    setTransferTarget({
+      productVariantId: params.productVariantId,
+      productName: params.productName,
+      variantName: params.variantName,
+      stores: normalizedStores,
+    });
+    setTransferForm({
+      fromStoreId: "",
+      toStoreId: "",
+      quantity: "",
+      reason: "",
+      note: "",
+    });
+    setTransferOpen(true);
+    setTransferLoading(false);
+  };
+
+  const closeTransferDrawer = () => {
+    if (transferSubmitting) return;
+    setTransferOpen(false);
+    setTransferTarget(null);
+    setTransferFormError("");
+  };
+
+  const submitTransfer = async () => {
+    if (!transferTarget) return;
+    if (!transferForm.fromStoreId) {
+      setTransferFormError(t("stock.sourceStoreRequired"));
+      return;
+    }
+    if (!transferForm.toStoreId) {
+      setTransferFormError(t("stock.targetStoreRequired"));
+      return;
+    }
+    if (transferForm.fromStoreId === transferForm.toStoreId) {
+      setTransferFormError(t("stock.sameStoreError"));
+      return;
+    }
+    if (!transferForm.quantity || Number(transferForm.quantity) <= 0) {
+      setTransferFormError(t("stock.quantityPositive"));
+      return;
+    }
+
+    const qty = Number(transferForm.quantity);
+    const fromStore = transferTarget.stores.find(
+      (s) => s.storeId === transferForm.fromStoreId,
+    );
+    const available = Number(fromStore?.quantity ?? 0);
+    if (qty > available) {
+      setTransferFormError(t("stock.transferExceedsStock"));
+      return;
+    }
+
+    const payload: InventoryTransferPayload = {
+      fromStoreId: transferForm.fromStoreId,
+      toStoreId: transferForm.toStoreId,
+      productVariantId: transferTarget.productVariantId,
+      quantity: qty,
+      meta: {
+        reason: transferForm.reason || undefined,
+        note: transferForm.note || undefined,
+      },
+    };
+
+    setTransferSubmitting(true);
+    setTransferFormError("");
+    try {
+      await transferInventory(payload);
+      setSuccess(t("stock.transferSuccess"));
+      closeTransferDrawer();
+      await fetchTenantSummary();
+      await fetchVariantStores(transferTarget.productVariantId);
+    } catch {
+      setTransferFormError(t("stock.transferError"));
+    } finally {
+      setTransferSubmitting(false);
+    }
+  };
+
+  /* ── Render ── */
+
+  return (
+    <div className="space-y-4">
+      <StockFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        storeFilterIds={storeFilterIds}
+        onStoreFilterChange={setStoreFilterIds}
+        storeOptions={storeOptions}
+        canTenantOnly={canTenantOnly}
+      />
+
+      {success && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
+          {success}
+        </div>
+      )}
+
+      <StockTable
+        products={filteredProducts}
+        loading={loading}
+        error={error}
+        getVariantStores={getVariantStores}
+        onReceive={openReceiveDrawer}
+        onAdjust={openAdjustDrawer}
+        onTransfer={openTransferDrawer}
+        onProductReceive={(params) => openProductDrawer("receive", params)}
+        onProductAdjust={(params) => openProductDrawer("adjust", params)}
+        onProductTransfer={(params) => openProductDrawer("transfer", params)}
+        canReceive={can("STOCK_RECEIVE")}
+        canAdjust={can("STOCK_ADJUST")}
+        canTransfer={can("STOCK_TRANSFER")}
+        footer={
+          !loading && !error ? (
+            <StockPagination
+              page={page}
+              totalPages={totalPages}
+              limit={limit}
+              total={total}
+              loading={loading}
+              onPageChange={setPage}
+              onLimitChange={(next) => {
+                setLimit(next);
+                setPage(1);
+              }}
+            />
+          ) : null
+        }
+      />
+
+      <AdjustDrawer
+        open={adjustOpen}
+        loading={adjustLoading}
+        submitting={adjustSubmitting}
+        formError={adjustFormError}
+        target={adjustTarget}
+        variants={adjustFormVariant}
+        currency={adjustFormCurrency}
+        stores={stores}
+        initialEntriesByVariant={adjustInitial}
+        isMobile={isMobile}
+        showStoreSelector={canTenantOnly && !adjustApplyToAllStores}
+        canTenantOnly={canTenantOnly}
+        applyToAllStores={adjustApplyToAllStores}
+        onApplyToAllStoresChange={setAdjustApplyToAllStores}
+        fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
+        onClose={closeAdjustDrawer}
+        onSubmit={submitAdjust}
+      />
+
+      <TransferDrawer
+        open={transferOpen}
+        loading={transferLoading}
+        submitting={transferSubmitting}
+        formError={transferFormError}
+        target={transferTarget}
+        form={transferForm}
+        allStoreOptions={storeOptions}
+        isMobile={isMobile}
+        onClose={closeTransferDrawer}
+        onFormChange={(patch) => setTransferForm((prev) => ({ ...prev, ...patch }))}
+        onSubmit={submitTransfer}
+      />
+
+      <ReceiveDrawer
+        open={receiveOpen}
+        loading={receiveLoading}
+        submitting={receiveSubmitting}
+        formError={receiveFormError}
+        target={receiveTarget}
+        variants={receiveVariants}
+        currency={receiveCurrency}
+        stores={stores}
+        suppliers={suppliers}
+        supplierId={receiveSupplierId}
+        onSupplierChange={setReceiveSupplierId}
+        initialEntriesByVariant={receiveInitial}
+        isMobile={isMobile}
+        canTenantOnly={canTenantOnly}
+        fixedStoreId={isStoreScopedUser ? scopedStoreId : undefined}
+        onClose={closeReceiveDrawer}
+        onSubmit={submitReceive}
+      />
+
+      <ProductInventoryDrawer
+        open={productDrawerOpen}
+        operation={productDrawerOperation}
+        target={productDrawerTarget}
+        stores={stores}
+        canTenantOnly={canTenantOnly}
+        suppliers={suppliers}
+        isMobile={isMobile}
+        onClose={closeProductDrawer}
+        onSuccess={(msg) => void handleProductSuccess(msg)}
+      />
+
+    </div>
+  );
+}

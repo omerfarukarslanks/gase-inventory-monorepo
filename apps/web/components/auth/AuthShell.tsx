@@ -13,13 +13,13 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
 
       <div className="relative z-10 flex min-h-screen">
         {/* Left panel hidden on <lg */}
-        <div className="hidden lg:block lg:w-[45%] border-r border-border bg-gradient-to-br from-primary/10 to-transparent">
+        <aside className="hidden lg:block lg:w-[45%] border-r border-border bg-gradient-to-br from-primary/10 to-transparent">
           <AuthLeftPanel />
-        </div>
+        </aside>
 
-        <div className="flex-1 flex items-center justify-center px-5 py-8">
+        <main className="flex-1 flex items-center justify-center px-5 py-8">
           <div className="w-full max-w-[400px] animate-su">{children}</div>
-        </div>
+        </main>
       </div>
     </div>
   );

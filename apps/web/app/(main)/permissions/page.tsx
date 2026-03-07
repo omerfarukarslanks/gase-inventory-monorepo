@@ -22,7 +22,6 @@ import SearchInput from "@/components/ui/SearchInput";
 import TablePagination from "@/components/ui/TablePagination";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
-import { useAdminGuard } from "@/hooks/useAdminGuard";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDebounceStr } from "@/hooks/useDebounce";
@@ -52,7 +51,6 @@ const EMPTY_PERM_FORM: PermForm = {
 
 export default function PermissionsPage() {
   const { t } = useLang();
-  const accessChecked = useAdminGuard();
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();
   const canManage = can("PERMISSION_MANAGE");
@@ -99,7 +97,6 @@ export default function PermissionsPage() {
 
   // ── Yetkiler fetch ───────────────────────────────────────────────────────────
   const fetchPermissions = useCallback(async () => {
-    if (!accessChecked) return;
     setPermLoading(true);
     setPermError("");
     try {
@@ -118,7 +115,7 @@ export default function PermissionsPage() {
     } finally {
       setPermLoading(false);
     }
-  }, [accessChecked, permPage, permPageSize, debouncedPermSearch, permStatusFilter]);
+  }, [permPage, permPageSize, debouncedPermSearch, permStatusFilter]);
 
   useEffect(() => {
     if (debouncedPermSearch !== "") setPermPage(1);
@@ -134,7 +131,6 @@ export default function PermissionsPage() {
 
   // ── Roller fetch ─────────────────────────────────────────────────────────────
   const fetchRoles = useCallback(async () => {
-    if (!accessChecked) return;
     setRolesLoading(true);
     setRolesError("");
     try {
@@ -146,7 +142,7 @@ export default function PermissionsPage() {
     } finally {
       setRolesLoading(false);
     }
-  }, [accessChecked]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "roles") fetchRoles();

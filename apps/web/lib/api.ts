@@ -3,6 +3,11 @@ import { clearAuthCookie } from "./cookie";
 export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 let unauthorizedRedirectInProgress = false;
 
+type ApiFetchOptions = RequestInit & {
+  skipAuth?: boolean;
+  token?: string;
+};
+
 export class ApiError extends Error {
   status: number;
 
@@ -14,19 +19,20 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(
   path: string,
-  options?: RequestInit,
+  options?: ApiFetchOptions,
 ): Promise<T> {
-  // Client-side only check for token
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  
+  const { skipAuth, token: explicitToken, headers: optionHeaders, ...requestOptions } = options ?? {};
+  const storageToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const authToken = explicitToken ?? (!skipAuth ? storageToken : null);
+
   const headers = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options?.headers,
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...optionHeaders,
   };
 
   const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
+    ...requestOptions,
     headers,
   });
 
