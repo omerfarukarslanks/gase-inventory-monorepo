@@ -9,6 +9,7 @@ const LANGS: { value: Lang; label: string; nativeLabel: string }[] = [
   { value: "en", label: "EN", nativeLabel: "English" },
   { value: "es", label: "ES", nativeLabel: "Español" },
   { value: "de", label: "DE", nativeLabel: "Deutsch" },
+  { value: "ar", label: "AR", nativeLabel: "العربية" },
 ];
 
 const GlobeIcon = () => (
@@ -92,7 +93,7 @@ export default function LangToggle() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 min-w-36 overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_16px_rgb(0_0_0/0.12)] dark:shadow-[0_4px_16px_rgb(0_0_0/0.3)]">
+        <div className="absolute end-0 top-full z-50 mt-1.5 min-w-36 overflow-hidden rounded-xl border border-border bg-surface shadow-[0_4px_16px_rgb(0_0_0/0.12)] dark:shadow-[0_4px_16px_rgb(0_0_0/0.3)]">
           {LANGS.map(({ value, label, nativeLabel }) => (
             <button
               key={value}

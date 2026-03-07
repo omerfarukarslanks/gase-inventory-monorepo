@@ -39,7 +39,7 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
         )}
       >
         {icon && (
-          <div className={cn("pl-3.5 flex items-center transition-colors duration-200", focused ? "text-primary" : "text-muted")}>
+          <div className={cn("ps-3.5 flex items-center transition-colors duration-200", focused ? "text-primary" : "text-muted")}>
             {icon}
           </div>
         )}
@@ -59,7 +59,7 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
           <button
             type="button"
             onClick={() => setShow((p) => !p)}
-            className="pr-3.5 flex items-center opacity-60 cursor-pointer hover:opacity-100 transition-opacity duration-200"
+            className="pe-3.5 flex items-center opacity-60 cursor-pointer hover:opacity-100 transition-opacity duration-200"
             aria-label="Toggle password visibility"
           >
             <EyeIcon open={show} />

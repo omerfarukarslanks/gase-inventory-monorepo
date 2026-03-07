@@ -174,7 +174,7 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen flex-col border-r border-border bg-surface transition-all duration-200",
+        "sticky top-0 flex h-screen flex-col border-e border-border bg-surface transition-all duration-200",
         collapsed ? "w-19" : "w-65",
       )}
     >
@@ -195,14 +195,14 @@ export default function Sidebar({
           onClick={() => setCollapsed(!collapsed)}
           className={cn("h-9 w-9 rounded-xl2 border border-border bg-surface hover:bg-surface2", collapsed && "hidden")}
         >
-          {"<<"}
+          <span className="inline-block select-none rtl:transform-[scaleX(-1)]">{"<<"}</span>
         </button>
 
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn("h-9 w-9 rounded-xl2 border border-border bg-surface hover:bg-surface2", !collapsed && "hidden")}
         >
-          {">>"}
+          <span className="inline-block select-none rtl:transform-[scaleX(-1)]">{">>"}</span>
         </button>
       </div>
 

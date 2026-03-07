@@ -52,7 +52,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang="tr" dir="ltr" suppressHydrationWarning>
       <body className={dm.className}>
         {/* eslint-disable-next-line @next/next/no-before-interactive-script-component */}
         <script

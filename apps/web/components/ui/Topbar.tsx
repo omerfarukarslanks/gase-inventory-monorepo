@@ -15,6 +15,7 @@ export default function Topbar() {
     en: "en-US",
     es: "es-ES",
     de: "de-DE",
+    ar: "ar-SA",
   } as const;
 
   const dateStr = new Date().toLocaleDateString(localeMap[lang], {

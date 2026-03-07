@@ -1224,8 +1224,9 @@ export default function SalesPage() {
         await updateSale(editingSaleId, payload);
         setSuccess("Satis kaydi guncellendi.");
       } else {
+        const normalizedStoreId = storeId.trim();
         const payload: CreateSalePayload = {
-          ...(canTenantOnly ? {} : { storeId }),
+          ...(canTenantOnly || !normalizedStoreId ? {} : { storeId: normalizedStoreId }),
           customerId,
           meta: {
             note: note.trim() || undefined,

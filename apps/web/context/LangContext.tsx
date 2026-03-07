@@ -5,8 +5,11 @@ import tr from "@/locales/tr";
 import en from "@/locales/en";
 import es from "@/locales/es";
 import de from "@/locales/de";
+import ar from "@/locales/ar";
 
-export type Lang = "tr" | "en" | "es" | "de";
+export type Lang = "tr" | "en" | "es" | "de" | "ar";
+
+const RTL_LANGS = new Set<Lang>(["ar"]);
 
 type Dict = typeof tr;
 
@@ -14,12 +17,14 @@ type LangContextValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
   t: (key: string) => string;
+  isRtl: boolean;
 };
 
 const LangContext = createContext<LangContextValue>({
   lang: "tr",
   setLang: () => {},
   t: (key) => key,
+  isRtl: false,
 });
 
 const DICTS: Record<Lang, Dict> = {
@@ -27,6 +32,7 @@ const DICTS: Record<Lang, Dict> = {
   en,
   es,
   de,
+  ar,
 };
 
 export function LangProvider({ children }: { children: React.ReactNode }) {
@@ -35,10 +41,13 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     return (localStorage.getItem("lang") as Lang) ?? "tr";
   });
 
+  const isRtl = RTL_LANGS.has(lang);
+
   useEffect(() => {
     localStorage.setItem("lang", lang);
     document.documentElement.lang = lang;
-  }, [lang]);
+    document.documentElement.dir = isRtl ? "rtl" : "ltr";
+  }, [lang, isRtl]);
 
   const setLang = (next: Lang) => setLangState(next);
   const dict = DICTS[lang] ?? tr;
@@ -50,7 +59,7 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <LangContext.Provider value={{ lang, setLang, t }}>
+    <LangContext.Provider value={{ lang, setLang, t, isRtl }}>
       {children}
     </LangContext.Provider>
   );
