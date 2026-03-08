@@ -11,7 +11,9 @@
       "Bash(for page in dashboard products sales stock users stores suppliers customers attributes product-categories)",
       "Bash(do)",
       "Bash(cp \"$BASE/$page/page.tsx\" \"$BASE/$page/PageClient.tsx\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(wc -l /Users/omerfarukarslan/Desktop/projects/gase-inventory-web/app/\\\\\\(main\\\\\\)/sales/PageClient.tsx)",
+      "Bash(/usr/local/bin/node node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

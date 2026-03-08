@@ -1,6 +1,6 @@
 "use client";
 
-import type { Currency } from "@/lib/products";
+import { toCurrency } from "@/lib/currency";
 import { formatPrice } from "@/lib/format";
 import { CURRENCY_OPTIONS, type ProductForm, type FormErrors } from "@/components/products/types";
 import InputField from "@/components/ui/InputField";
@@ -163,7 +163,7 @@ export default function ProductDrawerStep1({
             <SearchableDropdown
               options={CURRENCY_OPTIONS}
               value={form.currency}
-              onChange={(v) => onFormChange("currency", (v || "TRY") as Currency)}
+              onChange={(v) => onFormChange("currency", toCurrency(v))}
               placeholder="Para birimi secin"
               showEmptyOption={false}
               allowClear={false}

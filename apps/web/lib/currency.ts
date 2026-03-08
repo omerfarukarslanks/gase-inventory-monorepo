@@ -18,6 +18,11 @@ function isSupportedCurrency(value: string): value is Currency {
   return value === "TRY" || value === "USD" || value === "EUR";
 }
 
+export function toCurrency(value: unknown): Currency {
+  if (typeof value === "string" && isSupportedCurrency(value)) return value;
+  return "TRY";
+}
+
 function parseExchangeRates(payload: unknown): Partial<Record<Currency, number>> {
   const items = Array.isArray(payload)
     ? payload

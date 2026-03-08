@@ -15,7 +15,7 @@ import {
 } from "@/components/sales/types";
 import VariantInfiniteDropdown from "@/components/sales/VariantInfiniteDropdown";
 import CustomerInfinityDropdown from "@/components/sales/CustomerInfinityDropdown";
-import type { Currency } from "@/lib/products";
+import { toCurrency } from "@/lib/currency";
 import type { CreateCustomerRequest, Customer, CustomerGender } from "@/lib/customers";
 import type { PaymentMethod } from "@/lib/sales";
 
@@ -502,7 +502,7 @@ export default function SaleDrawer({
                         <SearchableDropdown
                           options={CURRENCY_OPTIONS}
                           value={line.currency}
-                          onChange={(value) => onChangeLine(line.rowId, { currency: (value || "TRY") as Currency })}
+                          onChange={(value) => onChangeLine(line.rowId, { currency: toCurrency(value) })}
                           showEmptyOption={false}
                           allowClear={false}
                         />
