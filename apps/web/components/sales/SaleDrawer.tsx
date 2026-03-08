@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
@@ -17,8 +16,9 @@ import VariantInfiniteDropdown from "@/components/sales/VariantInfiniteDropdown"
 import CustomerInfinityDropdown from "@/components/sales/CustomerInfinityDropdown";
 import { toCurrency } from "@/lib/currency";
 import { FieldError } from "@/components/ui/FieldError";
-import type { CreateCustomerRequest, Customer, CustomerGender } from "@/lib/customers";
+import type { CreateCustomerRequest, Customer } from "@/lib/customers";
 import type { PaymentMethod } from "@/lib/sales";
+import { QuickCreateCustomerForm } from "@/components/customers/QuickCreateCustomerForm";
 
 type SaleDrawerProps = {
   open: boolean;
@@ -64,38 +64,6 @@ type SaleDrawerProps = {
   onSubmit: () => void;
 };
 
-type QuickCustomerForm = {
-  name: string;
-  surname: string;
-  address: string;
-  country: string;
-  city: string;
-  district: string;
-  phoneNumber: string;
-  email: string;
-  gender: string;
-  birthDate: string;
-};
-
-const EMPTY_QUICK_CUSTOMER_FORM: QuickCustomerForm = {
-  name: "",
-  surname: "",
-  address: "",
-  country: "",
-  city: "",
-  district: "",
-  phoneNumber: "",
-  email: "",
-  gender: "",
-  birthDate: "",
-};
-
-const GENDER_OPTIONS = [
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
-  { value: "other", label: "Other" },
-];
-
 export default function SaleDrawer({
   open,
   editMode,
@@ -139,65 +107,6 @@ export default function SaleDrawer({
   onClose,
   onSubmit,
 }: SaleDrawerProps) {
-  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [quickCreateSubmitting, setQuickCreateSubmitting] = useState(false);
-  const [quickCreateError, setQuickCreateError] = useState("");
-  const [quickForm, setQuickForm] = useState<QuickCustomerForm>(EMPTY_QUICK_CUSTOMER_FORM);
-
-  useEffect(() => {
-    if (open) return;
-    setQuickCreateOpen(false);
-    setQuickCreateError("");
-    setQuickForm(EMPTY_QUICK_CUSTOMER_FORM);
-  }, [open]);
-
-  const onChangeQuickField = (field: keyof QuickCustomerForm, value: string) => {
-    if (quickCreateError) setQuickCreateError("");
-    setQuickForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const onCloseQuickCreate = () => {
-    if (quickCreateSubmitting) return;
-    setQuickCreateOpen(false);
-    setQuickCreateError("");
-    setQuickForm(EMPTY_QUICK_CUSTOMER_FORM);
-  };
-
-  const onSubmitQuickCreate = async () => {
-    if (!quickForm.name.trim() || !quickForm.surname.trim()) {
-      setQuickCreateError("Isim ve soyisim zorunludur.");
-      return;
-    }
-
-    setQuickCreateSubmitting(true);
-    setQuickCreateError("");
-    try {
-      const created = await onQuickCreateCustomer({
-        name: quickForm.name.trim(),
-        surname: quickForm.surname.trim(),
-        address: quickForm.address.trim() || undefined,
-        country: quickForm.country.trim() || undefined,
-        city: quickForm.city.trim() || undefined,
-        district: quickForm.district.trim() || undefined,
-        phoneNumber: quickForm.phoneNumber.trim() || undefined,
-        email: quickForm.email.trim() || undefined,
-        gender: (quickForm.gender || undefined) as CustomerGender | undefined,
-        birthDate: quickForm.birthDate || undefined,
-      });
-
-      onCustomerIdChange(created.id);
-      onCustomerSelected(created);
-      onClearError("customerId");
-      setQuickCreateOpen(false);
-      setQuickCreateError("");
-      setQuickForm(EMPTY_QUICK_CUSTOMER_FORM);
-    } catch {
-      setQuickCreateError("Musteri olusturulamadi. Lutfen tekrar deneyin.");
-    } finally {
-      setQuickCreateSubmitting(false);
-    }
-  };
-
   return (
     <Drawer
       open={open}
@@ -252,17 +161,7 @@ export default function SaleDrawer({
             )}
 
             <div className="md:col-span-2">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-muted">Musteri *</label>
-                <button
-                  type="button"
-                  onClick={() => setQuickCreateOpen((prev) => !prev)}
-                  disabled={quickCreateSubmitting}
-                  className="rounded-lg border border-border bg-surface2 px-2 py-1 text-[11px] font-semibold text-text2 transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-60"
-                >
-                  {quickCreateOpen ? "Kapat" : "+ Musteri Ekle"}
-                </button>
-              </div>
+              <label className="mb-1 block text-xs font-semibold text-muted">Musteri *</label>
 
               <CustomerInfinityDropdown
                 value={customerId}
@@ -284,122 +183,15 @@ export default function SaleDrawer({
                 </div>
               )}
 
-              {quickCreateOpen && (
-                <div className="mt-3 rounded-xl border border-border bg-surface2/40 p-3">
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Isim *</label>
-                      <input
-                        type="text"
-                        value={quickForm.name}
-                        onChange={(e) => onChangeQuickField("name", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Soyisim *</label>
-                      <input
-                        type="text"
-                        value={quickForm.surname}
-                        onChange={(e) => onChangeQuickField("surname", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Telefon</label>
-                      <input
-                        type="text"
-                        value={quickForm.phoneNumber}
-                        onChange={(e) => onChangeQuickField("phoneNumber", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">E-posta</label>
-                      <input
-                        type="email"
-                        value={quickForm.email}
-                        onChange={(e) => onChangeQuickField("email", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Ulke</label>
-                      <input
-                        type="text"
-                        value={quickForm.country}
-                        onChange={(e) => onChangeQuickField("country", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Sehir</label>
-                      <input
-                        type="text"
-                        value={quickForm.city}
-                        onChange={(e) => onChangeQuickField("city", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Ilce</label>
-                      <input
-                        type="text"
-                        value={quickForm.district}
-                        onChange={(e) => onChangeQuickField("district", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Cinsiyet</label>
-                      <SearchableDropdown
-                        options={GENDER_OPTIONS}
-                        value={quickForm.gender}
-                        onChange={(value) => onChangeQuickField("gender", value)}
-                        placeholder="Cinsiyet secin"
-                        emptyOptionLabel="Cinsiyet secin"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">Dogum Tarihi</label>
-                      <input
-                        type="date"
-                        value={quickForm.birthDate}
-                        onChange={(e) => onChangeQuickField("birthDate", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-1 block text-xs font-semibold text-muted">Adres</label>
-                      <input
-                        type="text"
-                        value={quickForm.address}
-                        onChange={(e) => onChangeQuickField("address", e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                  </div>
-
-                  <FieldError error={quickCreateError} className="mt-2 text-xs text-error" />
-
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <Button
-                      label="Vazgec"
-                      variant="secondary"
-                      className="px-2 py-1 text-xs"
-                      onClick={onCloseQuickCreate}
-                      disabled={quickCreateSubmitting}
-                    />
-                    <Button
-                      label={quickCreateSubmitting ? "Ekleniyor..." : "Musteri Ekle"}
-                      variant="primarySolid"
-                      className="px-2 py-1 text-xs"
-                      onClick={onSubmitQuickCreate}
-                      disabled={quickCreateSubmitting}
-                    />
-                  </div>
-                </div>
-              )}
+              <QuickCreateCustomerForm
+                drawerOpen={open}
+                onSuccess={(customer) => {
+                  onCustomerIdChange(customer.id);
+                  onCustomerSelected(customer);
+                  onClearError("customerId");
+                }}
+                onQuickCreateCustomer={onQuickCreateCustomer}
+              />
             </div>
 
             {!editMode && (
