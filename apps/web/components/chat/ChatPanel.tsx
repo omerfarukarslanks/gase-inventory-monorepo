@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Button from "@/components/ui/Button";
 import { sendChatMessage, type ChatMessage } from "@/lib/chat";
 import { cn } from "@/lib/cn";
+import { FieldError } from "@/components/ui/FieldError";
 
 type ChatPanelProps = {
   className?: string;
@@ -124,7 +125,7 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {error && <p className="mt-2 text-xs text-error">{error}</p>}
+      <FieldError error={error} className="mt-2 text-xs text-error" />
 
       <div className="mt-3 space-y-2">
         <textarea

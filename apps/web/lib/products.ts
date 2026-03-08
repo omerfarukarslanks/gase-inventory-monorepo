@@ -1,4 +1,5 @@
 import { ApiError, apiFetch } from "@/lib/api";
+import { appendIfDefined } from "@/lib/query-builder";
 
 /* ── Types ── */
 
@@ -182,16 +183,16 @@ function buildProductsQuery({
     limit: String(limit),
   });
 
-  if (search) query.append("search", search);
-  if (defaultCurrency) query.append("defaultCurrency", defaultCurrency);
-  if (defaultPurchasePriceMin != null) query.append("defaultPurchasePriceMin", String(defaultPurchasePriceMin));
-  if (defaultPurchasePriceMax != null) query.append("defaultPurchasePriceMax", String(defaultPurchasePriceMax));
-  if (defaultSalePriceMin != null) query.append("defaultSalePriceMin", String(defaultSalePriceMin));
-  if (defaultSalePriceMax != null) query.append("defaultSalePriceMax", String(defaultSalePriceMax));
-  if (isActive != null) query.append("isActive", String(isActive));
-  if (variantIsActive != null) query.append("variantIsActive", String(variantIsActive));
-  if (sortBy) query.append("sortBy", sortBy);
-  if (sortOrder) query.append("sortOrder", sortOrder);
+  appendIfDefined(query, "search", search);
+  appendIfDefined(query, "defaultCurrency", defaultCurrency);
+  appendIfDefined(query, "defaultPurchasePriceMin", defaultPurchasePriceMin);
+  appendIfDefined(query, "defaultPurchasePriceMax", defaultPurchasePriceMax);
+  appendIfDefined(query, "defaultSalePriceMin", defaultSalePriceMin);
+  appendIfDefined(query, "defaultSalePriceMax", defaultSalePriceMax);
+  appendIfDefined(query, "isActive", isActive);
+  appendIfDefined(query, "variantIsActive", variantIsActive);
+  appendIfDefined(query, "sortBy", sortBy);
+  appendIfDefined(query, "sortOrder", sortOrder);
 
   return query.toString();
 }

@@ -10,6 +10,7 @@ import SupplierInfiniteDropdown from "@/components/products/SupplierInfiniteDrop
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import ModeToggle from "@/components/ui/ModeToggle";
+import { FieldError } from "@/components/ui/FieldError";
 
 type ProductDrawerStep1Props = {
   form: ProductForm;
@@ -86,9 +87,7 @@ export default function ProductDrawerStep1({
                   }}
                   placeholder="Magaza secin"
                 />
-                {errors.storeIds && (
-                  <p className="text-xs text-error">{errors.storeIds}</p>
-                )}
+                <FieldError error={errors.storeIds} />
               </div>
             )}
           </div>
@@ -213,11 +212,7 @@ export default function ProductDrawerStep1({
                   className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
-              {(form.taxMode === "percent" ? errors.taxPercent : errors.taxAmount) && (
-                <p className="text-xs text-error">
-                  {form.taxMode === "percent" ? errors.taxPercent : errors.taxAmount}
-                </p>
-              )}
+              <FieldError error={form.taxMode === "percent" ? errors.taxPercent : errors.taxAmount} />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-muted">Indirim</label>
@@ -242,11 +237,7 @@ export default function ProductDrawerStep1({
                   className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
-              {(form.discountMode === "percent" ? errors.discountPercent : errors.discountAmount) && (
-                <p className="text-xs text-error">
-                  {form.discountMode === "percent" ? errors.discountPercent : errors.discountAmount}
-                </p>
-              )}
+              <FieldError error={form.discountMode === "percent" ? errors.discountPercent : errors.discountAmount} />
             </div>
           </div>
 
@@ -256,7 +247,7 @@ export default function ProductDrawerStep1({
               {calculatedLineTotal == null ? "-" : formatPrice(calculatedLineTotal)}
             </div>
             <p className="text-[11px] text-muted">Bu hesaplama degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
-            {errors.lineTotal && <p className="text-xs text-error">{errors.lineTotal}</p>}
+            <FieldError error={errors.lineTotal} />
           </div>
         </div>
       </CollapsiblePanel>

@@ -1,6 +1,7 @@
 import { apiFetch, BASE_URL, ApiError } from "@/lib/api";
 import type { Currency } from "@/lib/products";
 import { normalizeSalePayment, normalizeSalePaymentsResponse } from "@/lib/sales-normalize";
+import { appendIfDefined, appendArray } from "@/lib/query-builder";
 
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
 export type PaymentStatus = "ACTIVE" | "CANCELLED" | string;
@@ -222,20 +223,16 @@ function buildSalesQuery({
     includeLines: String(includeLines),
   });
 
-  (storeIds ?? []).forEach((storeId) => {
-    if (storeId) query.append("storeIds", storeId);
-  });
-  if (receiptNo) query.append("receiptNo", receiptNo);
-  if (name) query.append("name", name);
-  if (surname) query.append("surname", surname);
-  (status ?? []).forEach((statusValue) => {
-    if (statusValue) query.append("status", statusValue);
-  });
-  if (paymentStatus) query.append("paymentStatus", paymentStatus);
-  if (minUnitPrice != null) query.append("minUnitPrice", String(minUnitPrice));
-  if (maxUnitPrice != null) query.append("maxUnitPrice", String(maxUnitPrice));
-  if (minLineTotal != null) query.append("minLineTotal", String(minLineTotal));
-  if (maxLineTotal != null) query.append("maxLineTotal", String(maxLineTotal));
+  appendArray(query, "storeIds", storeIds);
+  appendIfDefined(query, "receiptNo", receiptNo);
+  appendIfDefined(query, "name", name);
+  appendIfDefined(query, "surname", surname);
+  appendArray(query, "status", status);
+  appendIfDefined(query, "paymentStatus", paymentStatus);
+  appendIfDefined(query, "minUnitPrice", minUnitPrice);
+  appendIfDefined(query, "maxUnitPrice", maxUnitPrice);
+  appendIfDefined(query, "minLineTotal", minLineTotal);
+  appendIfDefined(query, "maxLineTotal", maxLineTotal);
 
   return query.toString();
 }

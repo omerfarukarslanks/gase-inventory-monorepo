@@ -16,6 +16,7 @@ import {
 import VariantInfiniteDropdown from "@/components/sales/VariantInfiniteDropdown";
 import CustomerInfinityDropdown from "@/components/sales/CustomerInfinityDropdown";
 import { toCurrency } from "@/lib/currency";
+import { FieldError } from "@/components/ui/FieldError";
 import type { CreateCustomerRequest, Customer, CustomerGender } from "@/lib/customers";
 import type { PaymentMethod } from "@/lib/sales";
 
@@ -246,7 +247,7 @@ export default function SaleDrawer({
                   placeholder="Magaza secin"
                   showEmptyOption={false}
                 />
-                {errors.storeId && <p className="mt-1 text-xs text-error">{errors.storeId}</p>}
+                <FieldError error={errors.storeId} className="mt-1 text-xs text-error" />
               </div>
             )}
 
@@ -273,7 +274,7 @@ export default function SaleDrawer({
                 refreshKey={customerDropdownRefreshKey}
                 placeholder="Musteri secin"
               />
-              {errors.customerId && <p className="mt-1 text-xs text-error">{errors.customerId}</p>}
+              <FieldError error={errors.customerId} className="mt-1 text-xs text-error" />
 
               {customerId && (
                 <div className="mt-2 rounded-xl border border-border bg-surface2/40 p-2 text-xs text-text2">
@@ -379,7 +380,7 @@ export default function SaleDrawer({
                     </div>
                   </div>
 
-                  {quickCreateError && <p className="mt-2 text-xs text-error">{quickCreateError}</p>}
+                  <FieldError error={quickCreateError} className="mt-2 text-xs text-error" />
 
                   <div className="mt-3 flex items-center justify-end gap-2">
                     <Button
@@ -416,7 +417,7 @@ export default function SaleDrawer({
                     showEmptyOption={false}
                     allowClear={false}
                   />
-                  {errors.paymentMethod && <p className="mt-1 text-xs text-error">{errors.paymentMethod}</p>}
+                  <FieldError error={errors.paymentMethod} className="mt-1 text-xs text-error" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-muted">Odenen Tutar *</label>
@@ -431,9 +432,7 @@ export default function SaleDrawer({
                     }}
                     className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
-                  {errors.initialPaymentAmount && (
-                    <p className="mt-1 text-xs text-error">{errors.initialPaymentAmount}</p>
-                  )}
+                  <FieldError error={errors.initialPaymentAmount} className="mt-1 text-xs text-error" />
                 </div>
               </>
             )}
@@ -595,7 +594,7 @@ export default function SaleDrawer({
             )}
 
             <p className="mt-2 text-[11px] text-muted">Gosterilen satir toplamlari degiskenlik gosterebilir. Kesin tutar backend tarafinda hesaplanir.</p>
-            {errors.lines && <p className="mt-2 text-xs text-error">{errors.lines}</p>}
+            <FieldError error={errors.lines} className="mt-2 text-xs text-error" />
           </section>
         )}
 

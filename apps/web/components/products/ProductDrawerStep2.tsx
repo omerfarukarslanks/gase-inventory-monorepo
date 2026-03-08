@@ -7,6 +7,7 @@ import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import { TrashIcon } from "@/components/ui/icons/TableIcons";
+import { FieldError } from "@/components/ui/FieldError";
 
 type ProductDrawerStep2Props = {
   variants: VariantForm[];
@@ -179,9 +180,7 @@ export default function ProductDrawerStep2({
                   </div>
                 ))}
 
-                {variantErrors[vi]?.attributes && (
-                  <p className="text-xs text-error">{variantErrors[vi].attributes}</p>
-                )}
+                <FieldError error={variantErrors[vi]?.attributes} />
               </div>
             </CollapsiblePanel>
           ))}

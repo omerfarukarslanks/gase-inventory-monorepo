@@ -22,6 +22,7 @@ import SearchInput from "@/components/ui/SearchInput";
 import TablePagination from "@/components/ui/TablePagination";
 import { EditIcon, SearchIcon } from "@/components/ui/icons/TableIcons";
 import { cn } from "@/lib/cn";
+import { FieldError } from "@/components/ui/FieldError";
 import { formatPrice, toNumberOrNull } from "@/lib/format";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -756,7 +757,7 @@ export default function ProductPackagesPage() {
                     errors.name ? "border-error" : "border-border focus:border-primary",
                   )}
                 />
-                {errors.name && <p className="text-xs text-error">{errors.name}</p>}
+                <FieldError error={errors.name} />
               </div>
 
               {/* Paket Kodu */}
@@ -772,7 +773,7 @@ export default function ProductPackagesPage() {
                     errors.code ? "border-error" : "border-border focus:border-primary",
                   )}
                 />
-                {errors.code && <p className="text-xs text-error">{errors.code}</p>}
+                <FieldError error={errors.code} />
               </div>
 
               {/* Aciklama */}
@@ -795,7 +796,7 @@ export default function ProductPackagesPage() {
                   </p>
                 </div>
 
-                {errors.items && <p className="text-xs text-error">{errors.items}</p>}
+                <FieldError error={errors.items} />
 
                 {/* Eklenen kalemler listesi */}
                 {items.length > 0 && (
@@ -942,7 +943,7 @@ export default function ProductPackagesPage() {
                     </div>
                   )}
 
-                  {addItemError && <p className="text-xs text-error">{addItemError}</p>}
+                  <FieldError error={addItemError} />
                 </div>
               </div>
 

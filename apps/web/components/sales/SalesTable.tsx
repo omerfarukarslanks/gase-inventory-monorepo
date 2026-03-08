@@ -6,6 +6,14 @@ import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
 import RowActionMenu, { type RowActionMenuItem } from "@/components/ui/RowActionMenu";
 import { useLang } from "@/context/LangContext";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  getPaymentStatusLabel,
+  getPaymentStatusVariant,
+  getSaleStatusLabel,
+  getSaleStatusVariant,
+  getPaymentMethodLabel,
+} from "@/lib/status-labels";
 
 type SalesTableProps = {
   salesReceipts: SaleListItem[];
@@ -41,47 +49,6 @@ function getSaleTotal(sale: SaleListItem) {
   if (sale.total != null) return sale.total;
   if (!Array.isArray(sale.lines)) return null;
   return sale.lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0);
-}
-
-type TFn = (key: string) => string;
-
-function getPaymentStatusLabel(status?: string | null, t?: TFn) {
-  if (!t) return status ?? "-";
-  if (status === "PARTIAL") return t("sales.paymentPartial");
-  if (status === "PAID") return t("sales.paymentPaid");
-  if (status === "UNPAID") return t("sales.paymentUnpaid");
-  if (status === "PENDING") return t("sales.paymentPending");
-  if (status === "CANCELLED") return t("sales.paymentCancelled");
-  if (status === "UPDATED") return t("sales.paymentUpdated");
-  if (status === "ACTIVE") return t("common.active");
-  return status ?? "-";
-}
-
-function getPaymentStatusClass(status?: string | null) {
-  if (status === "PAID" || status === "ACTIVE") {
-    return "inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary";
-  }
-  if (status === "CANCELLED" || status === "UNPAID") {
-    return "inline-block rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-medium text-error";
-  }
-  return "inline-block rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-muted";
-}
-
-function getSaleStatusLabel(status?: string | null, t?: TFn) {
-  if (!t) return status ?? "-";
-  if (status === "CONFIRMED") return t("sales.statusConfirmed");
-  if (status === "CANCELLED") return t("sales.statusCancelled");
-  if (status === "DRAFT") return t("sales.statusDraft");
-  return status ?? "-";
-}
-
-function getPaymentMethodLabel(paymentMethod?: string | null, t?: TFn) {
-  if (!t) return paymentMethod ?? "-";
-  if (paymentMethod === "CASH") return t("sales.methodCash");
-  if (paymentMethod === "CARD") return t("sales.methodCard");
-  if (paymentMethod === "TRANSFER") return t("sales.methodTransfer");
-  if (paymentMethod === "OTHER") return t("sales.methodOther");
-  return paymentMethod ?? "-";
 }
 
 function shouldShowAddPaymentButton(remainingAmount?: number | null) {
@@ -364,22 +331,16 @@ export default function SalesTable({
                     <td className="px-4 py-3 text-sm text-text2">{sale.name ?? "-"}</td>
                     <td className="px-4 py-3 text-sm text-text2">{sale.surname ?? "-"}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={getPaymentStatusClass(sale.paymentStatus)}>
-                        {getPaymentStatusLabel(sale.paymentStatus, t)}
-                      </span>
+                      <StatusBadge
+                        label={getPaymentStatusLabel(sale.paymentStatus, t)}
+                        variant={getPaymentStatusVariant(sale.paymentStatus)}
+                      />
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <span
-                        className={
-                          sale.status === "CONFIRMED"
-                            ? "inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-                            : sale.status === "CANCELLED"
-                              ? "inline-block rounded-full bg-error/10 px-2.5 py-0.5 text-xs font-medium text-error"
-                              : "inline-block rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-muted"
-                        }
-                      >
-                        {getSaleStatusLabel(sale.status, t)}
-                      </span>
+                      <StatusBadge
+                        label={getSaleStatusLabel(sale.status, t)}
+                        variant={getSaleStatusVariant(sale.status)}
+                      />
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-text2">
                       {sale.currency}
