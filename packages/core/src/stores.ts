@@ -1,0 +1,134 @@
+import { apiFetch } from "./api";
+import type { Currency } from "./products";
+
+export type StoreType = "RETAIL" | "WHOLESALE";
+
+export type Store = {
+  id: string;
+  createdAt: string;
+  createdById: string;
+  updatedAt: string;
+  updatedById: string;
+  name: string;
+  code: string;
+  storeType: StoreType | null;
+  currency: Currency | null;
+  address: string | null;
+  isActive: boolean;
+  slug: string;
+  logo: string | null;
+  description: string | null;
+};
+
+export type StoresListMeta = {
+  total: number;
+  limit: number;
+  page: number;
+  totalPages: number;
+  hasMore?: boolean;
+};
+
+export type StoresListResponse = {
+  data: Store[];
+  meta: StoresListMeta;
+};
+
+export type CreateStoreRequest = {
+  name: string;
+  storeType: StoreType;
+  currency: Currency;
+  code?: string;
+  address?: string;
+  slug?: string;
+  logo?: string;
+  description?: string;
+};
+
+export type UpdateStoreRequest = {
+  name: string;
+  code?: string;
+  address?: string;
+  slug?: string;
+  logo?: string;
+  description?: string;
+  isActive: boolean;
+};
+
+export type GetStoresParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  isActive?: boolean | "all";
+  sortBy?: string;
+  sortOrder?: "ASC" | "DESC";
+  token?: string;
+};
+
+export async function getStores({
+  page = 1,
+  limit = 10,
+  search,
+  isActive,
+  sortBy,
+  sortOrder,
+  token,
+}: GetStoresParams = {}): Promise<StoresListResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (search) query.append("search", search);
+  if (isActive != null) query.append("isActive", String(isActive));
+  if (sortBy) query.append("sortBy", sortBy);
+  if (sortOrder) query.append("sortOrder", sortOrder);
+
+  return apiFetch<StoresListResponse>(`/stores?${query.toString()}`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createStore(payload: CreateStoreRequest, token?: string): Promise<Store> {
+  const body = {
+    name: payload.name,
+    storeType: payload.storeType,
+    currency: payload.currency,
+    ...(payload.code ? { code: payload.code } : {}),
+    ...(payload.address ? { address: payload.address } : {}),
+    ...(payload.slug ? { slug: payload.slug } : {}),
+    ...(payload.logo ? { logo: payload.logo } : {}),
+    ...(payload.description ? { description: payload.description } : {}),
+  };
+
+  return apiFetch<Store>("/stores", {
+    method: "POST",
+    token,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getStoreById(id: string, token?: string): Promise<Store> {
+  return apiFetch<Store>(`/stores/${id}`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function updateStore(id: string, payload: UpdateStoreRequest, token?: string): Promise<Store> {
+  const body = {
+    name: payload.name,
+    ...(payload.code ? { code: payload.code } : {}),
+    ...(payload.address ? { address: payload.address } : {}),
+    ...(payload.slug ? { slug: payload.slug } : {}),
+    ...(payload.logo ? { logo: payload.logo } : {}),
+    ...(payload.description ? { description: payload.description } : {}),
+    isActive: payload.isActive,
+  };
+
+  return apiFetch<Store>(`/stores/${id}`, {
+    method: "PATCH",
+    token,
+    body: JSON.stringify(body),
+  });
+}

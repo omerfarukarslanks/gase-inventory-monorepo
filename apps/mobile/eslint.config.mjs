@@ -1,3 +1,9 @@
-import expoConfig from "eslint-config-expo/flat";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { FlatCompat } from "@eslint/eslintrc";
 
-export default expoConfig;
+const compat = new FlatCompat({
+  baseDirectory: dirname(fileURLToPath(import.meta.url)),
+});
+
+export default [...compat.extends("expo")];

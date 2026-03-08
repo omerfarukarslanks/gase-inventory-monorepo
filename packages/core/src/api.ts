@@ -13,6 +13,8 @@ export type ApiFetchOptions = RequestInit & {
   token?: string | null;
 };
 
+export type ApiFetcher = <T>(path: string, options?: ApiFetchOptions) => Promise<T>;
+
 export class ApiError extends Error {
   status: number;
 
@@ -21,6 +23,9 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+let configuredApiFetch: ApiFetcher | null = null;
+let configuredBaseUrl = "";
 
 export function createApiClient({
   baseUrl,
@@ -76,4 +81,27 @@ export function createApiClient({
 
     return raw as T;
   };
+}
+
+export function configureApiClient(options: CreateApiClientOptions): ApiFetcher {
+  configuredBaseUrl = options.baseUrl;
+  configuredApiFetch = createApiClient(options);
+  return configuredApiFetch;
+}
+
+export function getConfiguredApiBaseUrl(): string {
+  return configuredBaseUrl;
+}
+
+export function resetApiClient(): void {
+  configuredApiFetch = null;
+  configuredBaseUrl = "";
+}
+
+export async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> {
+  if (!configuredApiFetch) {
+    throw new Error("API client is not configured.");
+  }
+
+  return configuredApiFetch<T>(path, options);
 }
