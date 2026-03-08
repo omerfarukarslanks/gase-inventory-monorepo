@@ -3,8 +3,8 @@
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import ModeToggle from "@/components/ui/ModeToggle";
 import { formatPrice } from "@/lib/format";
+import { PricingModeField } from "@/components/ui/PricingModeField";
 import { CURRENCY_OPTIONS } from "@/components/products/types";
 import {
   calcLineTotal,
@@ -311,67 +311,51 @@ export default function SaleDrawer({
                         />
                       </div>
 
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-muted">Indirim</label>
-                        <div className="flex items-center gap-2">
-                          <ModeToggle
-                            mode={line.discountMode}
-                            onToggle={(mode) =>
-                              onChangeLine(line.rowId, {
-                                discountMode: mode,
-                                discountPercent: "",
-                                discountAmount: "",
-                              })
-                            }
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={line.discountMode === "percent" ? line.discountPercent : line.discountAmount}
-                            onChange={(e) =>
-                              onChangeLine(
-                                line.rowId,
-                                line.discountMode === "percent"
-                                  ? { discountPercent: e.target.value }
-                                  : { discountAmount: e.target.value },
-                              )
-                            }
-                            className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                      </div>
+                      <PricingModeField
+                        label="Indirim"
+                        mode={line.discountMode}
+                        value={line.discountMode === "percent" ? line.discountPercent : line.discountAmount}
+                        onToggle={(mode) =>
+                          onChangeLine(line.rowId, {
+                            discountMode: mode,
+                            discountPercent: "",
+                            discountAmount: "",
+                          })
+                        }
+                        onValueChange={(v) =>
+                          onChangeLine(
+                            line.rowId,
+                            line.discountMode === "percent"
+                              ? { discountPercent: v }
+                              : { discountAmount: v },
+                          )
+                        }
+                        inputType="number"
+                        inputClassName="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
 
-                      <div>
-                        <label className="mb-1 block text-xs font-semibold text-muted">Vergi</label>
-                        <div className="flex items-center gap-2">
-                          <ModeToggle
-                            mode={line.taxMode}
-                            onToggle={(mode) =>
-                              onChangeLine(line.rowId, {
-                                taxMode: mode,
-                                taxPercent: "",
-                                taxAmount: "",
-                              })
-                            }
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={line.taxMode === "percent" ? line.taxPercent : line.taxAmount}
-                            onChange={(e) =>
-                              onChangeLine(
-                                line.rowId,
-                                line.taxMode === "percent"
-                                  ? { taxPercent: e.target.value }
-                                  : { taxAmount: e.target.value },
-                              )
-                            }
-                            className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
-                      </div>
+                      <PricingModeField
+                        label="Vergi"
+                        mode={line.taxMode}
+                        value={line.taxMode === "percent" ? line.taxPercent : line.taxAmount}
+                        onToggle={(mode) =>
+                          onChangeLine(line.rowId, {
+                            taxMode: mode,
+                            taxPercent: "",
+                            taxAmount: "",
+                          })
+                        }
+                        onValueChange={(v) =>
+                          onChangeLine(
+                            line.rowId,
+                            line.taxMode === "percent"
+                              ? { taxPercent: v }
+                              : { taxAmount: v },
+                          )
+                        }
+                        inputType="number"
+                        inputClassName="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      />
 
                       <div>
                         <label className="mb-1 block text-xs font-semibold text-muted">Satir Toplami (Otomatik)</label>

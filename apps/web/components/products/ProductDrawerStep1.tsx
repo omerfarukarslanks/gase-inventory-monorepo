@@ -9,8 +9,8 @@ import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelect
 import SupplierInfiniteDropdown from "@/components/products/SupplierInfiniteDropdown";
 import CollapsiblePanel from "@/components/ui/CollapsiblePanel";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import ModeToggle from "@/components/ui/ModeToggle";
 import { FieldError } from "@/components/ui/FieldError";
+import { PricingModeField } from "@/components/ui/PricingModeField";
 
 type ProductDrawerStep1Props = {
   form: ProductForm;
@@ -189,56 +189,34 @@ export default function ProductDrawerStep1({
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">Vergi</label>
-              <div className="flex items-center gap-2">
-                <ModeToggle
-                  mode={form.taxMode}
-                  onToggle={(mode) => {
-                    onClearError("lineTotal");
-                    onFormPatch({ taxMode: mode, taxPercent: "", taxAmount: "" });
-                  }}
-                />
-                <input
-                  type="text"
-                  value={form.taxMode === "percent" ? form.taxPercent : form.taxAmount}
-                  onChange={(e) =>
-                    onFormChange(
-                      form.taxMode === "percent" ? "taxPercent" : "taxAmount",
-                      e.target.value,
-                    )
-                  }
-                  placeholder={form.taxMode === "percent" ? "% 20" : "100.00"}
-                  className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <FieldError error={form.taxMode === "percent" ? errors.taxPercent : errors.taxAmount} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">Indirim</label>
-              <div className="flex items-center gap-2">
-                <ModeToggle
-                  mode={form.discountMode}
-                  onToggle={(mode) => {
-                    onClearError("lineTotal");
-                    onFormPatch({ discountMode: mode, discountPercent: "", discountAmount: "" });
-                  }}
-                />
-                <input
-                  type="text"
-                  value={form.discountMode === "percent" ? form.discountPercent : form.discountAmount}
-                  onChange={(e) =>
-                    onFormChange(
-                      form.discountMode === "percent" ? "discountPercent" : "discountAmount",
-                      e.target.value,
-                    )
-                  }
-                  placeholder={form.discountMode === "percent" ? "% 0" : "0.00"}
-                  className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <FieldError error={form.discountMode === "percent" ? errors.discountPercent : errors.discountAmount} />
-            </div>
+            <PricingModeField
+              label="Vergi"
+              mode={form.taxMode}
+              value={form.taxMode === "percent" ? form.taxPercent : form.taxAmount}
+              onToggle={(mode) => {
+                onClearError("lineTotal");
+                onFormPatch({ taxMode: mode, taxPercent: "", taxAmount: "" });
+              }}
+              onValueChange={(v) =>
+                onFormChange(form.taxMode === "percent" ? "taxPercent" : "taxAmount", v)
+              }
+              placeholder={form.taxMode === "percent" ? "% 20" : "100.00"}
+              error={form.taxMode === "percent" ? errors.taxPercent : errors.taxAmount}
+            />
+            <PricingModeField
+              label="Indirim"
+              mode={form.discountMode}
+              value={form.discountMode === "percent" ? form.discountPercent : form.discountAmount}
+              onToggle={(mode) => {
+                onClearError("lineTotal");
+                onFormPatch({ discountMode: mode, discountPercent: "", discountAmount: "" });
+              }}
+              onValueChange={(v) =>
+                onFormChange(form.discountMode === "percent" ? "discountPercent" : "discountAmount", v)
+              }
+              placeholder={form.discountMode === "percent" ? "% 0" : "0.00"}
+              error={form.discountMode === "percent" ? errors.discountPercent : errors.discountAmount}
+            />
           </div>
 
           <div className="space-y-1">
