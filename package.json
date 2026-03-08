@@ -1,0 +1,26 @@
+{
+  "name": "gase-inventory-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:web": "npm run dev --workspace @gase/web",
+    "dev:mobile": "npm run dev --workspace @gase/mobile",
+    "build": "turbo build",
+    "build:web": "npm run build --workspace @gase/web",
+    "build:mobile": "npm run build --workspace @gase/mobile",
+    "lint": "turbo lint",
+    "lint:web": "npm run lint --workspace @gase/web",
+    "lint:mobile": "npm run lint --workspace @gase/mobile",
+    "typecheck": "turbo typecheck",
+    "typecheck:web": "npm run typecheck --workspace @gase/web",
+    "typecheck:mobile": "npm run typecheck --workspace @gase/mobile"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.9.3"
+  }
+}
