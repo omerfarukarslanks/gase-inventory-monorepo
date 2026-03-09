@@ -1,4 +1,6 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
+  getSales,
   getReportCancellations,
   getReportConfirmedOrders,
   getReportLowStock,
@@ -7,29 +9,34 @@ import {
   getReportSalesByProduct,
   getReportSalesSummary,
   getReportStockTotal,
+  normalizeSalesResponse,
   type CancellationItem,
-  type LowStockItem,
-  type RevenueTrendItem,
-  type SalesByProductItem,
-  type StockTotalResponse,
-  type SalesSummaryResponse,
   type ConfirmedOrdersResponse,
+  type LowStockItem,
   type ReturnsResponse,
+  type RevenueTrendItem,
+  type SaleListItem,
+  type SalesByProductItem,
+  type SalesSummaryResponse,
+  type StockTotalResponse,
 } from "@gase/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import {
   AppScreen,
   Banner,
   BarList,
   Button,
   Card,
-  EmptyState,
+  EmptyStateWithAction,
+  ListRow,
   MetricCard,
   SectionTitle,
-  StatusBadge,
+  SkeletonBlock,
 } from "@/src/components/ui";
 import { useAuth } from "@/src/context/AuthContext";
+import { trackEvent } from "@/src/lib/analytics";
+import type { SalesDraftSeed, StockFocusSeed } from "@/src/lib/workflows";
 import { formatCount, formatCurrency, formatDate } from "@/src/lib/format";
 import { mobileTheme } from "@/src/theme";
 
@@ -44,6 +51,16 @@ type DashboardState = {
   productSales: SalesByProductItem[];
   lowStock: LowStockItem[];
   cancellations: CancellationItem[];
+  pendingCollections: SaleListItem[];
+};
+
+type DashboardScreenProps = {
+  isActive?: boolean;
+  onOpenSalesComposer?: (seed?: SalesDraftSeed) => void;
+  onOpenSaleDetail?: (saleId: string) => void;
+  onOpenStockFocus?: (seed: StockFocusSeed) => void;
+  onOpenCustomers?: () => void;
+  onOpenProducts?: () => void;
 };
 
 const initialState: DashboardState = {
@@ -57,10 +74,18 @@ const initialState: DashboardState = {
   productSales: [],
   lowStock: [],
   cancellations: [],
+  pendingCollections: [],
 };
 
-export default function DashboardScreen() {
-  const { signOut, storeIds, user } = useAuth();
+export default function DashboardScreen({
+  isActive = true,
+  onOpenCustomers,
+  onOpenProducts,
+  onOpenSaleDetail,
+  onOpenSalesComposer,
+  onOpenStockFocus,
+}: DashboardScreenProps = {}) {
+  const { storeIds, user } = useAuth();
   const [state, setState] = useState<DashboardState>(initialState);
 
   const fetchDashboard = useCallback(async () => {
@@ -79,6 +104,7 @@ export default function DashboardScreen() {
         productSales,
         lowStock,
         cancellations,
+        recentSales,
       ] = await Promise.all([
         getReportSalesSummary({ ...scope, startDate: weekAgo, endDate: today }),
         getReportStockTotal({ ...scope, compareDate: weekAgo }),
@@ -88,7 +114,21 @@ export default function DashboardScreen() {
         getReportSalesByProduct({ ...scope, startDate: weekAgo, endDate: today, limit: 5 }),
         getReportLowStock({ ...scope, threshold: 50, limit: 6 }),
         getReportCancellations({ ...scope, startDate: weekAgo, endDate: today, limit: 5 }),
+        getSales({ ...scope, page: 1, limit: 12, status: ["CONFIRMED"] }),
       ]);
+
+      const pendingCollections = normalizeSalesResponse(recentSales).data
+        .filter(
+          (item) =>
+            Number(item.remainingAmount ?? 0) > 0 &&
+            item.status !== "CANCELLED" &&
+            item.id,
+        )
+        .sort(
+          (left, right) =>
+            Number(right.remainingAmount ?? 0) - Number(left.remainingAmount ?? 0),
+        )
+        .slice(0, 4);
 
       setState({
         loading: false,
@@ -101,6 +141,7 @@ export default function DashboardScreen() {
         productSales: productSales.data ?? [],
         lowStock: lowStock.data ?? [],
         cancellations: cancellations.data ?? [],
+        pendingCollections,
       });
     } catch (error) {
       setState((current) => ({
@@ -112,8 +153,9 @@ export default function DashboardScreen() {
   }, [storeIds]);
 
   useEffect(() => {
+    if (!isActive) return;
     void fetchDashboard();
-  }, [fetchDashboard]);
+  }, [fetchDashboard, isActive]);
 
   const metricCards = useMemo(() => ([
     {
@@ -138,30 +180,291 @@ export default function DashboardScreen() {
     },
   ]), [state.confirmedOrders, state.returns, state.salesSummary, state.stockTotal]);
 
+  const pendingCollectionsTotal = useMemo(
+    () =>
+      state.pendingCollections.reduce(
+        (sum, item) => sum + Number(item.remainingAmount ?? 0),
+        0,
+      ),
+    [state.pendingCollections],
+  );
+  const pendingCollectionCurrency = useMemo(() => {
+    const currencies = Array.from(
+      new Set(
+        state.pendingCollections
+          .map((item) => item.currency)
+          .filter((value): value is "TRY" | "USD" | "EUR" => Boolean(value)),
+      ),
+    );
+    return currencies.length === 1 ? currencies[0] : null;
+  }, [state.pendingCollections]);
+
+  const topSeller = state.productSales[0];
+  const mostUrgentLowStock = state.lowStock[0];
+  const nextCollection = state.pendingCollections[0];
+
+  const worklistSummary = useMemo(() => {
+    const parts = [
+      `${state.pendingCollections.length} tahsilat`,
+      `${state.lowStock.length} kritik stok`,
+      `${state.cancellations.length} iptal`,
+    ];
+    return parts.join(" • ");
+  }, [state.cancellations.length, state.lowStock.length, state.pendingCollections.length]);
+  const hasDashboardData = useMemo(
+    () =>
+      Boolean(
+        state.salesSummary ||
+          state.stockTotal ||
+          state.confirmedOrders ||
+          state.returns ||
+          state.revenueTrend.length ||
+          state.productSales.length ||
+          state.lowStock.length ||
+          state.cancellations.length ||
+          state.pendingCollections.length,
+      ),
+    [
+      state.cancellations.length,
+      state.confirmedOrders,
+      state.lowStock.length,
+      state.pendingCollections.length,
+      state.productSales.length,
+      state.revenueTrend.length,
+      state.returns,
+      state.salesSummary,
+      state.stockTotal,
+    ],
+  );
+
+  const quickActionButtons = (
+    <View style={styles.quickActions}>
+      <Button
+        label="Yeni satis"
+        onPress={() => {
+          trackEvent("sale_started", { source: "dashboard" });
+          onOpenSalesComposer?.();
+        }}
+        icon={<MaterialCommunityIcons name="plus-circle-outline" size={16} color="#FFFFFF" />}
+      />
+      <Button
+        label={nextCollection ? "Tahsilat al" : "Musteri ekle"}
+        onPress={() => {
+          if (nextCollection?.id) {
+            onOpenSaleDetail?.(nextCollection.id);
+            return;
+          }
+          onOpenCustomers?.();
+        }}
+        variant="secondary"
+        icon={
+          <MaterialCommunityIcons
+            name={nextCollection ? "cash-fast" : "account-plus-outline"}
+            size={16}
+            color={mobileTheme.colors.dark.text}
+          />
+        }
+      />
+      <Button
+        label={mostUrgentLowStock?.productVariantId ? "Kritik stogu besle" : "Stok kontrol"}
+        onPress={() => {
+          if (mostUrgentLowStock?.productVariantId) {
+            onOpenStockFocus?.({
+              productVariantId: mostUrgentLowStock.productVariantId,
+              productName: mostUrgentLowStock.productName ?? undefined,
+              variantName: mostUrgentLowStock.variantName ?? undefined,
+              operation: "receive",
+            });
+            return;
+          }
+          onOpenStockFocus?.({});
+        }}
+        variant="secondary"
+        icon={
+          <MaterialCommunityIcons
+            name={mostUrgentLowStock?.productVariantId ? "alert-box-outline" : "warehouse"}
+            size={16}
+            color={mobileTheme.colors.dark.text}
+          />
+        }
+      />
+      <Button
+        label={topSeller?.productVariantId ? "Cok satanla satis" : "Urunleri ac"}
+        onPress={() => {
+          if (topSeller?.productVariantId) {
+            trackEvent("sale_started", { source: "dashboard_top_seller" });
+            onOpenSalesComposer?.({
+              variantId: topSeller.productVariantId,
+              variantLabel: topSeller.variantName ?? topSeller.productName ?? "Varyant",
+              unitPrice:
+                topSeller.avgUnitPrice != null
+                  ? String(topSeller.avgUnitPrice)
+                  : undefined,
+            });
+            return;
+          }
+          onOpenProducts?.();
+        }}
+        variant="ghost"
+        icon={
+          <MaterialCommunityIcons
+            name={topSeller?.productVariantId ? "trending-up" : "package-variant-closed"}
+            size={16}
+            color={mobileTheme.colors.dark.text}
+          />
+        }
+      />
+    </View>
+  );
+
+  if (!state.loading && state.error && !hasDashboardData) {
+    return (
+      <AppScreen
+        title={user?.name ? `Merhaba, ${user.name}` : "Merhaba"}
+        subtitle="Bugunun tahsilat, stok ve satis onceliklerini buradan yonet"
+        action={<Button label="Yenile" onPress={() => void fetchDashboard()} variant="secondary" size="sm" fullWidth={false} />}
+      >
+        <Card>
+          <SectionTitle title="Hizli aksiyonlar" />
+          {quickActionButtons}
+        </Card>
+        <EmptyStateWithAction
+          title="Dashboard verisi simdilik getirilemedi."
+          subtitle="Rapor servisleri yanit vermiyor olabilir. Tekrar deneyebilir veya dogrudan satis ve stok akislarini acabilirsin."
+          actionLabel="Tekrar dene"
+          onAction={() => void fetchDashboard()}
+        />
+      </AppScreen>
+    );
+  }
+
   return (
     <AppScreen
-      title={`Hos geldin${user?.name ? `, ${user.name}` : ""}`}
-      subtitle="Son 7 gunun operasyon ozeti"
-      action={<Button label="Cikis" onPress={() => void signOut()} variant="ghost" />}
+      title={user?.name ? `Merhaba, ${user.name}` : "Merhaba"}
+      subtitle="Bugunun tahsilat, stok ve satis onceliklerini buradan yonet"
+      action={<Button label="Yenile" onPress={() => void fetchDashboard()} variant="secondary" size="sm" fullWidth={false} />}
     >
       {state.error ? <Banner text={state.error} /> : null}
+
+      <Card>
+        <SectionTitle title="Hizli aksiyonlar" />
+        {quickActionButtons}
+      </Card>
 
       <View style={styles.metricGrid}>
         {metricCards.map((metric) => (
           <View key={metric.label} style={styles.metricItem}>
-            <MetricCard label={metric.label} value={metric.value} hint={metric.hint} />
+            {state.loading ? (
+              <Card style={styles.metricSkeletonCard}>
+                <SkeletonBlock width="45%" />
+                <SkeletonBlock height={28} width="65%" style={styles.skeletonGap} />
+                <SkeletonBlock width="55%" />
+              </Card>
+            ) : (
+              <MetricCard label={metric.label} value={metric.value} hint={metric.hint} />
+            )}
           </View>
         ))}
       </View>
 
       <Card>
+        <SectionTitle title="Is listesi" />
+        {!state.loading ? (
+          <Text style={styles.worklistSummary}>
+            {`${worklistSummary}${
+              pendingCollectionCurrency
+                ? ` • ${formatCurrency(pendingCollectionsTotal, pendingCollectionCurrency)} bekleyen tahsilat`
+                : ""
+            }`}
+          </Text>
+        ) : null}
+        {state.loading ? (
+          <View style={styles.loadingList}>
+            <SkeletonBlock height={72} />
+            <SkeletonBlock height={72} />
+            <SkeletonBlock height={72} />
+          </View>
+        ) : state.pendingCollections.length || state.lowStock.length || state.cancellations.length ? (
+          <View style={styles.list}>
+            {state.pendingCollections.slice(0, 2).map((item) => (
+              <ListRow
+                key={`collection-${item.id}`}
+                title={item.receiptNo ?? item.id}
+                subtitle={`${item.name ?? "-"} ${item.surname ?? ""}`.trim()}
+                caption={`${formatCurrency(item.remainingAmount, item.currency ?? "TRY")} tahsil edilecek • ${formatDate(item.createdAt)}`}
+                badgeLabel="Tahsilat"
+                badgeTone="info"
+                onPress={item.id ? () => onOpenSaleDetail?.(item.id) : undefined}
+                icon={<MaterialCommunityIcons name="cash-fast" size={20} color={brand.primary} />}
+              />
+            ))}
+
+            {state.lowStock.slice(0, 3).map((item) => (
+              <ListRow
+                key={`${item.productVariantId}-${item.storeName}`}
+                title={item.variantName ?? item.productName ?? "Dusuk stok"}
+                subtitle={`${item.storeName ?? "Tum magazalar"} icin stok kritik seviyede`}
+                caption={`Kalan miktar: ${formatCount(item.quantity)} adet`}
+                badgeLabel="Oncelikli"
+                badgeTone="warning"
+                onPress={
+                  item.productVariantId
+                    ? () => onOpenStockFocus?.({
+                        productVariantId: item.productVariantId,
+                        productName: item.productName ?? undefined,
+                        variantName: item.variantName ?? undefined,
+                        operation: "receive",
+                      })
+                    : undefined
+                }
+                icon={<MaterialCommunityIcons name="alert-outline" size={20} color={brand.warning} />}
+              />
+            ))}
+
+            {state.cancellations.slice(0, 2).map((item) => {
+              const saleId = item.id;
+
+              return (
+                <ListRow
+                  key={item.id ?? item.receiptNo}
+                  title={item.receiptNo ?? "Iptal edilen fis"}
+                  subtitle={`${item.name ?? "-"} ${item.surname ?? ""}`.trim()}
+                  caption={`${formatDate(item.cancelledAt ?? item.createdAt)} • ${formatCurrency(item.lineTotal ?? item.unitPrice, "TRY")}`}
+                  badgeLabel="Incele"
+                  badgeTone="danger"
+                  onPress={saleId ? () => onOpenSaleDetail?.(saleId) : undefined}
+                  icon={<MaterialCommunityIcons name="close-circle-outline" size={20} color={brand.error} />}
+                />
+              );
+            })}
+          </View>
+        ) : (
+          <EmptyStateWithAction
+            title="Bugun icin oncelikli aksiyon yok."
+            subtitle="Operasyon sakin. Yeni satis baslatabilir veya urun listesini kontrol edebilirsin."
+            actionLabel="Yeni satis baslat"
+            onAction={() => {
+              trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "sale" });
+              onOpenSalesComposer?.();
+            }}
+          />
+        )}
+      </Card>
+
+      <Card>
         <SectionTitle
           title="Gelir trendi"
-          action={<Button label="Yenile" onPress={() => void fetchDashboard()} variant="secondary" />}
+          action={
+            onOpenProducts ? (
+              <Button label="Urunlere git" onPress={onOpenProducts} variant="ghost" size="sm" fullWidth={false} />
+            ) : null
+          }
         />
         {state.loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={mobileTheme.colors.brand.primary} />
+          <View style={styles.loadingList}>
+            <SkeletonBlock height={18} />
+            <SkeletonBlock height={18} width="80%" />
+            <SkeletonBlock height={18} width="72%" />
           </View>
         ) : state.revenueTrend.length ? (
           <BarList
@@ -173,119 +476,92 @@ export default function DashboardScreen() {
             formatter={(value) => formatCurrency(value, "TRY")}
           />
         ) : (
-          <EmptyState title="Gelir verisi yok." />
+          <EmptyStateWithAction
+            title="Trend verisi yok."
+            subtitle="Filtrelenmis satis verisi olustugunda burada gorunecek."
+            actionLabel="Yeni satis ac"
+            onAction={() => {
+              trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "sales" });
+              onOpenSalesComposer?.();
+            }}
+          />
         )}
       </Card>
 
       <Card>
-        <SectionTitle title="Urun bazli satis" />
+        <SectionTitle title="En cok satanlar" />
         {state.loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={mobileTheme.colors.brand.primary} />
+          <View style={styles.loadingList}>
+            <SkeletonBlock height={72} />
+            <SkeletonBlock height={72} />
           </View>
         ) : state.productSales.length ? (
-          <BarList
-            items={state.productSales.map((item, index) => ({
-              key: `${item.productVariantId ?? index}`,
-              label: item.variantName ?? item.productName ?? `Urun ${index + 1}`,
-              value: Number(item.lineTotal ?? 0),
-            }))}
-            formatter={(value) => formatCurrency(value, "TRY")}
+          <View style={styles.list}>
+            {state.productSales.map((item, index) => (
+              <ListRow
+                key={`${item.productVariantId ?? index}`}
+                title={item.variantName ?? item.productName ?? `Urun ${index + 1}`}
+                subtitle={formatCurrency(item.lineTotal ?? 0, "TRY")}
+                caption={`${formatCount(item.quantity)} adet satis`}
+                badgeLabel="Satis"
+                badgeTone="info"
+                onPress={onOpenProducts}
+                icon={<MaterialCommunityIcons name="trending-up" size={20} color={brand.primary} />}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyStateWithAction
+            title="Urun satis verisi yok."
+            subtitle="Satis olustukca burada en cok satan varyantlar listelenecek."
+            actionLabel="Urunleri ac"
+            onAction={() => {
+              trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "products" });
+              onOpenProducts?.();
+            }}
           />
-        ) : (
-          <EmptyState title="Satis verisi yok." />
-        )}
-      </Card>
-
-      <Card>
-        <SectionTitle title="Dusuk stok uyarilari" />
-        {state.loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={mobileTheme.colors.brand.primary} />
-          </View>
-        ) : state.lowStock.length ? (
-          <View style={styles.list}>
-            {state.lowStock.map((item, index) => (
-              <View key={`${item.productVariantId ?? index}`} style={styles.row}>
-                <View style={styles.rowCopy}>
-                  <Text style={styles.rowTitle}>{item.variantName ?? item.productName ?? "-"}</Text>
-                  <Text style={styles.rowMeta}>{item.storeName ?? "Tum magazalar"}</Text>
-                </View>
-                <StatusBadge label={`${formatCount(item.quantity)} adet`} tone="warning" />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <EmptyState title="Aktif dusuk stok uyarisi yok." />
-        )}
-      </Card>
-
-      <Card>
-        <SectionTitle title="Son iptaller" />
-        {state.loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={mobileTheme.colors.brand.primary} />
-          </View>
-        ) : state.cancellations.length ? (
-          <View style={styles.list}>
-            {state.cancellations.map((item, index) => (
-              <View key={`${item.id ?? index}`} style={styles.row}>
-                <View style={styles.rowCopy}>
-                  <Text style={styles.rowTitle}>{item.receiptNo ?? "Fis"}</Text>
-                  <Text style={styles.rowMeta}>
-                    {item.name ?? "-"} {item.surname ?? ""} • {formatDate(item.cancelledAt ?? item.createdAt)}
-                  </Text>
-                </View>
-                <StatusBadge
-                  label={formatCurrency(item.lineTotal ?? item.unitPrice, "TRY")}
-                  tone="danger"
-                />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <EmptyState title="Son 7 gunde iptal yok." />
         )}
       </Card>
     </AppScreen>
   );
 }
 
+const brand = mobileTheme.colors.brand;
+
 const styles = StyleSheet.create({
+  quickActions: {
+    marginTop: 12,
+    gap: 10,
+  },
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
   },
   metricItem: {
-    width: "47%",
+    flexBasis: "47%",
+    flexGrow: 1,
+    minWidth: 150,
   },
-  loadingWrap: {
-    minHeight: 120,
-    alignItems: "center",
-    justifyContent: "center",
+  metricSkeletonCard: {
+    minHeight: 132,
+    gap: 8,
+  },
+  skeletonGap: {
+    marginVertical: 6,
+  },
+  loadingList: {
+    marginTop: 12,
+    gap: 12,
   },
   list: {
     marginTop: 12,
     gap: 12,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 4,
-  },
-  rowCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  rowTitle: {
-    color: mobileTheme.colors.dark.text,
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  rowMeta: {
+  worklistSummary: {
+    marginTop: 12,
     color: mobileTheme.colors.dark.text2,
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

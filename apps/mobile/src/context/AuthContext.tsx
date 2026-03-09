@@ -5,8 +5,11 @@ import {
   hasPermissionFromSession,
   login,
   logout,
+  signup,
+  type LoginResponse,
   type LoginUserResponse,
   type PermissionName,
+  type SignupRequest,
 } from "@gase/core";
 import type { PropsWithChildren } from "react";
 import {
@@ -24,6 +27,7 @@ import {
   readPersistedSession,
   writePersistedSession,
 } from "@/src/lib/session";
+import { trackEvent } from "@/src/lib/analytics";
 
 type AuthStatus = "booting" | "authenticated" | "unauthenticated";
 
@@ -36,6 +40,7 @@ type AuthContextValue = {
   storeIds: string[];
   permissions: string[];
   signIn: (email: string, password: string) => Promise<void>;
+  signUp: (request: SignupRequest) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   can: (permission: PermissionName) => boolean;
@@ -91,18 +96,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
     void refreshSession();
   }, [clearSession, refreshSession]);
 
+  const completeSession = useCallback(async (response: LoginResponse) => {
+    const hydratedUser = await getMe(response.access_token).catch(() => response.user);
+    await writePersistedSession(response.access_token, hydratedUser);
+    setToken(response.access_token);
+    setUser(hydratedUser);
+    setStatus("authenticated");
+    return hydratedUser;
+  }, []);
+
   const signIn = useCallback(async (email: string, password: string) => {
     if (configurationError) {
       throw new Error(configurationError);
     }
 
     const response = await login(email.trim(), password);
-    const hydratedUser = await getMe(response.access_token).catch(() => response.user);
-    await writePersistedSession(response.access_token, hydratedUser);
-    setToken(response.access_token);
-    setUser(hydratedUser);
-    setStatus("authenticated");
-  }, [configurationError]);
+    const hydratedUser = await completeSession(response);
+    trackEvent("login_success", {
+      userId: hydratedUser.id,
+      role: hydratedUser.role,
+    });
+  }, [completeSession, configurationError]);
+
+  const signUp = useCallback(async (request: SignupRequest) => {
+    if (configurationError) {
+      throw new Error(configurationError);
+    }
+
+    const response = await signup(request);
+    const hydratedUser = await completeSession(response);
+    trackEvent("login_success", {
+      userId: hydratedUser.id,
+      role: hydratedUser.role,
+      source: "signup",
+    });
+  }, [completeSession, configurationError]);
 
   const signOut = useCallback(async () => {
     try {
@@ -123,10 +151,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     storeIds: getSessionUserStoreIds(user as never),
     permissions: user?.permissions ?? [],
     signIn,
+    signUp,
     signOut,
     refreshSession,
     can: (permission) => hasPermissionFromSession(user, permission),
-  }), [configurationError, refreshSession, signIn, signOut, status, token, user]);
+  }), [configurationError, refreshSession, signIn, signOut, signUp, status, token, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
