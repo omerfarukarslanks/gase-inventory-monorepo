@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gase Shared Boundaries"
+  short_description: "DRY, SOLID, and shared-module rules"
+  default_prompt: "Use $gase-shared-boundaries to decide where Gase code should live and how to reduce duplication."

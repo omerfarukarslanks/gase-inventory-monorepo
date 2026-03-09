@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gase User-Centered UI"
+  short_description: "UI/UX review and design guardrails"
+  default_prompt: "Use $gase-user-centered-ui to review or design a Gase web/mobile interface with a user-centered lens."

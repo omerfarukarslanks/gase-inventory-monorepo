@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gase Feature Guardrails"
+  short_description: "Cross-platform feature rules for Gase"
+  default_prompt: "Use $gase-feature-guardrails to implement or review a new Gase web/mobile feature."
