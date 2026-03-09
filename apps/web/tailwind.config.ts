@@ -1,5 +1,17 @@
 import type { Config } from "tailwindcss";
 import plugin from "tailwindcss/plugin";
+import { designTokens } from "@gase/design-tokens";
+
+/** Converts a hex color string like "#F8FAFC" to "248 250 252" (Tailwind CSS variable format). */
+function hexToRgbSpace(hex: string): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `${r} ${g} ${b}`;
+}
+
+const { colors } = designTokens;
 
 const config: Config = {
   darkMode: "class",
@@ -46,34 +58,34 @@ const config: Config = {
     plugin(function ({ addBase }) {
       addBase({
         ":root": {
-          "--bg": "248 250 252",
-          "--surface": "255 255 255",
-          "--surface-2": "241 245 249",
-          "--border": "229 231 235",
-          "--border-hover": "209 213 219",
-          "--text": "17 24 39",
-          "--text-2": "107 114 128",
-          "--muted": "156 163 175",
-          "--primary": "16 185 129",
-          "--primary-hover": "52 211 153",
-          "--accent": "6 214 160",
-          "--error": "239 68 68",
-          "--warning": "245 158 11",
+          "--bg": hexToRgbSpace(colors.light.bg),
+          "--surface": hexToRgbSpace(colors.light.surface),
+          "--surface-2": hexToRgbSpace(colors.light.surface2),
+          "--border": hexToRgbSpace(colors.light.border),
+          "--border-hover": hexToRgbSpace(colors.light.borderHover),
+          "--text": hexToRgbSpace(colors.light.text),
+          "--text-2": hexToRgbSpace(colors.light.text2),
+          "--muted": hexToRgbSpace(colors.light.muted),
+          "--primary": hexToRgbSpace(colors.brand.primary),
+          "--primary-hover": hexToRgbSpace(colors.brand.primaryHover),
+          "--accent": hexToRgbSpace(colors.brand.accent),
+          "--error": hexToRgbSpace(colors.brand.error),
+          "--warning": hexToRgbSpace(colors.brand.warning),
         },
         ".dark": {
-          "--bg": "10 14 23",
-          "--surface": "17 24 39",
-          "--surface-2": "31 41 55",
-          "--border": "45 55 72",
-          "--border-hover": "74 85 104",
-          "--text": "249 250 251",
-          "--text-2": "156 163 175",
-          "--muted": "107 114 128",
-          "--primary": "16 185 129",
-          "--primary-hover": "52 211 153",
-          "--accent": "6 214 160",
-          "--error": "239 68 68",
-          "--warning": "245 158 11",
+          "--bg": hexToRgbSpace(colors.dark.bg),
+          "--surface": hexToRgbSpace(colors.dark.surface),
+          "--surface-2": hexToRgbSpace(colors.dark.surface2),
+          "--border": hexToRgbSpace(colors.dark.border),
+          "--border-hover": hexToRgbSpace(colors.dark.borderHover),
+          "--text": hexToRgbSpace(colors.dark.text),
+          "--text-2": hexToRgbSpace(colors.dark.text2),
+          "--muted": hexToRgbSpace(colors.dark.muted),
+          "--primary": hexToRgbSpace(colors.brand.primary),
+          "--primary-hover": hexToRgbSpace(colors.brand.primaryHover),
+          "--accent": hexToRgbSpace(colors.brand.accent),
+          "--error": hexToRgbSpace(colors.brand.error),
+          "--warning": hexToRgbSpace(colors.brand.warning),
         },
       });
     }),

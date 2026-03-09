@@ -16,13 +16,13 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
 import { createUser, getUsers, updateUser, type Meta, type User } from "@/lib/users";
+import { isValidEmail } from "@gase/core";
 
 export default function UsersPage() {
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();
   const stores = useStores();
 
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -216,7 +216,7 @@ export default function UsersPage() {
 
     if (!form.email.trim()) {
       nextErrors.email = "E-posta zorunludur.";
-    } else if (!emailPattern.test(form.email.trim())) {
+    } else if (!isValidEmail(form.email)) {
       nextErrors.email = "Geçerli bir e-posta giriniz.";
     }
 

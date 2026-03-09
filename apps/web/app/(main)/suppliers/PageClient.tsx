@@ -18,6 +18,7 @@ import {
   type Supplier,
   type SuppliersListMeta,
 } from "@/lib/suppliers";
+import { isValidEmail } from "@gase/core";
 
 export default function SuppliersPage() {
   const { t } = useLang();
@@ -45,7 +46,6 @@ export default function SuppliersPage() {
   const [form, setForm] = useState<SupplierForm>(EMPTY_FORM);
 
   const debouncedSearch = useDebounceStr(searchTerm, 500);
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const canCreate = can("SUPPLIER_CREATE");
   const canUpdate = can("SUPPLIER_UPDATE");
 
@@ -161,7 +161,7 @@ export default function SuppliersPage() {
       return;
     }
 
-    if (form.email.trim() && !emailPattern.test(form.email.trim())) {
+    if (form.email.trim() && !isValidEmail(form.email)) {
       setEmailError("Gecerli bir e-posta girin.");
       return;
     }

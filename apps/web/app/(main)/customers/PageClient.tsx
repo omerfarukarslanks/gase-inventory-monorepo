@@ -22,6 +22,7 @@ import CustomersTable from "@/components/customers/CustomersTable";
 import CustomerDrawer from "@/components/customers/CustomerDrawer";
 import CustomerBalanceDrawer from "@/components/customers/CustomerBalanceDrawer";
 import { EMPTY_FORM, type CustomerForm } from "@/components/customers/types";
+import { isValidEmail } from "@gase/core";
 
 export default function CustomersPage() {
   const { t } = useLang();
@@ -58,7 +59,6 @@ export default function CustomersPage() {
   const [customerBalanceError, setCustomerBalanceError] = useState("");
 
   const debouncedSearch = useDebounceStr(searchTerm, 500);
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -175,7 +175,7 @@ export default function CustomersPage() {
       return;
     }
 
-    if (form.email.trim() && !emailPattern.test(form.email.trim())) {
+    if (form.email.trim() && !isValidEmail(form.email)) {
       setEmailError("Gecerli bir e-posta girin.");
       return;
     }
