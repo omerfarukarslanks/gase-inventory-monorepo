@@ -21,7 +21,7 @@ import {
   type StockTotalResponse,
 } from "@gase/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   AppScreen,
   Banner,
@@ -87,6 +87,7 @@ export default function DashboardScreen({
 }: DashboardScreenProps = {}) {
   const { storeIds, user } = useAuth();
   const [state, setState] = useState<DashboardState>(initialState);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     setState((current) => ({ ...current, loading: true, error: "" }));
@@ -157,29 +158,6 @@ export default function DashboardScreen({
     void fetchDashboard();
   }, [fetchDashboard, isActive]);
 
-  const metricCards = useMemo(() => ([
-    {
-      label: "Haftalik satis",
-      value: formatCurrency(state.salesSummary?.totals?.totalLineTotal, "TRY"),
-      hint: `Iptal orani %${Number(state.salesSummary?.totals?.cancelRate ?? 0).toFixed(1)}`,
-    },
-    {
-      label: "Toplam stok",
-      value: formatCount(state.stockTotal?.totals?.todayTotalQuantity),
-      hint: `Degisim %${Number(state.stockTotal?.comparison?.changePercent ?? 0).toFixed(1)}`,
-    },
-    {
-      label: "Onayli siparis",
-      value: formatCount(state.confirmedOrders?.totals?.orderCount),
-      hint: formatCurrency(state.confirmedOrders?.totals?.totalLineTotal, "TRY"),
-    },
-    {
-      label: "Iade",
-      value: formatCount(state.returns?.totals?.orderCount),
-      hint: formatCurrency(state.returns?.totals?.totalLineTotal, "TRY"),
-    },
-  ]), [state.confirmedOrders, state.returns, state.salesSummary, state.stockTotal]);
-
   const pendingCollectionsTotal = useMemo(
     () =>
       state.pendingCollections.reduce(
@@ -188,6 +166,7 @@ export default function DashboardScreen({
       ),
     [state.pendingCollections],
   );
+
   const pendingCollectionCurrency = useMemo(() => {
     const currencies = Array.from(
       new Set(
@@ -196,21 +175,13 @@ export default function DashboardScreen({
           .filter((value): value is "TRY" | "USD" | "EUR" => Boolean(value)),
       ),
     );
-    return currencies.length === 1 ? currencies[0] : null;
+    return currencies.length === 1 ? currencies[0] : ("TRY" as const);
   }, [state.pendingCollections]);
 
   const topSeller = state.productSales[0];
   const mostUrgentLowStock = state.lowStock[0];
   const nextCollection = state.pendingCollections[0];
 
-  const worklistSummary = useMemo(() => {
-    const parts = [
-      `${state.pendingCollections.length} tahsilat`,
-      `${state.lowStock.length} kritik stok`,
-      `${state.cancellations.length} iptal`,
-    ];
-    return parts.join(" • ");
-  }, [state.cancellations.length, state.lowStock.length, state.pendingCollections.length]);
   const hasDashboardData = useMemo(
     () =>
       Boolean(
@@ -317,6 +288,56 @@ export default function DashboardScreen({
     </View>
   );
 
+  // ─── Hero Metrics (3 above-the-fold) ──────────────────────────────────────
+
+  const heroMetrics = [
+    {
+      key: "satis",
+      label: "Haftalik satis",
+      value: formatCurrency(state.salesSummary?.totals?.totalLineTotal, "TRY"),
+      hint: `Iptal orani %${Number(state.salesSummary?.totals?.cancelRate ?? 0).toFixed(1)}`,
+    },
+    {
+      key: "tahsilat",
+      label: "Bekleyen tahsilat",
+      value: pendingCollectionsTotal > 0
+        ? formatCurrency(pendingCollectionsTotal, pendingCollectionCurrency)
+        : "Yok",
+      hint: `${state.pendingCollections.length} adet acik fiş`,
+    },
+    {
+      key: "stok",
+      label: "Kritik stok",
+      value: formatCount(state.lowStock.length),
+      hint: state.lowStock.length > 0
+        ? (mostUrgentLowStock?.variantName ?? mostUrgentLowStock?.productName ?? "urun kritik")
+        : "Stok normal",
+    },
+  ];
+
+  // ─── Detailed Metrics (below the fold) ────────────────────────────────────
+
+  const detailMetrics = [
+    {
+      key: "siparis",
+      label: "Onayli siparis",
+      value: formatCount(state.confirmedOrders?.totals?.orderCount),
+      hint: formatCurrency(state.confirmedOrders?.totals?.totalLineTotal, "TRY"),
+    },
+    {
+      key: "iade",
+      label: "Iade",
+      value: formatCount(state.returns?.totals?.orderCount),
+      hint: formatCurrency(state.returns?.totals?.totalLineTotal, "TRY"),
+    },
+    {
+      key: "stok-toplam",
+      label: "Toplam stok",
+      value: formatCount(state.stockTotal?.totals?.todayTotalQuantity),
+      hint: `Degisim %${Number(state.stockTotal?.comparison?.changePercent ?? 0).toFixed(1)}`,
+    },
+  ];
+
   if (!state.loading && state.error && !hasDashboardData) {
     return (
       <AppScreen
@@ -346,14 +367,16 @@ export default function DashboardScreen({
     >
       {state.error ? <Banner text={state.error} /> : null}
 
+      {/* ─── Quick Actions ─────────────────────────────────────────────────── */}
       <Card>
         <SectionTitle title="Hizli aksiyonlar" />
         {quickActionButtons}
       </Card>
 
+      {/* ─── Hero Metrics (always visible) ────────────────────────────────── */}
       <View style={styles.metricGrid}>
-        {metricCards.map((metric) => (
-          <View key={metric.label} style={styles.metricItem}>
+        {heroMetrics.map((metric) => (
+          <View key={metric.key} style={styles.metricItem}>
             {state.loading ? (
               <Card style={styles.metricSkeletonCard}>
                 <SkeletonBlock width="45%" />
@@ -367,17 +390,9 @@ export default function DashboardScreen({
         ))}
       </View>
 
+      {/* ─── Work List (always visible — primary operational content) ─────── */}
       <Card>
         <SectionTitle title="Is listesi" />
-        {!state.loading ? (
-          <Text style={styles.worklistSummary}>
-            {`${worklistSummary}${
-              pendingCollectionCurrency
-                ? ` • ${formatCurrency(pendingCollectionsTotal, pendingCollectionCurrency)} bekleyen tahsilat`
-                : ""
-            }`}
-          </Text>
-        ) : null}
         {state.loading ? (
           <View style={styles.loadingList}>
             <SkeletonBlock height={72} />
@@ -423,7 +438,6 @@ export default function DashboardScreen({
 
             {state.cancellations.slice(0, 2).map((item) => {
               const saleId = item.id;
-
               return (
                 <ListRow
                   key={item.id ?? item.receiptNo}
@@ -451,77 +465,116 @@ export default function DashboardScreen({
         )}
       </Card>
 
-      <Card>
-        <SectionTitle
-          title="Gelir trendi"
-          action={
-            onOpenProducts ? (
-              <Button label="Urunlere git" onPress={onOpenProducts} variant="ghost" size="sm" fullWidth={false} />
-            ) : null
-          }
+      {/* ─── Detailed View Toggle ──────────────────────────────────────────── */}
+      <Pressable
+        onPress={() => setDetailsExpanded((prev) => !prev)}
+        style={styles.detailsToggle}
+      >
+        <Text style={styles.detailsToggleLabel}>
+          {detailsExpanded ? "Ozet gorünume don" : "Ayrintili gorunum"}
+        </Text>
+        <MaterialCommunityIcons
+          name={detailsExpanded ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={mobileTheme.colors.dark.text2}
         />
-        {state.loading ? (
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={18} />
-            <SkeletonBlock height={18} width="80%" />
-            <SkeletonBlock height={18} width="72%" />
-          </View>
-        ) : state.revenueTrend.length ? (
-          <BarList
-            items={state.revenueTrend.map((item, index) => ({
-              key: `${item.period ?? index}`,
-              label: item.period ?? `Gun ${index + 1}`,
-              value: Number(item.totalRevenue ?? 0),
-            }))}
-            formatter={(value) => formatCurrency(value, "TRY")}
-          />
-        ) : (
-          <EmptyStateWithAction
-            title="Trend verisi yok."
-            subtitle="Filtrelenmis satis verisi olustugunda burada gorunecek."
-            actionLabel="Yeni satis ac"
-            onAction={() => {
-              trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "sales" });
-              onOpenSalesComposer?.();
-            }}
-          />
-        )}
-      </Card>
+      </Pressable>
 
-      <Card>
-        <SectionTitle title="En cok satanlar" />
-        {state.loading ? (
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={72} />
-            <SkeletonBlock height={72} />
-          </View>
-        ) : state.productSales.length ? (
-          <View style={styles.list}>
-            {state.productSales.map((item, index) => (
-              <ListRow
-                key={`${item.productVariantId ?? index}`}
-                title={item.variantName ?? item.productName ?? `Urun ${index + 1}`}
-                subtitle={formatCurrency(item.lineTotal ?? 0, "TRY")}
-                caption={`${formatCount(item.quantity)} adet satis`}
-                badgeLabel="Satis"
-                badgeTone="info"
-                onPress={onOpenProducts}
-                icon={<MaterialCommunityIcons name="trending-up" size={20} color={brand.primary} />}
-              />
+      {/* ─── Detailed Content (charts + secondary metrics) ─────────────────── */}
+      {detailsExpanded ? (
+        <>
+          {/* Secondary metric cards */}
+          <View style={styles.metricGrid}>
+            {detailMetrics.map((metric) => (
+              <View key={metric.key} style={styles.metricItem}>
+                {state.loading ? (
+                  <Card style={styles.metricSkeletonCard}>
+                    <SkeletonBlock width="45%" />
+                    <SkeletonBlock height={28} width="65%" style={styles.skeletonGap} />
+                    <SkeletonBlock width="55%" />
+                  </Card>
+                ) : (
+                  <MetricCard label={metric.label} value={metric.value} hint={metric.hint} />
+                )}
+              </View>
             ))}
           </View>
-        ) : (
-          <EmptyStateWithAction
-            title="Urun satis verisi yok."
-            subtitle="Satis olustukca burada en cok satan varyantlar listelenecek."
-            actionLabel="Urunleri ac"
-            onAction={() => {
-              trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "products" });
-              onOpenProducts?.();
-            }}
-          />
-        )}
-      </Card>
+
+          {/* Revenue trend */}
+          <Card>
+            <SectionTitle
+              title="Gelir trendi"
+              action={
+                onOpenProducts ? (
+                  <Button label="Urunlere git" onPress={onOpenProducts} variant="ghost" size="sm" fullWidth={false} />
+                ) : null
+              }
+            />
+            {state.loading ? (
+              <View style={styles.loadingList}>
+                <SkeletonBlock height={18} />
+                <SkeletonBlock height={18} width="80%" />
+                <SkeletonBlock height={18} width="72%" />
+              </View>
+            ) : state.revenueTrend.length ? (
+              <BarList
+                items={state.revenueTrend.map((item, index) => ({
+                  key: `${item.period ?? index}`,
+                  label: item.period ?? `Gun ${index + 1}`,
+                  value: Number(item.totalRevenue ?? 0),
+                }))}
+                formatter={(value) => formatCurrency(value, "TRY")}
+              />
+            ) : (
+              <EmptyStateWithAction
+                title="Trend verisi yok."
+                subtitle="Filtrelenmis satis verisi olustugunda burada gorunecek."
+                actionLabel="Yeni satis ac"
+                onAction={() => {
+                  trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "sales" });
+                  onOpenSalesComposer?.();
+                }}
+              />
+            )}
+          </Card>
+
+          {/* Top sellers */}
+          <Card>
+            <SectionTitle title="En cok satanlar" />
+            {state.loading ? (
+              <View style={styles.loadingList}>
+                <SkeletonBlock height={72} />
+                <SkeletonBlock height={72} />
+              </View>
+            ) : state.productSales.length ? (
+              <View style={styles.list}>
+                {state.productSales.map((item, index) => (
+                  <ListRow
+                    key={`${item.productVariantId ?? index}`}
+                    title={item.variantName ?? item.productName ?? `Urun ${index + 1}`}
+                    subtitle={formatCurrency(item.lineTotal ?? 0, "TRY")}
+                    caption={`${formatCount(item.quantity)} adet satis`}
+                    badgeLabel="Satis"
+                    badgeTone="info"
+                    onPress={onOpenProducts}
+                    icon={<MaterialCommunityIcons name="trending-up" size={20} color={brand.primary} />}
+                  />
+                ))}
+              </View>
+            ) : (
+              <EmptyStateWithAction
+                title="Urun satis verisi yok."
+                subtitle="Satis olustukca burada en cok satan varyantlar listelenecek."
+                actionLabel="Urunleri ac"
+                onAction={() => {
+                  trackEvent("empty_state_action_clicked", { screen: "dashboard", target: "products" });
+                  onOpenProducts?.();
+                }}
+              />
+            )}
+          </Card>
+        </>
+      ) : null}
     </AppScreen>
   );
 }
@@ -558,10 +611,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 12,
   },
-  worklistSummary: {
-    marginTop: 12,
+  detailsToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+  },
+  detailsToggleLabel: {
     color: mobileTheme.colors.dark.text2,
     fontSize: 13,
-    lineHeight: 18,
+    fontWeight: "500",
   },
 });

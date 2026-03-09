@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import Button from "./Button";
 
 export type DrawerSide = "right" | "left" | "top" | "bottom";
 
@@ -131,5 +132,56 @@ export default function Drawer({
       </aside>
     </>,
     document.body,
+  );
+}
+
+// ─── DrawerFooter ────────────────────────────────────────────────────────────
+
+type DrawerFooterProps = {
+  /** Cancel label (defaults to "Vazgec") */
+  cancelLabel?: string;
+  onCancel: () => void;
+  cancelDisabled?: boolean;
+  /** Save/submit label */
+  saveLabel?: string;
+  /** HTML form id to attach the submit button to (type="submit" form="...") */
+  formId?: string;
+  onSave?: () => void;
+  saveDisabled?: boolean;
+  saving?: boolean;
+};
+
+/**
+ * Standardized drawer footer with Cancel (left) and Save (right) buttons.
+ * All domain drawers should use this instead of duplicating the flex layout.
+ */
+export function DrawerFooter({
+  cancelLabel = "Vazgec",
+  onCancel,
+  cancelDisabled = false,
+  saveLabel = "Kaydet",
+  formId,
+  onSave,
+  saveDisabled = false,
+  saving = false,
+}: DrawerFooterProps) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <Button
+        label={cancelLabel}
+        type="button"
+        onClick={onCancel}
+        disabled={cancelDisabled || saving}
+        variant="secondary"
+      />
+      <Button
+        label={saving ? "Kaydediliyor..." : saveLabel}
+        type={formId ? "submit" : "button"}
+        form={formId}
+        onClick={!formId ? onSave : undefined}
+        disabled={saveDisabled || saving}
+        variant="primarySolid"
+      />
+    </div>
   );
 }
