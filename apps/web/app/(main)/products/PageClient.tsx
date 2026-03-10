@@ -1,899 +1,106 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  createProduct,
-  createProductVariant,
-  getProductAttributes,
-  getProductById,
-  getProductVariants,
-  getProducts,
-  updateProduct,
-  updateProductVariant,
-  type Product,
-  type ProductVariant,
-  type ProductsListMeta,
-  type Currency,
-} from "@/lib/products";
-import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
-import { getSessionUser, getSessionUserStoreIds } from "@/lib/authz";
+import { type FormEvent, useMemo } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { getAllProductCategories } from "@/lib/product-categories";
-import Drawer from "@/components/ui/Drawer";
-import Button from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useStores } from "@/hooks/useStores";
-import PriceDrawer, { type PriceTarget } from "@/components/stock/PriceDrawer";
-import { useDebounceStr } from "@/hooks/useDebounce";
-import { toNumberOrNull } from "@/lib/format";
-import {
-  EMPTY_PRODUCT_FORM,
-  type ProductForm,
-  type VariantForm,
-  type FormErrors,
-  type VariantErrors,
-  type VariantSnapshot,
-  type IsActiveFilter,
-  createVariantClientKey,
-  areVariantAttributesEqual,
-  normalizeVariantsResponse,
-} from "@/components/products/types";
-import ProductFilters from "@/components/products/ProductFilters";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLang } from "@/context/LangContext";
+
+import { useProductScope } from "./hooks/useProductScope";
+import { useProductList } from "./hooks/useProductList";
+import { useProductDrawer } from "./hooks/useProductDrawer";
+import { usePriceDrawer } from "./hooks/usePriceDrawer";
+
+import ProductFilters from "@/components/products/ProductFilters";
 import ProductTable from "@/components/products/ProductTable";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductDrawerStep1 from "@/components/products/ProductDrawerStep1";
 import ProductDrawerStep2 from "@/components/products/ProductDrawerStep2";
-
-/* ── Component ── */
+import Drawer from "@/components/ui/Drawer";
+import Button from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
+import PriceDrawer from "@/components/stock/PriceDrawer";
 
 export default function ProductsPage() {
   const { can } = usePermissions();
   const { t } = useLang();
-
-  /* List state */
-  const [products, setProducts] = useState<Product[]>([]);
-  const [meta, setMeta] = useState<ProductsListMeta | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currencyFilter, setCurrencyFilter] = useState<Currency | "">("");
-  const [defaultPurchasePriceMinFilter, setDefaultPurchasePriceMinFilter] = useState("");
-  const [defaultPurchasePriceMaxFilter, setDefaultPurchasePriceMaxFilter] = useState("");
-  const [defaultSalePriceMinFilter, setDefaultSalePriceMinFilter] = useState("");
-  const [defaultSalePriceMaxFilter, setDefaultSalePriceMaxFilter] = useState("");
-  const [productStatusFilter, setProductStatusFilter] = useState<IsActiveFilter>("all");
-  const [variantStatusFilter, setVariantStatusFilter] = useState<IsActiveFilter>("all");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [step1ProductInfoOpen, setStep1ProductInfoOpen] = useState(false);
-  const [step1StoreScopeOpen, setStep1StoreScopeOpen] = useState(true);
-  const debouncedSearch = useDebounceStr(searchTerm, 500);
-
-  /* Drawer state */
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [formError, setFormError] = useState("");
-
-  const [attributeDefinitions, setAttributeDefinitions] = useState<AttributeDefinition[]>([]);
-  const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([]);
-
-  /* Product form */
-  const [form, setForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
-  const [originalForm, setOriginalForm] = useState<ProductForm>(EMPTY_PRODUCT_FORM);
-  const [errors, setErrors] = useState<FormErrors>({});
-  const calculatedLineTotal = useMemo(() => {
-    const unitPrice = toNumberOrNull(form.unitPrice);
-    if (unitPrice == null || unitPrice < 0) return null;
-
-    const taxValue =
-      form.taxMode === "percent"
-        ? unitPrice * ((toNumberOrNull(form.taxPercent) ?? 0) / 100)
-        : (toNumberOrNull(form.taxAmount) ?? 0);
-    const subtotalWithTax = unitPrice + taxValue;
-    const discountValue =
-      form.discountMode === "percent"
-        ? subtotalWithTax * ((toNumberOrNull(form.discountPercent) ?? 0) / 100)
-        : (toNumberOrNull(form.discountAmount) ?? 0);
-
-    return subtotalWithTax - discountValue;
-  }, [
-    form.unitPrice,
-    form.taxMode,
-    form.taxPercent,
-    form.taxAmount,
-    form.discountMode,
-    form.discountPercent,
-    form.discountAmount,
-  ]);
-
-  /* Variants */
-  const [variants, setVariants] = useState<VariantForm[]>([]);
-  const [expandedVariantKeys, setExpandedVariantKeys] = useState<string[]>([]);
-  const [originalVariantMap, setOriginalVariantMap] = useState<Record<string, VariantSnapshot>>({});
-  const [variantErrors, setVariantErrors] = useState<Record<number, VariantErrors>>({});
-  const [expandedProductIds, setExpandedProductIds] = useState<string[]>([]);
-  const [productVariantsById, setProductVariantsById] = useState<Record<string, ProductVariant[]>>({});
-  const [productVariantsLoadingById, setProductVariantsLoadingById] = useState<Record<string, boolean>>({});
-  const [productVariantsErrorById, setProductVariantsErrorById] = useState<Record<string, string>>({});
-  const [togglingProductIds, setTogglingProductIds] = useState<string[]>([]);
-  const [togglingVariantIds, setTogglingVariantIds] = useState<string[]>([]);
-
-  /* Created product id (for variant step) */
-  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
-
-  /* Price drawer state */
-  const [priceOpen, setPriceOpen] = useState(false);
-  const [priceTarget, setPriceTarget] = useState<PriceTarget | null>(null);
-  const [priceProductId, setPriceProductId] = useState<string | null>(null);
   const canTenantOnly = can("TENANT_ONLY");
   const allStores = useStores();
   const stores = canTenantOnly ? allStores : [];
-
-  /* Responsive */
   const isMobile = !useMediaQuery();
-  const [scopeReady, setScopeReady] = useState(false);
-  const [scopedStoreId, setScopedStoreId] = useState("");
 
-  useEffect(() => {
-    const user = getSessionUser();
-    const storeIds = getSessionUserStoreIds(user);
-    setScopedStoreId(storeIds[0] ?? "");
-    setScopeReady(true);
-  }, []);
+  const scope = useProductScope();
+  const list = useProductList({ scopeReady: scope.scopeReady, t });
 
+  const drawer = useProductDrawer({
+    scopedStoreId: scope.scopedStoreId,
+    canTenantOnly,
+    onSuccess: list.fetchProducts,
+    t,
+  });
 
-  /* ── Fetch products ── */
-
-  const fetchProducts = useCallback(async () => {
-    if (!scopeReady) return;
-    setLoading(true);
-    setError("");
-    try {
-      const listParams = {
-        page: currentPage,
-        limit: pageSize,
-        search: debouncedSearch,
-        defaultCurrency: currencyFilter || undefined,
-        defaultPurchasePriceMin: defaultPurchasePriceMinFilter ? Number(defaultPurchasePriceMinFilter) : undefined,
-        defaultPurchasePriceMax: defaultPurchasePriceMaxFilter ? Number(defaultPurchasePriceMaxFilter) : undefined,
-        defaultSalePriceMin: defaultSalePriceMinFilter ? Number(defaultSalePriceMinFilter) : undefined,
-        defaultSalePriceMax: defaultSalePriceMaxFilter ? Number(defaultSalePriceMaxFilter) : undefined,
-        isActive: productStatusFilter,
-        variantIsActive: variantStatusFilter,
-      };
-      const res = await getProducts(listParams);
-      setProducts(res.data);
-      setMeta(res.meta);
-    } catch {
-      setError(t("products.loadError"));
-      setProducts([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    currentPage,
-    pageSize,
-    debouncedSearch,
-    currencyFilter,
-    defaultPurchasePriceMinFilter,
-    defaultPurchasePriceMaxFilter,
-    defaultSalePriceMinFilter,
-    defaultSalePriceMaxFilter,
-    productStatusFilter,
-    variantStatusFilter,
-    scopeReady,
-  ]);
-
-  useEffect(() => {
-    if (debouncedSearch !== "") setCurrentPage(1);
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    currencyFilter,
-    defaultPurchasePriceMinFilter,
-    defaultPurchasePriceMaxFilter,
-    defaultSalePriceMinFilter,
-    defaultSalePriceMaxFilter,
-    productStatusFilter,
-    variantStatusFilter,
-  ]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    getAttributes()
-      .then((res) => setAttributeDefinitions(res))
-      .catch(() => setAttributeDefinitions([]));
-  }, []);
-
-  useEffect(() => {
-    getAllProductCategories({ isActive: "all" })
-      .then((categories) => {
-        const options = (categories ?? [])
-          .map((category) => ({
-            value: category.id,
-            label: category.name,
-          }))
-          .sort((a, b) => a.label.localeCompare(b.label, "tr"));
-        setCategoryOptions(options);
-      })
-      .catch(() => setCategoryOptions([]));
-  }, []);
-
-
-  /* ── Pagination ── */
-
-  const totalPages = meta?.totalPages ?? 1;
-
-  const onChangePageSize = (next: number) => { setPageSize(next); setCurrentPage(1); };
-  const onPageChange = (page: number) => {
-    if (loading || page < 1 || page > totalPages || page === currentPage) return;
-    setCurrentPage(page);
-  };
-
-  const clearAdvancedFilters = () => {
-    setDefaultPurchasePriceMinFilter("");
-    setDefaultPurchasePriceMaxFilter("");
-    setDefaultSalePriceMinFilter("");
-    setDefaultSalePriceMaxFilter("");
-  };
-
-  /* ── Product toggle ── */
-
-  const onToggleProductActive = async (product: Product, next: boolean) => {
-    setTogglingProductIds((prev) => [...prev, product.id]);
-    try {
-      await updateProduct(product.id, {
-        currency: product.currency,
-        unitPrice: Number(product.unitPrice) || 0,
-        purchasePrice: Number(product.purchasePrice) || 0,
-        ...(product.taxPercent != null
-          ? { taxPercent: Number(product.taxPercent) || 0 }
-          : product.taxAmount != null
-            ? { taxAmount: Number(product.taxAmount) || 0 }
-            : {}),
-        ...(product.discountPercent != null
-          ? { discountPercent: Number(product.discountPercent) || 0 }
-          : product.discountAmount != null
-            ? { discountAmount: Number(product.discountAmount) || 0 }
-            : {}),
-        name: product.name,
-        sku: product.sku,
-        description: product.description ?? undefined,
-        image: product.image ?? undefined,
-        categoryId: product.categoryId ?? product.category?.id ?? undefined,
-        supplierId: product.supplierId ?? product.supplier?.id ?? undefined,
-        isActive: next,
-      });
-      await fetchProducts();
-    } catch {
-      setError("Urun durumu guncellenemedi. Lutfen tekrar deneyin.");
-    } finally {
-      setTogglingProductIds((prev) => prev.filter((id) => id !== product.id));
-    }
-  };
-
-  /* ── Variant expansion ── */
-
-  const fetchTableVariants = async (
-    productId: string,
-    status: IsActiveFilter = variantStatusFilter,
-  ) => {
-    if (productVariantsLoadingById[productId]) return;
-
-    setProductVariantsLoadingById((prev) => ({ ...prev, [productId]: true }));
-    setProductVariantsErrorById((prev) => ({ ...prev, [productId]: "" }));
-
-    try {
-      const dataRaw = await getProductVariants(productId, {
-        isActive: status,
-      });
-      const data = normalizeVariantsResponse(dataRaw);
-      setProductVariantsById((prev) => ({ ...prev, [productId]: data }));
-    } catch {
-      setProductVariantsErrorById((prev) => ({
-        ...prev,
-        [productId]: "Varyantlar yüklenemedi. Lütfen tekrar deneyin.",
-      }));
-    } finally {
-      setProductVariantsLoadingById((prev) => ({ ...prev, [productId]: false }));
-    }
-  };
-
-  const toggleExpandedProduct = (productId: string) => {
-    const isExpanded = expandedProductIds.includes(productId);
-    if (isExpanded) {
-      setExpandedProductIds((prev) => prev.filter((id) => id !== productId));
-      return;
-    }
-
-    setExpandedProductIds((prev) => [...prev, productId]);
-    if (!productVariantsById[productId]) {
-      fetchTableVariants(productId, variantStatusFilter);
-    }
-  };
-
-  const onToggleVariantActive = async (
-    productId: string,
-    variant: ProductVariant,
-    next: boolean,
-  ) => {
-    setTogglingVariantIds((prev) => [...prev, variant.id]);
-    try {
-      await updateProductVariant(productId, variant.id, {
-        attributes: variant.attributes ?? [],
-        isActive: next,
-      });
-      await fetchTableVariants(productId, variantStatusFilter);
-    } catch {
-      setProductVariantsErrorById((prev) => ({
-        ...prev,
-        [productId]: "Varyant durumu guncellenemedi. Lutfen tekrar deneyin.",
-      }));
-    } finally {
-      setTogglingVariantIds((prev) => prev.filter((id) => id !== variant.id));
-    }
-  };
-
-  useEffect(() => {
-    if (expandedProductIds.length === 0) return;
-    expandedProductIds.forEach((productId) => {
-      fetchTableVariants(productId, variantStatusFilter);
-    });
-  }, [variantStatusFilter]);
-
-  /* ── Price handlers ── */
+  const price = usePriceDrawer({ onSuccess: list.fetchProducts });
 
   const storeOptions = useMemo(
-    () => stores.map((s) => ({ value: s.id, label: s.name })),
+    () => stores.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
     [stores],
   );
 
-  const openProductPriceDrawer = (product: Product) => {
-    setPriceTarget({
-      mode: "product",
-      productId: product.id,
-      productName: product.name,
-      stores: [],
-      initial: {
-        unitPrice: product.unitPrice ?? null,
-        currency: product.currency ?? "TRY",
-        discountPercent: product.discountPercent ?? null,
-        discountAmount: product.discountAmount ?? null,
-        taxPercent: product.taxPercent ?? null,
-        taxAmount: product.taxAmount ?? null,
-        lineTotal: product.lineTotal ?? null,
-      },
-    });
-    setPriceProductId(product.id);
-    setPriceOpen(true);
-  };
-
-  const closePriceDrawer = () => {
-    setPriceOpen(false);
-    setPriceTarget(null);
-    setPriceProductId(null);
-  };
-
-  /* ── Drawer handlers ── */
-
-  const onOpenDrawer = () => {
-    setForm(EMPTY_PRODUCT_FORM);
-    setVariants([]);
-    setErrors({});
-    setVariantErrors({});
-    setFormError("");
-    setEditingProductId(null);
-    setCreatedProductId(null);
-    setExpandedVariantKeys([]);
-    setOriginalVariantMap({});
-    setStep(1);
-    setStep1ProductInfoOpen(false);
-    setStep1StoreScopeOpen(true);
-    setDrawerOpen(true);
-  };
-
-  const onCloseDrawer = () => {
-    if (submitting || loadingDetail) return;
-    setDrawerOpen(false);
-  };
-
-  const onFormChange = (field: keyof ProductForm, value: string) => {
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-    if (
-      (field === "unitPrice" ||
-        field === "taxPercent" ||
-        field === "taxAmount" ||
-        field === "discountPercent" ||
-        field === "discountAmount") &&
-      errors.lineTotal
-    ) {
-      setErrors((prev) => ({ ...prev, lineTotal: undefined }));
-    }
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const onFormPatch = (patch: Partial<ProductForm>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
-  };
-
-  const onClearError = (field: keyof FormErrors) => {
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  /* ── Edit product ── */
-
-  const onEditProduct = async (id: string) => {
-    setFormError("");
-    setErrors({});
-    setVariantErrors({});
-    setOriginalVariantMap({});
-    setLoadingDetail(true);
-    setStep(1);
-
-    try {
-      const detail = await getProductById(id);
-      const formData: ProductForm = {
-        currency: detail.currency ?? "TRY",
-        purchasePrice: detail.purchasePrice != null ? String(detail.purchasePrice) : "",
-        unitPrice: detail.unitPrice != null ? String(detail.unitPrice) : "",
-        discountMode:
-          detail.discountAmount != null && String(detail.discountAmount) !== "" ? "amount" : "percent",
-        discountPercent: detail.discountPercent != null ? String(detail.discountPercent) : "",
-        discountAmount: detail.discountAmount != null ? String(detail.discountAmount) : "",
-        taxMode: detail.taxAmount != null && String(detail.taxAmount) !== "" ? "amount" : "percent",
-        taxPercent: detail.taxPercent != null ? String(detail.taxPercent) : "",
-        taxAmount: detail.taxAmount != null ? String(detail.taxAmount) : "",
-        name: detail.name ?? "",
-        sku: detail.sku ?? "",
-        description: detail.description ?? "",
-        image: detail.image ?? "",
-        storeIds: detail.storeIds ?? [],
-        applyToAllStores: Boolean(detail.applyToAllStores),
-        categoryId: detail.categoryId ?? detail.category?.id ?? "",
-        supplierId: detail.supplierId ?? detail.supplier?.id ?? "",
-      };
-      setForm(formData);
-      setOriginalForm(formData);
-      setVariants([]);
-      setStep1ProductInfoOpen(true);
-      setStep1StoreScopeOpen(true);
-
-      setEditingProductId(detail.id);
-      setDrawerOpen(true);
-    } catch {
-      setFormError("Urun detayi yuklenemedi. Lutfen tekrar deneyin.");
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
-  /* ── Validation ── */
-
-  const validateStep1 = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!form.name.trim()) newErrors.name = "Urun adi zorunludur.";
-    if (!form.sku.trim()) newErrors.sku = "SKU zorunludur.";
-
-    if (!form.unitPrice || isNaN(Number(form.unitPrice)) || Number(form.unitPrice) < 0)
-      newErrors.unitPrice = "Gecerli bir satis fiyati girin.";
-
-    if (!form.purchasePrice || isNaN(Number(form.purchasePrice)) || Number(form.purchasePrice) < 0)
-      newErrors.purchasePrice = "Gecerli bir alis fiyati girin.";
-
-    if (form.taxMode === "percent") {
-      if (form.taxPercent && isNaN(Number(form.taxPercent))) {
-        newErrors.taxPercent = "Gecerli bir vergi orani girin.";
-      } else if (form.taxPercent) {
-        const tax = Number(form.taxPercent);
-        if (tax < 0 || tax > 100) newErrors.taxPercent = "Vergi orani 0-100 arasi olmalidir.";
-      }
-    } else if (form.taxAmount && isNaN(Number(form.taxAmount))) {
-      newErrors.taxAmount = "Gecerli bir vergi tutari girin.";
-    }
-
-    if (form.discountMode === "percent") {
-      if (form.discountPercent && isNaN(Number(form.discountPercent))) {
-        newErrors.discountPercent = "Gecerli bir indirim orani girin.";
-      } else if (form.discountPercent) {
-        const discount = Number(form.discountPercent);
-        if (discount < 0 || discount > 100) newErrors.discountPercent = "Indirim orani 0-100 arasi olmalidir.";
-      }
-    } else if (form.discountAmount && isNaN(Number(form.discountAmount))) {
-      newErrors.discountAmount = "Gecerli bir indirim tutari girin.";
-    }
-
-    if (calculatedLineTotal == null || Number.isNaN(calculatedLineTotal) || calculatedLineTotal < 0) {
-      newErrors.lineTotal = "Gecerli bir satir toplami girin.";
-    }
-
-    if (canTenantOnly && !form.applyToAllStores && form.storeIds.length === 0) {
-      newErrors.storeIds = "En az bir magaza secin veya tum magazalara uygulayin.";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateVariants = (): boolean => {
-    if (variants.length === 0) {
-      setFormError("En az bir ozellik eklemelisiniz.");
-      return false;
-    }
-    const newErrors: Record<number, VariantErrors> = {};
-    let hasAtLeastOneValidAttribute = false;
-
-    variants.forEach((v, i) => {
-      const e: VariantErrors = {};
-
-      const hasEmptyAttr = v.attributes.some((a) => a.id && a.values.length === 0);
-      const hasEmptyKey = v.attributes.some((a) => !a.id && a.values.length > 0);
-      const validAttributeCount = v.attributes.filter((a) => a.id && a.values.length > 0).length;
-      if (validAttributeCount > 0) hasAtLeastOneValidAttribute = true;
-
-      if (hasEmptyAttr || hasEmptyKey) {
-        e.attributes = "Tum ozellik alanlari doldurulmalidir.";
-      } else if (validAttributeCount === 0) {
-        e.attributes = "En az bir ozellik secmelisiniz.";
-      }
-
-      if (Object.keys(e).length > 0) newErrors[i] = e;
-    });
-
-    if (!hasAtLeastOneValidAttribute) {
-      setFormError("En az bir ozellik eklemelisiniz.");
-    } else {
-      setFormError("");
-    }
-
-    setVariantErrors(newErrors);
-    return Object.keys(newErrors).length === 0 && hasAtLeastOneValidAttribute;
-  };
-
-  /* ── Step navigation ── */
-
-  const isFormChanged = (): boolean => {
-    const simpleKeys = Object.keys(originalForm) as (keyof ProductForm)[];
-    return simpleKeys.some((key) => {
-      if (key === "storeIds") {
-        const left = originalForm.storeIds;
-        const right = form.storeIds;
-        if (left.length !== right.length) return true;
-        return left.some((id, i) => id !== right[i]);
-      }
-      return form[key] !== originalForm[key];
-    });
-  };
-
-  const fetchVariants = async (productId: string) => {
-    try {
-      const productAttributesRes = await getProductAttributes(productId);
-      const productAttributes = (productAttributesRes.attributes ?? []).map((attribute) => ({
-        id: attribute.id,
-        values: (attribute.values ?? [])
-          .filter((value) => value.isActive)
-          .map((value) => value.id),
-      }));
-
-      setOriginalVariantMap({});
-      const clientKey = createVariantClientKey();
-      setVariants([
-        {
-          clientKey,
-          id: undefined,
-          isActive: true,
-          attributes: productAttributes.length > 0 ? productAttributes : [{ id: "", values: [] }],
-        },
-      ]);
-      setExpandedVariantKeys([clientKey]);
-    } catch {
-      const clientKey = createVariantClientKey();
-      setOriginalVariantMap({});
-      setVariants([
-        {
-          clientKey,
-          id: undefined,
-          isActive: true,
-          attributes: [{ id: "", values: [] }],
-        },
-      ]);
-      setExpandedVariantKeys([clientKey]);
-    }
-  };
-
-  const buildPricingPayload = () => ({
-    currency: form.currency,
-    unitPrice: Number(form.unitPrice),
-    purchasePrice: Number(form.purchasePrice),
-    ...(form.taxMode === "percent"
-      ? form.taxPercent
-        ? { taxPercent: Number(form.taxPercent) }
-        : {}
-      : form.taxAmount
-        ? { taxAmount: Number(form.taxAmount) }
-        : {}),
-    ...(form.discountMode === "percent"
-      ? form.discountPercent
-        ? { discountPercent: Number(form.discountPercent) }
-        : {}
-      : form.discountAmount
-        ? { discountAmount: Number(form.discountAmount) }
-        : {}),
-  });
-
-  const buildScopePayload = () =>
-    canTenantOnly
-      ? { storeIds: [], applyToAllStores: false }
-      : form.applyToAllStores
-        ? { storeIds: [], applyToAllStores: true }
-        : { storeIds: form.storeIds, applyToAllStores: false };
-
-  const goToStep2 = async () => {
-    if (!validateStep1()) return;
-
-    setSubmitting(true);
-    setFormError("");
-
-    try {
-      const productPayload = {
-        name: form.name.trim(),
-        sku: form.sku.trim(),
-        description: form.description.trim() || undefined,
-        image: form.image.trim() || undefined,
-        categoryId: form.categoryId || undefined,
-        supplierId: form.supplierId || undefined,
-        ...buildPricingPayload(),
-        ...buildScopePayload(),
-      };
-
-      if (editingProductId) {
-        if (isFormChanged()) {
-          await updateProduct(editingProductId, productPayload);
-        }
-        await fetchVariants(editingProductId);
-        setStep(2);
-      } else {
-        const created = await createProduct(productPayload);
-        setCreatedProductId(created.id);
-        await fetchVariants(created.id);
-        setStep(2);
-      }
-    } catch {
-      setFormError(
-        editingProductId
-          ? "Urun guncellenemedi. Lutfen tekrar deneyin."
-          : "Urun olusturulamadi. Lutfen tekrar deneyin.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const goToStep1 = () => setStep(1);
-
-  /* ── Close & reset helper ── */
-  const closeAndReset = async () => {
-    setDrawerOpen(false);
-    setForm(EMPTY_PRODUCT_FORM);
-    setVariants([]);
-    setEditingProductId(null);
-    setCreatedProductId(null);
-    setExpandedVariantKeys([]);
-    setOriginalVariantMap({});
-    setStep(1);
-    await fetchProducts();
-  };
-
-  /* ── Submit ── */
-
-  const onSubmitProduct = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    if (step === 1) {
-      goToStep2();
-      return;
-    }
-
-    if (!validateVariants()) return;
-
-    const preparedVariants = variants
-      .filter((v) => v.attributes.some((a) => a.id && a.values.length > 0))
-      .map((v) => ({
-        id: v.id,
-        isActive: v.isActive ?? true,
-        payload: {
-          attributes: v.attributes.filter((a) => a.id && a.values.length > 0),
-        },
-      }));
-
-    const targetProductId = editingProductId ?? createdProductId;
-
-    if (preparedVariants.length === 0) {
-      await closeAndReset();
-      return;
-    }
-
-    setSubmitting(true);
-    setFormError("");
-
-    try {
-      if (editingProductId) {
-        const variantsToUpdate = preparedVariants.filter((v) => {
-          if (!v.id) return false;
-          const original = originalVariantMap[v.id];
-          if (!original) return true;
-          return (
-            original.isActive !== v.isActive ||
-            !areVariantAttributesEqual(original.payload.attributes, v.payload.attributes)
-          );
-        });
-        const variantsToCreate = preparedVariants
-          .filter((v) => !v.id)
-          .map((v) => v.payload);
-
-        const hasChanges = variantsToUpdate.length > 0 || variantsToCreate.length > 0;
-
-        if (hasChanges) {
-          if (variantsToUpdate.length > 0) {
-            await Promise.all(
-              variantsToUpdate.map((v) =>
-                updateProductVariant(editingProductId, v.id!, v.payload),
-              ),
-            );
-          }
-
-          if (variantsToCreate.length > 0) {
-            await Promise.all(
-              variantsToCreate.map((dto) =>
-                createProductVariant(editingProductId, dto),
-              ),
-            );
-          }
-
-          await fetchTableVariants(editingProductId, variantStatusFilter);
-        }
-      } else {
-        await Promise.all(
-          preparedVariants.map((v) =>
-            createProductVariant(targetProductId!, v.payload),
-          ),
-        );
-      }
-
-      await closeAndReset();
-    } catch {
-      setFormError("Varyantlar olusturulamadi. Lutfen tekrar deneyin.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  /* ── Variant helpers ── */
-
-  const removeVariant = (index: number) => {
-    const removedKey = variants[index]?.clientKey;
-    setVariants((prev) => prev.filter((_, i) => i !== index));
-    if (removedKey) {
-      setExpandedVariantKeys((prev) => prev.filter((key) => key !== removedKey));
-    }
-    setVariantErrors((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-  };
-
-  const toggleVariantPanel = (clientKey: string) => {
-    setExpandedVariantKeys((prev) =>
-      prev.includes(clientKey) ? prev.filter((key) => key !== clientKey) : [...prev, clientKey],
-    );
-  };
-
-  const addAttribute = (variantIndex: number) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === variantIndex ? { ...v, attributes: [...v.attributes, { id: "", values: [] }] } : v,
-      ),
-    );
-  };
-
-  const removeAttribute = (variantIndex: number, attrIndex: number) => {
-    setVariants((prev) =>
-      prev.map((v, i) => (i === variantIndex ? { ...v, attributes: v.attributes.filter((_, ai) => ai !== attrIndex) } : v)),
-    );
-  };
-
-  const updateVariantAttribute = (
-    variantIndex: number,
-    attrIndex: number,
-    field: "id" | "values",
-    value: string | string[],
-  ) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === variantIndex
-          ? {
-              ...v,
-              attributes: v.attributes.map((a, ai) => {
-                if (ai !== attrIndex) return a;
-                if (field === "id") {
-                  return { id: String(value), values: [] };
-                }
-                return { ...a, values: Array.isArray(value) ? value : [] };
-              }),
-            }
-          : v,
-      ),
-    );
-  };
-
-  /* ── Render ── */
+  const totalPages = list.meta?.totalPages ?? 1;
 
   return (
     <div className="space-y-4">
       <ProductFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        showAdvancedFilters={showAdvancedFilters}
-        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
-        onNewProduct={onOpenDrawer}
+        searchTerm={list.searchTerm}
+        onSearchChange={list.setSearchTerm}
+        showAdvancedFilters={list.showAdvancedFilters}
+        onToggleAdvancedFilters={() => list.setShowAdvancedFilters((prev) => !prev)}
+        onNewProduct={drawer.onOpenDrawer}
         canCreate={can("PRODUCT_CREATE")}
-        currencyFilter={currencyFilter}
-        onCurrencyFilterChange={setCurrencyFilter}
-        productStatusFilter={productStatusFilter}
-        onProductStatusFilterChange={setProductStatusFilter}
-        variantStatusFilter={variantStatusFilter}
-        onVariantStatusFilterChange={setVariantStatusFilter}
-        salePriceMin={defaultSalePriceMinFilter}
-        onSalePriceMinChange={setDefaultSalePriceMinFilter}
-        salePriceMax={defaultSalePriceMaxFilter}
-        onSalePriceMaxChange={setDefaultSalePriceMaxFilter}
-        purchasePriceMin={defaultPurchasePriceMinFilter}
-        onPurchasePriceMinChange={setDefaultPurchasePriceMinFilter}
-        purchasePriceMax={defaultPurchasePriceMaxFilter}
-        onPurchasePriceMaxChange={setDefaultPurchasePriceMaxFilter}
-        onClearAdvancedFilters={clearAdvancedFilters}
+        currencyFilter={list.currencyFilter}
+        onCurrencyFilterChange={list.setCurrencyFilter}
+        productStatusFilter={list.productStatusFilter}
+        onProductStatusFilterChange={list.setProductStatusFilter}
+        variantStatusFilter={list.variantStatusFilter}
+        onVariantStatusFilterChange={list.setVariantStatusFilter}
+        salePriceMin={list.defaultSalePriceMinFilter}
+        onSalePriceMinChange={list.setDefaultSalePriceMinFilter}
+        salePriceMax={list.defaultSalePriceMaxFilter}
+        onSalePriceMaxChange={list.setDefaultSalePriceMaxFilter}
+        purchasePriceMin={list.defaultPurchasePriceMinFilter}
+        onPurchasePriceMinChange={list.setDefaultPurchasePriceMinFilter}
+        purchasePriceMax={list.defaultPurchasePriceMaxFilter}
+        onPurchasePriceMaxChange={list.setDefaultPurchasePriceMaxFilter}
+        onClearAdvancedFilters={list.clearAdvancedFilters}
       />
 
       <ProductTable
-        products={products}
-        loading={loading}
-        error={error}
-        expandedProductIds={expandedProductIds}
-        productVariantsById={productVariantsById}
-        productVariantsLoadingById={productVariantsLoadingById}
-        productVariantsErrorById={productVariantsErrorById}
-        togglingProductIds={togglingProductIds}
-        togglingVariantIds={togglingVariantIds}
-        onToggleExpand={toggleExpandedProduct}
-        onEdit={onEditProduct}
-        onToggleActive={onToggleProductActive}
-        onToggleVariantActive={onToggleVariantActive}
-        onProductPrice={openProductPriceDrawer}
+        products={list.products}
+        loading={list.loading}
+        error={list.error}
+        expandedProductIds={list.expandedProductIds}
+        productVariantsById={list.productVariantsById}
+        productVariantsLoadingById={list.productVariantsLoadingById}
+        productVariantsErrorById={list.productVariantsErrorById}
+        togglingProductIds={list.togglingProductIds}
+        togglingVariantIds={list.togglingVariantIds}
+        onToggleExpand={list.toggleExpandedProduct}
+        onEdit={drawer.onEditProduct}
+        onToggleActive={list.onToggleProductActive}
+        onToggleVariantActive={list.onToggleVariantActive}
+        onProductPrice={price.openProductPriceDrawer}
         canUpdate={can("PRODUCT_UPDATE")}
         canPriceUpdate={can("PRICE_MANAGE")}
         footer={
-          meta && !loading && !error ? (
+          list.meta && !list.loading && !list.error ? (
             <ProductPagination
-              page={currentPage}
+              page={list.currentPage}
               totalPages={totalPages}
-              pageSize={pageSize}
-              total={meta.total}
-              loading={loading}
-              onPageChange={onPageChange}
-              onPageSizeChange={onChangePageSize}
+              pageSize={list.pageSize}
+              total={list.meta.total}
+              loading={list.loading}
+              onPageChange={list.onPageChange}
+              onPageSizeChange={list.onChangePageSize}
             />
           ) : null
         }
@@ -901,43 +108,55 @@ export default function ProductsPage() {
 
       {/* ── Drawer ── */}
       <Drawer
-        open={drawerOpen}
-        onClose={onCloseDrawer}
+        open={drawer.drawerOpen}
+        onClose={drawer.onCloseDrawer}
         side="right"
-        title={editingProductId ? t("products.update") : t("products.create")}
-        description={step === 1 ? `1/2 - ${t("products.step1")}` : `2/2 - ${t("products.step2")}`}
-        closeDisabled={submitting || loadingDetail}
+        title={drawer.editingProductId ? t("products.update") : t("products.create")}
+        description={drawer.step === 1 ? `1/2 - ${t("products.step1")}` : `2/2 - ${t("products.step2")}`}
+        closeDisabled={drawer.submitting || drawer.loadingDetail}
         className={cn(isMobile ? "!max-w-none" : "!max-w-[540px]")}
         footer={
           <div className="flex items-center justify-between">
             <div>
-              {step === 2 && (
-                <Button label={t("common.back")} type="button" onClick={goToStep1} disabled={submitting} variant="secondary" />
+              {drawer.step === 2 && (
+                <Button
+                  label={t("common.back")}
+                  type="button"
+                  onClick={drawer.goToStep1}
+                  disabled={drawer.submitting}
+                  variant="secondary"
+                />
               )}
             </div>
             <div className="flex items-center gap-2">
               <Button
                 label={t("common.cancel")}
                 type="button"
-                onClick={onCloseDrawer}
-                disabled={submitting || loadingDetail}
+                onClick={drawer.onCloseDrawer}
+                disabled={drawer.submitting || drawer.loadingDetail}
                 variant="secondary"
               />
-              {step === 1 ? (
+              {drawer.step === 1 ? (
                 <Button
                   label={t("common.continue")}
                   type="submit"
                   form="product-form"
-                  disabled={submitting || loadingDetail}
+                  disabled={drawer.submitting || drawer.loadingDetail}
                   variant="primarySolid"
                 />
-              ) : step === 2 ? (
+              ) : drawer.step === 2 ? (
                 <Button
-                  label={submitting ? (editingProductId ? t("common.updating") : t("common.creating")) : t("common.save")}
+                  label={
+                    drawer.submitting
+                      ? drawer.editingProductId
+                        ? t("common.updating")
+                        : t("common.creating")
+                      : t("common.save")
+                  }
                   type="submit"
                   form="product-form"
-                  disabled={submitting || loadingDetail}
-                  loading={submitting}
+                  disabled={drawer.submitting || drawer.loadingDetail}
+                  loading={drawer.submitting}
                   variant="primarySolid"
                 />
               ) : null}
@@ -945,59 +164,63 @@ export default function ProductsPage() {
           </div>
         }
       >
-        <form id="product-form" onSubmit={onSubmitProduct} className="space-y-4 p-5">
-          {loadingDetail ? (
+        <form
+          id="product-form"
+          onSubmit={(e: FormEvent<HTMLFormElement>) => void drawer.onSubmitProduct(e)}
+          className="space-y-4 p-5"
+        >
+          {drawer.loadingDetail ? (
             <div className="text-sm text-muted">{t("common.loading")}</div>
-          ) : step === 1 ? (
+          ) : drawer.step === 1 ? (
             <ProductDrawerStep1
-              form={form}
-              errors={errors}
-              calculatedLineTotal={calculatedLineTotal}
+              form={drawer.form}
+              errors={drawer.errors}
+              calculatedLineTotal={drawer.calculatedLineTotal}
               storeOptions={storeOptions}
-              categoryOptions={categoryOptions}
-              productInfoOpen={step1ProductInfoOpen}
-              onToggleProductInfo={() => setStep1ProductInfoOpen((prev) => !prev)}
-              storeScopeOpen={step1StoreScopeOpen}
-              onToggleStoreScope={() => setStep1StoreScopeOpen((prev) => !prev)}
-              formError={formError}
-              onFormChange={onFormChange}
-              onFormPatch={onFormPatch}
-              onClearError={onClearError}
+              categoryOptions={drawer.categoryOptions}
+              productInfoOpen={drawer.step1ProductInfoOpen}
+              onToggleProductInfo={() => drawer.setStep1ProductInfoOpen((prev) => !prev)}
+              storeScopeOpen={drawer.step1StoreScopeOpen}
+              onToggleStoreScope={() => drawer.setStep1StoreScopeOpen((prev) => !prev)}
+              formError={drawer.formError}
+              onFormChange={drawer.onFormChange}
+              onFormPatch={drawer.onFormPatch}
+              onClearError={drawer.onClearError}
               canTenantOnly={canTenantOnly}
             />
-          ) : step === 2 ? (
+          ) : drawer.step === 2 ? (
             <ProductDrawerStep2
-              variants={variants}
-              expandedVariantKeys={expandedVariantKeys}
-              variantErrors={variantErrors}
-              attributeDefinitions={attributeDefinitions}
-              formError={formError}
-              onToggleVariantPanel={toggleVariantPanel}
-              onRemoveVariant={removeVariant}
-              onAddAttribute={addAttribute}
-              onRemoveAttribute={removeAttribute}
-              onUpdateAttribute={updateVariantAttribute}
+              variants={drawer.variants}
+              expandedVariantKeys={drawer.expandedVariantKeys}
+              variantErrors={drawer.variantErrors}
+              attributeDefinitions={drawer.attributeDefinitions}
+              formError={drawer.formError}
+              onToggleVariantPanel={drawer.toggleVariantPanel}
+              onRemoveVariant={drawer.removeVariant}
+              onAddAttribute={drawer.addAttribute}
+              onRemoveAttribute={drawer.removeAttribute}
+              onUpdateAttribute={drawer.updateVariantAttribute}
             />
           ) : null}
         </form>
       </Drawer>
 
       <PriceDrawer
-        open={priceOpen}
-        target={priceTarget}
+        open={price.priceOpen}
+        target={price.priceTarget}
         allStoreOptions={storeOptions}
         isMobile={isMobile}
         showStoreScopeControls={!canTenantOnly}
-        fixedStoreId={canTenantOnly ? scopedStoreId : undefined}
-        onClose={closePriceDrawer}
+        fixedStoreId={canTenantOnly ? scope.scopedStoreId : undefined}
+        onClose={price.closePriceDrawer}
         onSuccess={() => {
-          if (priceTarget?.mode === "product") {
-            void fetchProducts();
-            if (priceProductId && expandedProductIds.includes(priceProductId)) {
-              void fetchTableVariants(priceProductId, variantStatusFilter);
+          if (price.priceTarget?.mode === "product") {
+            void list.fetchProducts();
+            if (price.priceProductId && list.expandedProductIds.includes(price.priceProductId)) {
+              void list.fetchTableVariants(price.priceProductId, list.variantStatusFilter);
             }
-          } else if (priceProductId) {
-            void fetchTableVariants(priceProductId, variantStatusFilter);
+          } else if (price.priceProductId) {
+            void list.fetchTableVariants(price.priceProductId, list.variantStatusFilter);
           }
         }}
       />

@@ -5,12 +5,15 @@ node_modules
 apps/*/node_modules
 apps/*/.next
 apps/*/out
+apps/*/.idea/*.xml
+apps/*/.idea/*.iml
 apps/*/.expo
 apps/*/.env.local
 apps/*/dist
 apps/*/coverage
 
-.expo
+.expo/*
+.idea/*
 
 .package-lock.json
 yarn.lock
