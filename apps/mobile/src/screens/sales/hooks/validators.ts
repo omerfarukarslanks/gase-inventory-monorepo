@@ -1,5 +1,5 @@
-import type { Customer, InventoryVariantStockItem } from "@gase/core";
-import type { PaymentMethod } from "@gase/core";
+import type { Customer, InventoryVariantStockItem, PaymentMethod } from "@gase/core";
+import { normalizeTurkishLookup } from "@gase/core";
 import { formatCount, toNullableNumber, toNumber } from "@/src/lib/format";
 import type { SalesRecentCustomer, SalesRecentVariant } from "@/src/lib/salesRecents";
 import type { SalesDraftSeed } from "@/src/lib/workflows";
@@ -83,7 +83,7 @@ export function applySeedToDraft(
 }
 
 export function normalizeLookupValue(value: string | undefined): string {
-  return value?.trim().toLocaleLowerCase("tr-TR") ?? "";
+  return value != null ? normalizeTurkishLookup(value) : "";
 }
 
 export function scoreVariantMatch(query: string, variant: InventoryVariantStockItem): number {

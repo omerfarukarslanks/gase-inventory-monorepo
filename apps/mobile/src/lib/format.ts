@@ -1,25 +1,7 @@
-import type { Currency } from "@gase/core";
-
-export function formatCurrency(value: number | string | null | undefined, currency: Currency = "TRY"): string {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return "-";
-
-  try {
-    return new Intl.NumberFormat("tr-TR", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`;
-  }
-}
-
-export function formatCount(value: number | string | null | undefined): string {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return "-";
-  return amount.toLocaleString("tr-TR");
-}
+// formatCurrency and formatCount are now canonical in @gase/core.
+// Re-exported here so existing imports (`@/src/lib/format`) keep working.
+export { formatCurrency, formatCount } from "@gase/core";
+export type { Currency } from "@gase/core";
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "-";
