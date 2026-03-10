@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useMemo, type ReactNode } from "react";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 import type {
   InventoryProductStockItem,
   InventoryVariantStockItem,
@@ -236,14 +237,8 @@ export default function StockTable({
 
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-      {loading ? (
-        <div className="p-6 text-sm text-muted">{t("stock.loading")}</div>
-      ) : error ? (
+      {error ? (
         <div className="p-6 text-sm text-error">{error}</div>
-      ) : products.length === 0 ? (
-        <div className="p-8 text-center text-sm text-muted">
-          {t("stock.noData")}
-        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-240">
@@ -256,7 +251,15 @@ export default function StockTable({
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => {
+              {loading ? (
+                <TableSkeletonRows rows={6} cols={4} />
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-sm text-muted">
+                    {t("stock.noData")}
+                  </td>
+                </tr>
+              ) : products.map((product) => {
                 const expanded = expandedProductIds.includes(product.productId);
                 return (
                   <Fragment key={product.productId}>

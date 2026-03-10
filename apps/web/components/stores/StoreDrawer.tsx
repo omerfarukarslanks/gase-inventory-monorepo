@@ -1,8 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import Button from "@/components/ui/Button";
-import Drawer from "@/components/ui/Drawer";
+import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { CURRENCY_OPTIONS } from "@/components/products/types";
@@ -57,30 +56,15 @@ export default function StoreDrawer({
       closeDisabled={submitting || loadingStoreDetail}
       className={cn(isMobile && "!max-w-none")}
       footer={
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            label={t("common.cancel")}
-            type="button"
-            onClick={onClose}
-            disabled={submitting || loadingStoreDetail}
-            variant="secondary"
-          />
-          <Button
-            label={
-              submitting
-                ? editingStoreId
-                  ? t("common.updating")
-                  : t("common.creating")
-                : editingStoreId
-                  ? t("stores.update")
-                  : t("stores.create")
-            }
-            type="submit"
-            form="create-store-form"
-            disabled={submitting || loadingStoreDetail}
-            variant="primarySolid"
-          />
-        </div>
+        <DrawerFooter
+          cancelLabel={t("common.cancel")}
+          onCancel={onClose}
+          cancelDisabled={submitting || loadingStoreDetail}
+          formId="create-store-form"
+          saveLabel={editingStoreId ? t("stores.update") : t("stores.create")}
+          saveDisabled={submitting || loadingStoreDetail}
+          saving={submitting}
+        />
       }
     >
       <form id="create-store-form" onSubmit={onSubmit} className="space-y-4 p-5">

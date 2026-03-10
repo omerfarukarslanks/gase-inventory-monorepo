@@ -6,6 +6,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon, PriceIcon } from "@/components/ui/icons/TableIcons";
 import type { Customer } from "@/lib/customers";
 import { useLang } from "@/context/LangContext";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 
 type CustomersTableProps = {
   loading: boolean;
@@ -34,9 +35,7 @@ export default function CustomersTable({
 
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-      {loading ? (
-        <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-      ) : error ? (
+      {error ? (
         <div className="p-6">
           <p className="text-sm text-error">{error}</p>
         </div>
@@ -58,7 +57,9 @@ export default function CustomersTable({
                 </tr>
               </thead>
               <tbody>
-                {customers.length === 0 ? (
+                {loading ? (
+                  <TableSkeletonRows rows={5} cols={9} />
+                ) : customers.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted">
                       {t("common.noData")}

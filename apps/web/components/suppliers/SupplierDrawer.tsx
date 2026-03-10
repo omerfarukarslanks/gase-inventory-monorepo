@@ -1,8 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import Button from "@/components/ui/Button";
-import Drawer from "@/components/ui/Drawer";
+import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { cn } from "@/lib/cn";
@@ -54,22 +53,15 @@ export default function SupplierDrawer({
       closeDisabled={submitting || loadingSupplierDetail}
       className={cn(isMobile && "!max-w-none")}
       footer={
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            label={t("common.cancel")}
-            type="button"
-            onClick={onClose}
-            disabled={submitting || loadingSupplierDetail}
-            variant="secondary"
-          />
-          <Button
-            label={submitting ? (editingSupplierId ? t("common.updating") : t("common.creating")) : t("common.save")}
-            type="submit"
-            form="supplier-form"
-            disabled={submitting || loadingSupplierDetail}
-            variant="primarySolid"
-          />
-        </div>
+        <DrawerFooter
+          cancelLabel={t("common.cancel")}
+          onCancel={onClose}
+          cancelDisabled={submitting || loadingSupplierDetail}
+          formId="supplier-form"
+          saveLabel={t("common.save")}
+          saveDisabled={submitting || loadingSupplierDetail}
+          saving={submitting}
+        />
       }
     >
       <form id="supplier-form" onSubmit={onSubmit} className="space-y-4 p-5">

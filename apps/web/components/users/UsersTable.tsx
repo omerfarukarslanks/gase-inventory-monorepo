@@ -5,6 +5,7 @@ import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import type { User } from "@/lib/users";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 
 const SortAscIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,9 +88,7 @@ export default function UsersTable({
           </thead>
           <tbody className="divide-y divide-border">
             {loading ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-muted">Yükleniyor...</td>
-              </tr>
+              <TableSkeletonRows rows={5} cols={5} />
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-8 text-center text-muted">Kayıt bulunamadı.</td>

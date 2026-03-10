@@ -1,7 +1,6 @@
 "use client";
 
-import Button from "@/components/ui/Button";
-import Drawer from "@/components/ui/Drawer";
+import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { cn } from "@/lib/cn";
@@ -47,22 +46,15 @@ export default function UserDrawer({
       closeDisabled={saving}
       className={cn(isMobile && "!max-w-none")}
       footer={
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            label="İptal"
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            variant="secondary"
-          />
-          <Button
-            label={saving ? "Kaydediliyor..." : "Kaydet"}
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            variant="primarySolid"
-          />
-        </div>
+        <DrawerFooter
+          cancelLabel="İptal"
+          onCancel={onClose}
+          cancelDisabled={saving}
+          onSave={onSave}
+          saveLabel="Kaydet"
+          saveDisabled={saving}
+          saving={saving}
+        />
       }
     >
       <div className="space-y-4 p-5">

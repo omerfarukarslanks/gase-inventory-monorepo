@@ -24,6 +24,7 @@ import SalePaymentDrawer from "@/components/sales/SalePaymentDrawer";
 import SaleReturnDrawer from "@/components/sales/SaleReturnDrawer";
 import SaleLinesDrawer from "@/components/sales/SaleLinesDrawer";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { PageShell } from "@/components/layout/PageShell";
 
 export default function SalesPage() {
   const { t } = useLang();
@@ -96,13 +97,9 @@ export default function SalesPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-text">Satislar</h1>
-        <p className="text-sm text-muted">Satis fisleri ve yeni satis olusturma</p>
-      </div>
-
-      <SalesFilters
+    <PageShell
+      error={list.salesError}
+      filters={<SalesFilters
         showAdvancedFilters={list.showSalesAdvancedFilters}
         onToggleAdvancedFilters={() => list.setShowSalesAdvancedFilters((prev) => !prev)}
         onNewSale={form.openSaleDrawer}
@@ -132,8 +129,8 @@ export default function SalesPage() {
         includeLines={list.salesIncludeLines}
         onIncludeLinesChange={list.setSalesIncludeLines}
         onResetPage={() => list.setSalesPage(1)}
-      />
-
+      />}
+    >
       <SalesTable
         salesReceipts={list.salesReceipts}
         salesLoading={list.salesLoading}
@@ -416,6 +413,6 @@ export default function SalesPage() {
           lines.setDeleteLineTarget(null);
         }}
       />
-    </div>
+    </PageShell>
   );
 }

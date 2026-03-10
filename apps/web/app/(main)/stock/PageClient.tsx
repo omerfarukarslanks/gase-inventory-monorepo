@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useStores } from "@/hooks/useStores";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLang } from "@/context/LangContext";
-import { getAllSuppliers, type Supplier } from "@/lib/suppliers";
 
 import { useStockScope } from "./hooks/useStockScope";
 import { useStockList } from "./hooks/useStockList";
@@ -13,7 +11,10 @@ import { useStockReceive } from "./hooks/useStockReceive";
 import { useStockAdjust } from "./hooks/useStockAdjust";
 import { useStockTransfer } from "./hooks/useStockTransfer";
 import { useProductInventoryDrawer } from "./hooks/useProductInventoryDrawer";
+import { useSuppliers } from "./hooks/useSuppliers";
+import { useStockDerived } from "./hooks/useStockDerived";
 
+import { PageShell } from "@/components/layout/PageShell";
 import StockFilters from "@/components/stock/StockFilters";
 import StockTable from "@/components/stock/StockTable";
 import StockPagination from "@/components/stock/StockPagination";
@@ -32,12 +33,7 @@ export default function StockPage() {
   const canTenantOnly = can("TENANT_ONLY");
 
   /* ── Suppliers ── */
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  useEffect(() => {
-    getAllSuppliers({ isActive: true })
-      .then(setSuppliers)
-      .catch(() => setSuppliers([]));
-  }, []);
+  const { suppliers } = useSuppliers();
 
   /* ── Scope ── */
   const scope = useStockScope();
@@ -88,61 +84,29 @@ export default function StockPage() {
   });
 
   /* ── Derived ── */
-  const storeOptions = useMemo(
-    () => stores.map((s) => ({ value: s.id, label: s.name })),
-    [stores],
-  );
-
-  const adjustFormVariant = useMemo(
-    () =>
-      adjust.adjustTarget
-        ? [
-            {
-              id: adjust.adjustTarget.productVariantId,
-              name: adjust.adjustTarget.variantName,
-              code: adjust.adjustTarget.variantName,
-            },
-          ]
-        : [],
-    [adjust.adjustTarget],
-  );
-
-  const adjustFormCurrency = useMemo(() => {
-    if (!adjust.adjustTarget) return "TRY" as const;
-    const storesForVariant = list.variantStoresById[adjust.adjustTarget.productVariantId] ?? [];
-    const currency = storesForVariant[0]?.currency;
-    if (currency === "TRY" || currency === "USD" || currency === "EUR") return currency;
-    return "TRY" as const;
-  }, [adjust.adjustTarget, list.variantStoresById]);
-
-  const filteredProducts = useMemo(() => {
-    const q = list.debouncedSearch.trim().toLowerCase();
-    if (!q) return list.products;
-    return list.products.filter((product) => {
-      if (product.productName.toLowerCase().includes(q)) return true;
-      return (product.variants ?? []).some((variant) => {
-        if (variant.variantName.toLowerCase().includes(q)) return true;
-        if ((variant.variantCode ?? "").toLowerCase().includes(q)) return true;
-        return (list.variantStoresById[variant.productVariantId] ?? variant.stores ?? []).some(
-          (store) => store.storeName.toLowerCase().includes(q),
-        );
-      });
-    });
-  }, [list.products, list.debouncedSearch, list.variantStoresById]);
+  const derived = useStockDerived({
+    stores,
+    adjustTarget: adjust.adjustTarget,
+    variantStoresById: list.variantStoresById,
+    products: list.products,
+    debouncedSearch: list.debouncedSearch,
+  });
 
   /* ── Render ── */
 
   return (
-    <div className="space-y-4">
-      <StockFilters
-        searchTerm={list.searchTerm}
-        onSearchChange={list.setSearchTerm}
-        storeFilterIds={list.storeFilterIds}
-        onStoreFilterChange={list.setStoreFilterIds}
-        storeOptions={storeOptions}
-        canTenantOnly={canTenantOnly}
-      />
-
+    <PageShell
+      filters={
+        <StockFilters
+          searchTerm={list.searchTerm}
+          onSearchChange={list.setSearchTerm}
+          storeFilterIds={list.storeFilterIds}
+          onStoreFilterChange={list.setStoreFilterIds}
+          storeOptions={derived.storeOptions}
+          canTenantOnly={canTenantOnly}
+        />
+      }
+    >
       {list.success && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
           {list.success}
@@ -150,7 +114,7 @@ export default function StockPage() {
       )}
 
       <StockTable
-        products={filteredProducts}
+        products={derived.filteredProducts}
         loading={list.loading}
         error={list.error}
         getVariantStores={list.getVariantStores}
@@ -187,8 +151,8 @@ export default function StockPage() {
         submitting={adjust.adjustSubmitting}
         formError={adjust.adjustFormError}
         target={adjust.adjustTarget}
-        variants={adjustFormVariant}
-        currency={adjustFormCurrency}
+        variants={derived.adjustFormVariant}
+        currency={derived.adjustFormCurrency}
         stores={stores}
         initialEntriesByVariant={adjust.adjustInitial}
         isMobile={isMobile}
@@ -208,7 +172,7 @@ export default function StockPage() {
         formError={transfer.transferFormError}
         target={transfer.transferTarget}
         form={transfer.transferForm}
-        allStoreOptions={storeOptions}
+        allStoreOptions={derived.storeOptions}
         isMobile={isMobile}
         onClose={transfer.closeTransferDrawer}
         onFormChange={(patch) => transfer.setTransferForm((prev) => ({ ...prev, ...patch }))}
@@ -246,6 +210,6 @@ export default function StockPage() {
         onClose={productDrawer.closeProductDrawer}
         onSuccess={(msg) => void productDrawer.handleProductSuccess(msg)}
       />
-    </div>
+    </PageShell>
   );
 }

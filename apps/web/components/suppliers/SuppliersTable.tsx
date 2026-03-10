@@ -6,6 +6,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import type { Supplier } from "@/lib/suppliers";
 import { useLang } from "@/context/LangContext";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 
 type SuppliersTableProps = {
   loading: boolean;
@@ -32,9 +33,7 @@ export default function SuppliersTable({
 
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-      {loading ? (
-        <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-      ) : error ? (
+      {error ? (
         <div className="p-6">
           <p className="text-sm text-error">{error}</p>
         </div>
@@ -54,7 +53,9 @@ export default function SuppliersTable({
                 </tr>
               </thead>
               <tbody>
-                {suppliers.length === 0 ? (
+                {loading ? (
+                  <TableSkeletonRows rows={5} cols={7} />
+                ) : suppliers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted">
                       {t("common.noData")}

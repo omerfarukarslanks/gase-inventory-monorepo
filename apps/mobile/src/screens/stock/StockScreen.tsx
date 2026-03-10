@@ -219,7 +219,6 @@ export default function StockScreen({
       criticalQueuePreview={criticalQueuePreview}
       storePickerOpen={storePickerOpen}
       setStorePickerOpen={setStorePickerOpen}
-      stores={stores}
       setSelectedStoreId={setSelectedStoreId}
       onProductPress={(product) => setSelectedProduct(product)}
       onOpenVariantDetail={(product, variant) => void openVariantDetail(product, variant)}

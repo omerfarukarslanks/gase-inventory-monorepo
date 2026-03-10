@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
@@ -44,15 +45,7 @@ export default function AttributesTable({
 
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-      {loading ? (
-        <div className="flex items-center gap-2 p-6 text-sm text-muted">
-          <svg className="h-4 w-4 animate-sp" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-            <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-          {t("common.loading")}
-        </div>
-      ) : attributes.length === 0 ? (
+      {attributes.length === 0 && !loading ? (
         <div className="flex flex-col items-center gap-2 p-10 text-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -84,7 +77,10 @@ export default function AttributesTable({
               </tr>
             </thead>
             <tbody>
-              {attributes.map((attribute) => {
+              {loading ? (
+                <TableSkeletonRows rows={5} cols={5} />
+              ) : (
+                attributes.map((attribute) => {
                 const isExpanded = expandedAttributeIds.includes(attribute.id);
                 const values = sortValues(attribute);
 
@@ -172,7 +168,8 @@ export default function AttributesTable({
                     )}
                   </Fragment>
                 );
-              })}
+              }))
+              }
             </tbody>
           </table>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 import { formatPrice } from "@/lib/format";
 import type { SaleListItem, SalePayment } from "@/lib/sales";
 import { VirtualSalePaymentsTable } from "@/components/sales/VirtualSalePaymentsTable";
@@ -97,16 +98,7 @@ export default function SalesTable({
     );
   }
 
-  if (salesLoading) {
-    return (
-      <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-        <div className="p-6 text-sm text-muted">{t("sales.receiptsLoading")}</div>
-        {footer}
-      </section>
-    );
-  }
-
-  if (salesReceipts.length === 0) {
+  if (salesReceipts.length === 0 && !salesLoading) {
     return (
       <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
         <div className="p-6 text-sm text-muted">{t("sales.receiptsEmpty")}</div>
@@ -136,7 +128,10 @@ export default function SalesTable({
             </tr>
           </thead>
           <tbody>
-            {salesReceipts.map((sale) => {
+            {salesLoading ? (
+              <TableSkeletonRows rows={6} cols={10} />
+            ) : (
+              salesReceipts.map((sale) => {
               const isExpanded = expandedPaymentSaleIds.includes(sale.id);
               const payments = paymentsBySaleId[sale.id] ?? [];
               const loadingPayments = Boolean(paymentLoadingBySaleId[sale.id]);
@@ -301,7 +296,8 @@ export default function SalesTable({
                     </tr>
                   ) : null,
               ];
-            })}
+            }))
+            }
           </tbody>
         </table>
       </div>

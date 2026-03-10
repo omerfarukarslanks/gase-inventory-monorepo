@@ -6,6 +6,7 @@ import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import type { Store } from "@/lib/stores";
 import { useLang } from "@/context/LangContext";
+import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 
 type StoresTableProps = {
   loading: boolean;
@@ -32,9 +33,7 @@ export default function StoresTable({
 
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-      {loading ? (
-        <div className="p-6 text-sm text-muted">{t("common.loading")}</div>
-      ) : error ? (
+      {error ? (
         <div className="p-6">
           <p className="text-sm text-error">{error}</p>
         </div>
@@ -53,47 +52,51 @@ export default function StoresTable({
                 </tr>
               </thead>
               <tbody>
-                {stores.map((store) => (
-                  <tr
-                    key={store.id}
-                    className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
-                    <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
-                    <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                          store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                        }`}
-                      >
-                        {store.isActive ? t("common.active") : t("common.passive")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
-                    <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                      <div className="inline-flex items-center gap-1">
-                        {canUpdate && (
-                          <IconButton
-                            onClick={() => onEditStore(store.id)}
-                            disabled={togglingStoreIds.includes(store.id)}
-                            aria-label="Edit store"
-                            title="Duzenle"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        )}
-                        {canUpdate && (
-                          <ToggleSwitch
-                            checked={store.isActive}
-                            onChange={(next) => onToggleStoreActive(store, next)}
-                            disabled={togglingStoreIds.includes(store.id)}
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {loading ? (
+                  <TableSkeletonRows rows={5} cols={6} />
+                ) : (
+                  stores.map((store) => (
+                    <tr
+                      key={store.id}
+                      className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
+                      <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
+                      <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            store.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
+                          }`}
+                        >
+                          {store.isActive ? t("common.active") : t("common.passive")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
+                      <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
+                        <div className="inline-flex items-center gap-1">
+                          {canUpdate && (
+                            <IconButton
+                              onClick={() => onEditStore(store.id)}
+                              disabled={togglingStoreIds.includes(store.id)}
+                              aria-label="Edit store"
+                              title="Duzenle"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                          )}
+                          {canUpdate && (
+                            <ToggleSwitch
+                              checked={store.isActive}
+                              onChange={(next) => onToggleStoreActive(store, next)}
+                              disabled={togglingStoreIds.includes(store.id)}
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

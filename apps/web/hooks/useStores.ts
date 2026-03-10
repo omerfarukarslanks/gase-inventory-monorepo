@@ -1,20 +1,13 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getStores, type Store } from "@/lib/stores";
 
-/**
- * Fetches all stores (page 1, limit 100) on mount.
- * Returns the store list.
- */
 export function useStores(): Store[] {
-  const [stores, setStores] = useState<Store[]>([]);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    getStores({ token, page: 1, limit: 100 })
-      .then((res) => setStores(res.data))
-      .catch(() => setStores([]));
-  }, []);
-
-  return stores;
+  const token = typeof window !== "undefined" ? (localStorage.getItem("token") ?? "") : "";
+  const { data } = useQuery({
+    queryKey: ["stores", token],
+    queryFn: () => getStores({ token, page: 1, limit: 100 }),
+    enabled: Boolean(token),
+    select: (res) => res.data,
+  });
+  return data ?? [];
 }

@@ -1,285 +1,85 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
 import SuppliersFilters from "@/components/suppliers/SuppliersFilters";
 import SupplierDrawer from "@/components/suppliers/SupplierDrawer";
 import SuppliersTable from "@/components/suppliers/SuppliersTable";
-import { EMPTY_FORM, type SupplierForm } from "@/components/suppliers/types";
 import TablePagination from "@/components/ui/TablePagination";
-import { useDebounceStr } from "@/hooks/useDebounce";
+import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLang } from "@/context/LangContext";
-import {
-  createSupplier,
-  getSupplierById,
-  getSuppliers,
-  updateSupplier,
-  type Supplier,
-  type SuppliersListMeta,
-} from "@/lib/suppliers";
-import { isValidEmail } from "@gase/core";
+import { useSupplierList } from "./hooks/useSupplierList";
+import { useSupplierDrawer } from "./hooks/useSupplierDrawer";
 
 export default function SuppliersPage() {
   const { t } = useLang();
   const { can } = usePermissions();
   const isMobile = !useMediaQuery();
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [meta, setMeta] = useState<SuppliersListMeta | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [togglingSupplierIds, setTogglingSupplierIds] = useState<string[]>([]);
-  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
-  const [editingSupplierIsActive, setEditingSupplierIsActive] = useState(true);
-  const [loadingSupplierDetail, setLoadingSupplierDetail] = useState(false);
-  const [formError, setFormError] = useState("");
-  const [nameError, setNameError] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [form, setForm] = useState<SupplierForm>(EMPTY_FORM);
-
-  const debouncedSearch = useDebounceStr(searchTerm, 500);
   const canCreate = can("SUPPLIER_CREATE");
   const canUpdate = can("SUPPLIER_UPDATE");
 
-  const fetchSuppliers = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const list = useSupplierList({ t });
 
-    try {
-      const res = await getSuppliers({
-        page: currentPage,
-        limit: pageSize,
-        search: debouncedSearch || undefined,
-        isActive: statusFilter,
-      });
-      setSuppliers(res.data);
-      setMeta(res.meta);
-    } catch {
-      setError(t("common.loadError"));
-      setSuppliers([]);
-      setMeta(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, debouncedSearch, pageSize, statusFilter, t]);
-
-  useEffect(() => {
-    if (debouncedSearch !== "") {
-      setCurrentPage(1);
-    }
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    void fetchSuppliers();
-  }, [fetchSuppliers]);
-
-  const totalPages = meta?.totalPages ?? 1;
-
-  const onChangePageSize = (nextPageSize: number) => {
-    setPageSize(nextPageSize);
-    setCurrentPage(1);
-  };
-
-  const onOpenDrawer = () => {
-    setFormError("");
-    setNameError("");
-    setEmailError("");
-    setForm(EMPTY_FORM);
-    setEditingSupplierId(null);
-    setEditingSupplierIsActive(true);
-    setDrawerOpen(true);
-  };
-
-  const onCloseDrawer = () => {
-    if (submitting || loadingSupplierDetail) return;
-    setNameError("");
-    setEmailError("");
-    setDrawerOpen(false);
-  };
-
-  const onFormChange = (field: keyof SupplierForm, value: string) => {
-    if (field === "name" && nameError) {
-      setNameError("");
-    }
-    if (field === "email" && emailError) {
-      setEmailError("");
-    }
-
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const onEditSupplier = async (id: string) => {
-    setFormError("");
-    setNameError("");
-    setEmailError("");
-    setLoadingSupplierDetail(true);
-
-    try {
-      const detail = await getSupplierById(id);
-      setForm({
-        name: detail.name ?? "",
-        surname: detail.surname ?? "",
-        address: detail.address ?? "",
-        phoneNumber: detail.phoneNumber ?? "",
-        email: detail.email ?? "",
-      });
-      setEditingSupplierId(detail.id);
-      setEditingSupplierIsActive(detail.isActive ?? true);
-      setDrawerOpen(true);
-    } catch {
-      setFormError(t("suppliers.loadingDetail"));
-    } finally {
-      setLoadingSupplierDetail(false);
-    }
-  };
-
-  const onSubmitSupplier = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormError("");
-    setNameError("");
-    setEmailError("");
-
-    if (!form.name.trim()) {
-      setNameError("Isim alani zorunludur.");
-      return;
-    }
-
-    if (form.name.trim().length < 2) {
-      setNameError("Isim en az 2 karakter olmalidir.");
-      return;
-    }
-
-    if (form.email.trim() && !isValidEmail(form.email)) {
-      setEmailError("Gecerli bir e-posta girin.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      if (editingSupplierId) {
-        await updateSupplier(editingSupplierId, {
-          name: form.name.trim(),
-          surname: form.surname.trim() || undefined,
-          address: form.address.trim() || undefined,
-          phoneNumber: form.phoneNumber.trim() || undefined,
-          email: form.email.trim() || undefined,
-          isActive: editingSupplierIsActive,
-        });
-      } else {
-        await createSupplier({
-          name: form.name.trim(),
-          surname: form.surname.trim() || undefined,
-          address: form.address.trim() || undefined,
-          phoneNumber: form.phoneNumber.trim() || undefined,
-          email: form.email.trim() || undefined,
-        });
-      }
-
-      setDrawerOpen(false);
-      setForm(EMPTY_FORM);
-      setNameError("");
-      setEmailError("");
-      setEditingSupplierId(null);
-      setEditingSupplierIsActive(true);
-      await fetchSuppliers();
-    } catch {
-      setFormError(t("common.loadError"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const clearAdvancedFilters = () => {
-    setStatusFilter("all");
-  };
-
-  const onToggleSupplierActive = async (supplier: Supplier, next: boolean) => {
-    setTogglingSupplierIds((prev) => [...prev, supplier.id]);
-
-    try {
-      await updateSupplier(supplier.id, {
-        name: supplier.name,
-        surname: supplier.surname ?? undefined,
-        address: supplier.address ?? undefined,
-        phoneNumber: supplier.phoneNumber ?? undefined,
-        email: supplier.email ?? undefined,
-        isActive: next,
-      });
-      await fetchSuppliers();
-    } catch {
-      setError(t("common.loadError"));
-    } finally {
-      setTogglingSupplierIds((prev) => prev.filter((id) => id !== supplier.id));
-    }
-  };
+  const drawer = useSupplierDrawer({ t, onSuccess: list.fetchSuppliers });
 
   return (
-    <div className="space-y-4">
-      <SuppliersFilters
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        showAdvancedFilters={showAdvancedFilters}
-        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
-        canCreate={canCreate}
-        onCreate={onOpenDrawer}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onClearFilters={clearAdvancedFilters}
-      />
-
+    <PageShell
+      error={list.error}
+      filters={
+        <SuppliersFilters
+          searchTerm={list.searchTerm}
+          onSearchTermChange={list.setSearchTerm}
+          showAdvancedFilters={list.showAdvancedFilters}
+          onToggleAdvancedFilters={() => list.setShowAdvancedFilters((prev) => !prev)}
+          canCreate={canCreate}
+          onCreate={drawer.onOpenDrawer}
+          statusFilter={list.statusFilter}
+          onStatusFilterChange={list.setStatusFilter}
+          onClearFilters={list.clearAdvancedFilters}
+        />
+      }
+    >
       <SuppliersTable
-        loading={loading}
-        error={error}
-        suppliers={suppliers}
+        loading={list.loading}
+        error={list.error}
+        suppliers={list.suppliers}
         canUpdate={canUpdate}
-        togglingSupplierIds={togglingSupplierIds}
-        onEditSupplier={(id) => void onEditSupplier(id)}
-        onToggleSupplierActive={(supplier, next) => void onToggleSupplierActive(supplier, next)}
+        togglingSupplierIds={list.togglingSupplierIds}
+        onEditSupplier={(id) => void drawer.onEditSupplier(id)}
+        onToggleSupplierActive={(supplier, next) => void list.onToggleSupplierActive(supplier, next)}
         footer={
-          meta ? (
+          list.meta ? (
             <TablePagination
-              page={currentPage}
-              totalPages={totalPages}
-              total={meta.total}
-              pageSize={pageSize}
+              page={list.currentPage}
+              totalPages={list.totalPages}
+              total={list.meta.total}
+              pageSize={list.pageSize}
               pageSizeId="suppliers-page-size"
-              loading={loading}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={onChangePageSize}
+              loading={list.loading}
+              onPageChange={list.setCurrentPage}
+              onPageSizeChange={list.onChangePageSize}
             />
           ) : null
         }
       />
 
       <SupplierDrawer
-        open={drawerOpen}
-        editingSupplierId={editingSupplierId}
-        submitting={submitting}
-        loadingSupplierDetail={loadingSupplierDetail}
+        open={drawer.drawerOpen}
+        editingSupplierId={drawer.editingSupplierId}
+        submitting={drawer.submitting}
+        loadingSupplierDetail={drawer.loadingSupplierDetail}
         isMobile={isMobile}
-        form={form}
-        formError={formError}
-        nameError={nameError}
-        emailError={emailError}
-        editingSupplierIsActive={editingSupplierIsActive}
-        onClose={onCloseDrawer}
-        onSubmit={onSubmitSupplier}
-        onFormChange={onFormChange}
-        onEditingSupplierIsActiveChange={setEditingSupplierIsActive}
+        form={drawer.form}
+        formError={drawer.formError}
+        nameError={drawer.nameError}
+        emailError={drawer.emailError}
+        editingSupplierIsActive={drawer.editingSupplierIsActive}
+        onClose={drawer.onCloseDrawer}
+        onSubmit={drawer.onSubmitSupplier}
+        onFormChange={drawer.onFormChange}
+        onEditingSupplierIsActiveChange={drawer.setEditingSupplierIsActive}
       />
-    </div>
+    </PageShell>
   );
 }

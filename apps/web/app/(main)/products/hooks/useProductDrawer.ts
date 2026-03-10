@@ -27,6 +27,8 @@ import {
 } from "@/components/products/types";
 import { toNumberOrNull } from "@/lib/format";
 import { useEffect } from "react";
+import { validateProductStep1, validateProductVariants } from "./productValidators";
+import { useVariantEditor } from "./useVariantEditor";
 
 type Options = {
   scopedStoreId: string;
@@ -209,84 +211,16 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
   /* ── Validation ── */
 
   const validateStep1 = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!form.name.trim()) newErrors.name = "Urun adi zorunludur.";
-    if (!form.sku.trim()) newErrors.sku = "SKU zorunludur.";
-
-    if (!form.unitPrice || isNaN(Number(form.unitPrice)) || Number(form.unitPrice) < 0)
-      newErrors.unitPrice = "Gecerli bir satis fiyati girin.";
-
-    if (!form.purchasePrice || isNaN(Number(form.purchasePrice)) || Number(form.purchasePrice) < 0)
-      newErrors.purchasePrice = "Gecerli bir alis fiyati girin.";
-
-    if (form.taxMode === "percent") {
-      if (form.taxPercent && isNaN(Number(form.taxPercent))) {
-        newErrors.taxPercent = "Gecerli bir vergi orani girin.";
-      } else if (form.taxPercent) {
-        const tax = Number(form.taxPercent);
-        if (tax < 0 || tax > 100) newErrors.taxPercent = "Vergi orani 0-100 arasi olmalidir.";
-      }
-    } else if (form.taxAmount && isNaN(Number(form.taxAmount))) {
-      newErrors.taxAmount = "Gecerli bir vergi tutari girin.";
-    }
-
-    if (form.discountMode === "percent") {
-      if (form.discountPercent && isNaN(Number(form.discountPercent))) {
-        newErrors.discountPercent = "Gecerli bir indirim orani girin.";
-      } else if (form.discountPercent) {
-        const discount = Number(form.discountPercent);
-        if (discount < 0 || discount > 100) newErrors.discountPercent = "Indirim orani 0-100 arasi olmalidir.";
-      }
-    } else if (form.discountAmount && isNaN(Number(form.discountAmount))) {
-      newErrors.discountAmount = "Gecerli bir indirim tutari girin.";
-    }
-
-    if (calculatedLineTotal == null || Number.isNaN(calculatedLineTotal) || calculatedLineTotal < 0) {
-      newErrors.lineTotal = "Gecerli bir satir toplami girin.";
-    }
-
-    if (canTenantOnly && !form.applyToAllStores && form.storeIds.length === 0) {
-      newErrors.storeIds = "En az bir magaza secin veya tum magazalara uygulayin.";
-    }
-
+    const { errors: newErrors, valid } = validateProductStep1(form, calculatedLineTotal, canTenantOnly);
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return valid;
   };
 
   const validateVariants = (): boolean => {
-    if (variants.length === 0) {
-      setFormError("En az bir ozellik eklemelisiniz.");
-      return false;
-    }
-    const newErrors: Record<number, VariantErrors> = {};
-    let hasAtLeastOneValidAttribute = false;
-
-    variants.forEach((v, i) => {
-      const e: VariantErrors = {};
-
-      const hasEmptyAttr = v.attributes.some((a) => a.id && a.values.length === 0);
-      const hasEmptyKey = v.attributes.some((a) => !a.id && a.values.length > 0);
-      const validAttributeCount = v.attributes.filter((a) => a.id && a.values.length > 0).length;
-      if (validAttributeCount > 0) hasAtLeastOneValidAttribute = true;
-
-      if (hasEmptyAttr || hasEmptyKey) {
-        e.attributes = "Tum ozellik alanlari doldurulmalidir.";
-      } else if (validAttributeCount === 0) {
-        e.attributes = "En az bir ozellik secmelisiniz.";
-      }
-
-      if (Object.keys(e).length > 0) newErrors[i] = e;
-    });
-
-    if (!hasAtLeastOneValidAttribute) {
-      setFormError("En az bir ozellik eklemelisiniz.");
-    } else {
-      setFormError("");
-    }
-
-    setVariantErrors(newErrors);
-    return Object.keys(newErrors).length === 0 && hasAtLeastOneValidAttribute;
+    const { variantErrors: newVariantErrors, formError: newFormError, valid } = validateProductVariants(variants);
+    setVariantErrors(newVariantErrors);
+    setFormError(newFormError);
+    return valid;
   };
 
   /* ── Step navigation ── */
@@ -507,64 +441,8 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
 
   /* ── Variant helpers ── */
 
-  const removeVariant = (index: number) => {
-    const removedKey = variants[index]?.clientKey;
-    setVariants((prev) => prev.filter((_, i) => i !== index));
-    if (removedKey) {
-      setExpandedVariantKeys((prev) => prev.filter((key) => key !== removedKey));
-    }
-    setVariantErrors((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-  };
-
-  const toggleVariantPanel = (clientKey: string) => {
-    setExpandedVariantKeys((prev) =>
-      prev.includes(clientKey) ? prev.filter((key) => key !== clientKey) : [...prev, clientKey],
-    );
-  };
-
-  const addAttribute = (variantIndex: number) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === variantIndex ? { ...v, attributes: [...v.attributes, { id: "", values: [] }] } : v,
-      ),
-    );
-  };
-
-  const removeAttribute = (variantIndex: number, attrIndex: number) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === variantIndex ? { ...v, attributes: v.attributes.filter((_, ai) => ai !== attrIndex) } : v,
-      ),
-    );
-  };
-
-  const updateVariantAttribute = (
-    variantIndex: number,
-    attrIndex: number,
-    field: "id" | "values",
-    value: string | string[],
-  ) => {
-    setVariants((prev) =>
-      prev.map((v, i) =>
-        i === variantIndex
-          ? {
-              ...v,
-              attributes: v.attributes.map((a, ai) => {
-                if (ai !== attrIndex) return a;
-                if (field === "id") {
-                  return { id: String(value), values: [] };
-                }
-                return { ...a, values: Array.isArray(value) ? value : [] };
-              }),
-            }
-          : v,
-      ),
-    );
-  };
+  const { removeVariant, toggleVariantPanel, addAttribute, removeAttribute, updateVariantAttribute } =
+    useVariantEditor({ variants, setVariants, expandedVariantKeys, setExpandedVariantKeys, setVariantErrors });
 
   return {
     /* state */
