@@ -82,17 +82,21 @@ export type PermissionName =
   | 'TENANT_ONLY';
 
 export type SessionUser = {
+  name?: string;
+  surname?: string;
   role?: string;
   storeType?: string;
   storeId?: string;
   permissions?: string[];
   store?: {
     id?: string;
+    name?: string;
     storeType?: string;
   };
   stores?: Array<{
     id?: string;
     storeId?: string;
+    name?: string;
   }>;
   storeIds?: string[];
   userStores?: Array<{
@@ -100,6 +104,7 @@ export type SessionUser = {
     storeType?: string;
     store?: {
       id?: string;
+      name?: string;
       storeType?: string;
     };
   }>;

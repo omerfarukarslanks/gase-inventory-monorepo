@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMe } from "@/app/auth/auth";
 import { clearAuthCookie, setAuthCookie } from "@/lib/cookie";
+import { clearSessionStorage, setSessionToken, setSessionUser } from "@/lib/session";
 import Logo from "@/components/ui/Logo";
 
 export default function AuthCallbackCard() {
@@ -21,16 +22,15 @@ export default function AuthCallbackCard() {
 
     const handleCallback = async () => {
       try {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        clearSessionStorage();
         clearAuthCookie();
-        localStorage.setItem("token", token);
+        setSessionToken(token);
         setAuthCookie(token);
         const user = await getMe(token);
-        localStorage.setItem("user", JSON.stringify(user));
+        setSessionUser(user);
         router.replace("/dashboard");
       } catch {
-        localStorage.removeItem("token");
+        clearSessionStorage();
         setError("Giriş başarısız. Lütfen tekrar deneyin.");
         setTimeout(() => router.replace("/auth/login"), 2000);
       }

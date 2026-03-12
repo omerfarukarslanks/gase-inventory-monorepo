@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getStores, type Store } from "@/lib/stores";
+import { readSessionToken } from "@/lib/session";
 
 export function useStoresQuery(): Store[] {
-  const token = typeof window !== "undefined" ? (localStorage.getItem("token") ?? "") : "";
+  const token = readSessionToken() ?? "";
   const { data } = useQuery({
     queryKey: ["stores", token],
     queryFn: () => getStores({ token, page: 1, limit: 100 }),

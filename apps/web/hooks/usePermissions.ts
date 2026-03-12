@@ -2,23 +2,17 @@
 
 import { useEffect, useState } from "react";
 import type { PermissionName } from "@/lib/authz";
+import { getSessionProfileSnapshot, subscribeToSessionChange } from "@/lib/session";
 
 /**
  * Reads permissions from the session user stored in localStorage.
  * Returns helper functions to check permissions reactively.
  */
 export function usePermissions() {
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [permissions, setPermissions] = useState<string[]>(() => getSessionProfileSnapshot().permissions);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("user");
-      if (!raw) return;
-      const user = JSON.parse(raw) as { permissions?: string[] };
-      setPermissions(user.permissions ?? []);
-    } catch {
-      setPermissions([]);
-    }
+    return subscribeToSessionChange(() => setPermissions(getSessionProfileSnapshot().permissions));
   }, []);
 
   const can = (permission: PermissionName): boolean =>

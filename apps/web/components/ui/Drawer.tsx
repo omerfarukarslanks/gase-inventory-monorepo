@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import Button from "./Button";
 
 export type DrawerSide = "right" | "left" | "top" | "bottom";
@@ -18,6 +19,7 @@ type Props = {
   className?: string;
   footer?: ReactNode;
   footerClassName?: string;
+  mobileFullscreen?: boolean;
   children: ReactNode;
 };
 
@@ -54,14 +56,27 @@ export default function Drawer({
   className,
   footer,
   footerClassName,
+  mobileFullscreen = false,
   children,
 }: Props) {
-
   const [mounted, setMounted] = useState(false);
+  const viewportMode = useViewportMode();
+  const fullscreen = mobileFullscreen && viewportMode === "mobile";
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mounted, open]);
 
   if (!mounted) return null;
 
@@ -78,10 +93,11 @@ export default function Drawer({
       <aside
         className={cn(
           "fixed z-50 overflow-y-auto border border-border bg-surface shadow-xl transition-transform duration-300",
-          placementClasses[side].panel,
+          fullscreen ? "inset-0 h-[100dvh] max-h-none w-full max-w-none rounded-none border-0" : placementClasses[side].panel,
           open ? "translate-x-0 translate-y-0" : transitionClasses[side],
           className,
         )}
+        style={fullscreen ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
       >
         {(title || description) && (
           <div className="sticky top-0 border-b border-border bg-surface/95 px-5 py-4 backdrop-blur">
@@ -125,6 +141,7 @@ export default function Drawer({
               "sticky bottom-0 border-t border-border bg-surface/95 px-5 py-4 backdrop-blur",
               footerClassName,
             )}
+            style={fullscreen ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" } : undefined}
           >
             {footer}
           </div>
