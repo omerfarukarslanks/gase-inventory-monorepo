@@ -3,17 +3,18 @@
 import TablePagination from "@/components/ui/TablePagination";
 import StoresFilters from "@/components/stores/StoresFilters";
 import StoreDrawer from "@/components/stores/StoreDrawer";
+import StoresMobileList from "@/components/stores/StoresMobileList";
 import StoresTable from "@/components/stores/StoresTable";
 import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
 import { useStoreList } from "./hooks/useStoreList";
 import { useStoreDrawer } from "./hooks/useStoreDrawer";
 
 export default function StoresPage() {
   const { can } = usePermissions();
-  const isMobile = !useMediaQuery();
+  const isMobile = useViewportMode() === "mobile";
   const { t } = useLang();
 
   const canCreate = can("STORE_CREATE");
@@ -44,36 +45,61 @@ export default function StoresPage() {
         />
       }
     >
-      <StoresTable
-        loading={list.loading}
-        error={list.error}
-        stores={list.stores}
-        canUpdate={canUpdate}
-        togglingStoreIds={list.togglingStoreIds}
-        onEditStore={(id) => void drawer.onEditStore(id)}
-        onToggleStoreActive={(store, next) => void list.onToggleStoreActive(store, next)}
-        footer={
-          list.meta ? (
-            <TablePagination
-              page={list.currentPage}
-              totalPages={list.totalPages}
-              total={list.meta.total}
-              pageSize={list.pageSize}
-              pageSizeId="stores-page-size"
-              loading={list.loading}
-              onPageChange={list.setCurrentPage}
-              onPageSizeChange={list.onChangePageSize}
-            />
-          ) : null
-        }
-      />
+      {isMobile ? (
+        <StoresMobileList
+          loading={list.loading}
+          error={list.error}
+          stores={list.stores}
+          canUpdate={canUpdate}
+          togglingStoreIds={list.togglingStoreIds}
+          onEditStore={(id) => void drawer.onEditStore(id)}
+          onToggleStoreActive={(store, next) => void list.onToggleStoreActive(store, next)}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="stores-page-size"
+                loading={list.loading}
+                onPageChange={list.setCurrentPage}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      ) : (
+        <StoresTable
+          loading={list.loading}
+          error={list.error}
+          stores={list.stores}
+          canUpdate={canUpdate}
+          togglingStoreIds={list.togglingStoreIds}
+          onEditStore={(id) => void drawer.onEditStore(id)}
+          onToggleStoreActive={(store, next) => void list.onToggleStoreActive(store, next)}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="stores-page-size"
+                loading={list.loading}
+                onPageChange={list.setCurrentPage}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      )}
 
       <StoreDrawer
         open={drawer.drawerOpen}
         editingStoreId={drawer.editingStoreId}
         submitting={drawer.submitting}
         loadingStoreDetail={drawer.loadingStoreDetail}
-        isMobile={isMobile}
         form={drawer.form}
         formError={drawer.formError}
         nameError={drawer.nameError}

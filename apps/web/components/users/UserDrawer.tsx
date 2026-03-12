@@ -3,7 +3,6 @@
 import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import { cn } from "@/lib/cn";
 import type { User } from "@/lib/users";
 import type { UserForm, UserFormErrors } from "@/components/users/types";
 
@@ -12,7 +11,6 @@ type UserDrawerProps = {
   mode: "edit" | "create";
   selectedUser: User | null;
   saving: boolean;
-  isMobile: boolean;
   form: UserForm;
   errors: UserFormErrors;
   roleOptions: Array<{ value: string; label: string }>;
@@ -27,7 +25,6 @@ export default function UserDrawer({
   mode,
   selectedUser,
   saving,
-  isMobile,
   form,
   errors,
   roleOptions,
@@ -44,7 +41,7 @@ export default function UserDrawer({
       title={mode === "create" ? "Yeni Kullanıcı" : "Kullanıcı Düzenle"}
       description={mode === "create" ? "Yeni bir kullanıcı hesabı oluşturun." : "Kullanıcı bilgilerini güncelleyin."}
       closeDisabled={saving}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <DrawerFooter
           cancelLabel="İptal"

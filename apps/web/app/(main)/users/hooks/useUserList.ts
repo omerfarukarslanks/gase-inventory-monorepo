@@ -89,6 +89,26 @@ export function useUserList(_options: Options = {}) {
   const clearAdvancedFilters = () => {
     setStoreFilter("");
     setStatusFilter("all");
+    setSortBy(undefined);
+    setSortOrder(undefined);
+  };
+
+  const onSortByChange = (value: string) => {
+    if (!value) {
+      setSortBy(undefined);
+      setSortOrder(undefined);
+      return;
+    }
+    setSortBy(value);
+    setSortOrder((prev) => prev ?? "ASC");
+  };
+
+  const onSortOrderChange = (value: string) => {
+    if (value === "ASC" || value === "DESC") {
+      setSortOrder(value);
+      return;
+    }
+    setSortOrder(undefined);
   };
 
   const handleSort = (key: string) => {
@@ -137,8 +157,12 @@ export function useUserList(_options: Options = {}) {
     fetchUsers,
     onToggleUserActive,
     clearAdvancedFilters,
+    onSortByChange,
+    onSortOrderChange,
     handleSort,
     handlePageChange,
     onChangePageSize,
+    setSortBy,
+    setSortOrder,
   };
 }

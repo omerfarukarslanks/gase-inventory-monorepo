@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { getVisiblePages } from "@/lib/pagination";
 
 type TablePaginationProps = {
@@ -27,6 +28,8 @@ export default function TablePagination({
   onPageChange,
   onPageSizeChange,
 }: TablePaginationProps) {
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
   const safeTotalPages = Math.max(1, totalPages);
   const canGoPrev = page > 1;
   const canGoNext = page < safeTotalPages;
@@ -45,61 +48,78 @@ export default function TablePagination({
   }));
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs text-muted">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
         <span>Toplam: {total}</span>
         <span>
           Sayfa: {page}/{safeTotalPages}
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted">
-          Satir:
-        </span>
-        <SearchableDropdown
-          options={pageSizeOptionsAsDropdown}
-          value={String(pageSize)}
-          onChange={(value) => onPageSizeChange(Number(value || pageSizeOptions[0] || 10))}
-          placeholder="Satir"
-          showEmptyOption={false}
-          allowClear={false}
-          showSearchInput={false}
-          menuPlacement="top"
-          inputAriaLabel={`${pageSizeId} satir sayisi`}
-          toggleAriaLabel={`${pageSizeId} satir sayisi listesini ac`}
-          className="w-[76px]"
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted">
+            Satir:
+          </span>
+          <SearchableDropdown
+            options={pageSizeOptionsAsDropdown}
+            value={String(pageSize)}
+            onChange={(value) => onPageSizeChange(Number(value || pageSizeOptions[0] || 10))}
+            placeholder="Satir"
+            showEmptyOption={false}
+            allowClear={false}
+            showSearchInput={false}
+            menuPlacement="top"
+            inputAriaLabel={`${pageSizeId} satir sayisi`}
+            toggleAriaLabel={`${pageSizeId} satir sayisi listesini ac`}
+            className="w-[76px]"
+          />
+        </div>
 
-        <Button
-          label="Onceki"
-          onClick={() => goToPage(page - 1)}
-          disabled={!canGoPrev || loading}
-          variant="pagination"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            label="Onceki"
+            onClick={() => goToPage(page - 1)}
+            disabled={!canGoPrev || loading}
+            variant="pagination"
+            className={isMobile ? "min-w-[92px] flex-1" : undefined}
+          />
 
-        {pageItems.map((item, idx) =>
-          item === -1 ? (
-            <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
-              ...
-            </span>
-          ) : (
+          {!isMobile && pageItems.map((item, idx) =>
+            item === -1 ? (
+              <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted">
+                ...
+              </span>
+            ) : (
+              <Button
+                key={`page-${item}`}
+                label={String(item)}
+                onClick={() => goToPage(item)}
+                disabled={loading}
+                variant={item === page ? "paginationActive" : "pagination"}
+              />
+            ),
+          )}
+
+          <Button
+            label="Sonraki"
+            onClick={() => goToPage(page + 1)}
+            disabled={!canGoNext || loading}
+            variant="pagination"
+            className={isMobile ? "min-w-[92px] flex-1" : undefined}
+          />
+        </div>
+
+        {isMobile ? (
+          <div className="flex justify-end">
             <Button
-              key={`page-${item}`}
-              label={String(item)}
-              onClick={() => goToPage(item)}
-              disabled={loading}
-              variant={item === page ? "paginationActive" : "pagination"}
+              label={`${page}/${safeTotalPages}`}
+              variant="paginationActive"
+              disabled
+              className="min-w-[64px]"
             />
-          ),
-        )}
-
-        <Button
-          label="Sonraki"
-          onClick={() => goToPage(page + 1)}
-          disabled={!canGoNext || loading}
-          variant="pagination"
-        />
+          </div>
+        ) : null}
       </div>
     </div>
   );

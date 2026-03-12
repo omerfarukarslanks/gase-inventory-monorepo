@@ -11,23 +11,23 @@ import {
   type Permission,
   type PermissionListMeta,
   type RoleEntry,
-  type RolePermission,
 } from "@/lib/permissions";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import InputField from "@/components/ui/InputField";
+import PageFilterBar from "@/components/ui/PageFilterBar";
+import PermissionsMobileList from "@/components/permissions/PermissionsMobileList";
+import RolesMobileList from "@/components/permissions/RolesMobileList";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
 import TablePagination from "@/components/ui/TablePagination";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { cn } from "@/lib/cn";
-import { useLang } from "@/context/LangContext";
 
 // ─── Tipler ───────────────────────────────────────────────────────────────────
 
@@ -50,9 +50,8 @@ const EMPTY_PERM_FORM: PermForm = {
 // ─── Bileşen ──────────────────────────────────────────────────────────────────
 
 export default function PermissionsPage() {
-  const { t } = useLang();
   const { can } = usePermissions();
-  const isMobile = !useMediaQuery();
+  const isMobile = useViewportMode() === "mobile";
   const canManage = can("PERMISSION_MANAGE");
 
   const [activeTab, setActiveTab] = useState<Tab>("permissions");
@@ -358,140 +357,59 @@ export default function PermissionsPage() {
       {/* ── YETKİLER SEKMESİ ─────────────────────────────────────────────────── */}
       {activeTab === "permissions" && (
         <>
-          {/* Filtreler + Eylemler */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-              <SearchInput
-                value={permSearch}
-                onChange={setPermSearch}
-                placeholder="Ara..."
-                containerClassName="w-full lg:w-64"
-              />
-              <Button
-                label={showPermFilters ? "Detaylı Filtreyi Gizle" : "Detaylı Filtre"}
-                onClick={() => setShowPermFilters((prev) => !prev)}
-                variant="secondary"
-                className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-              />
-              {canManage && (
-                <Button
-                  label="Yeni Yetki"
-                  onClick={openCreatePermDrawer}
-                  variant="primarySoft"
-                  className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-                />
-              )}
-            </div>
-          </div>
-
-          {showPermFilters && (
-            <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted">Durum</label>
-                <SearchableDropdown
-                  options={STATUS_FILTER_OPTIONS}
-                  value={permStatusFilter === "all" ? "all" : String(permStatusFilter)}
-                  onChange={(value) => setPermStatusFilter(parseIsActiveFilter(value))}
-                  placeholder="Tüm Durumlar"
-                  showEmptyOption={false}
-                  allowClear={false}
-                  inputAriaLabel="Yetki durum filtresi"
-                  toggleAriaLabel="Yetki durum listesini aç"
-                />
-              </div>
-              <div className="md:col-span-2 lg:col-span-3">
-                <Button
-                  label="Filtreleri Temizle"
-                  onClick={() => setPermStatusFilter("all")}
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                />
-              </div>
-            </div>
-          )}
-
-          <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-            {permLoading ? (
-              <div className="p-6 text-sm text-muted">Yetkiler yükleniyor...</div>
-            ) : permError ? (
-              <div className="p-6">
-                <p className="text-sm text-error">{permError}</p>
-              </div>
-            ) : (
+          <PageFilterBar
+            title="Yetkiler"
+            subtitle="Sistem yetkilerini filtreleyin ve yonetin."
+            searchTerm={permSearch}
+            onSearchTermChange={setPermSearch}
+            searchPlaceholder="Ara..."
+            showAdvancedFilters={showPermFilters}
+            onToggleAdvancedFilters={() => setShowPermFilters((prev) => !prev)}
+            filterLabel="Detayli Filtre"
+            hideFilterLabel="Detayli Filtreyi Gizle"
+            canCreate={canManage}
+            createLabel="Yeni Yetki"
+            onCreate={openCreatePermDrawer}
+            mobileAdvancedFiltersTitle="Yetki Filtreleri"
+            advancedFilters={(
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px]">
-                    <thead className="border-b border-border bg-surface2/70">
-                      <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                        <th className="px-4 py-3">Ad</th>
-                        <th className="px-4 py-3">Grup</th>
-                        <th className="px-4 py-3">Açıklama</th>
-                        <th className="px-4 py-3">Durum</th>
-                        <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">İşlemler</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {permissions.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
-                            Kayıt bulunamadı.
-                          </td>
-                        </tr>
-                      ) : (
-                        permissions.map((perm) => (
-                          <tr
-                            key={perm.id}
-                            className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors"
-                          >
-                            <td className="px-4 py-3 text-sm font-medium text-text font-mono">
-                              {perm.name}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-text2">
-                              <span className="inline-flex items-center rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-text2">
-                                {perm.group}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-text2">{perm.description}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                  perm.isActive
-                                    ? "bg-primary/15 text-primary"
-                                    : "bg-error/15 text-error"
-                                }`}
-                              >
-                                {perm.isActive ? "Aktif" : "Pasif"}
-                              </span>
-                            </td>
-                            <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                              <div className="inline-flex items-center gap-1">
-                                {canManage && (
-                                  <IconButton
-                                    onClick={() => openEditPermDrawer(perm)}
-                                    disabled={togglingPermIds.includes(perm.id)}
-                                    aria-label="Yetki düzenle"
-                                    title="Düzenle"
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
-                                )}
-                                {canManage && (
-                                  <ToggleSwitch
-                                    checked={perm.isActive}
-                                    onChange={(next) => onTogglePermActive(perm, next)}
-                                    disabled={togglingPermIds.includes(perm.id)}
-                                  />
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-muted">Durum</label>
+                  <SearchableDropdown
+                    options={STATUS_FILTER_OPTIONS}
+                    value={permStatusFilter === "all" ? "all" : String(permStatusFilter)}
+                    onChange={(value) => setPermStatusFilter(parseIsActiveFilter(value))}
+                    placeholder="Tum Durumlar"
+                    showEmptyOption={false}
+                    allowClear={false}
+                    inputAriaLabel="Yetki durum filtresi"
+                    toggleAriaLabel="Yetki durum listesini ac"
+                  />
                 </div>
+                <div className="md:col-span-2 lg:col-span-3">
+                  <button
+                    type="button"
+                    onClick={() => setPermStatusFilter("all")}
+                    className="inline-flex rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text transition-colors hover:bg-surface2"
+                  >
+                    Filtreleri Temizle
+                  </button>
+                </div>
+              </>
+            )}
+          />
 
-                {permMeta && (
+          {isMobile ? (
+            <PermissionsMobileList
+              loading={permLoading}
+              error={permError}
+              permissions={permissions}
+              canManage={canManage}
+              togglingPermIds={togglingPermIds}
+              onEditPermission={openEditPermDrawer}
+              onTogglePermissionActive={(perm, next) => void onTogglePermActive(perm, next)}
+              footer={
+                permMeta ? (
                   <TablePagination
                     page={permPage}
                     totalPages={permTotalPages}
@@ -502,84 +420,187 @@ export default function PermissionsPage() {
                     onPageChange={setPermPage}
                     onPageSizeChange={onPermPageSizeChange}
                   />
-                )}
-              </>
-            )}
-          </section>
+                ) : null
+              }
+            />
+          ) : (
+            <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
+              {permLoading ? (
+                <div className="p-6 text-sm text-muted">Yetkiler yukleniyor...</div>
+              ) : permError ? (
+                <div className="p-6">
+                  <p className="text-sm text-error">{permError}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px]">
+                      <thead className="border-b border-border bg-surface2/70">
+                        <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                          <th className="px-4 py-3">Ad</th>
+                          <th className="px-4 py-3">Grup</th>
+                          <th className="px-4 py-3">Aciklama</th>
+                          <th className="px-4 py-3">Durum</th>
+                          <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {permissions.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
+                              Kayit bulunamadi.
+                            </td>
+                          </tr>
+                        ) : (
+                          permissions.map((perm) => (
+                            <tr
+                              key={perm.id}
+                              className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
+                            >
+                              <td className="px-4 py-3 font-mono text-sm font-medium text-text">
+                                {perm.name}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-text2">
+                                <span className="inline-flex items-center rounded-full bg-surface2 px-2.5 py-0.5 text-xs font-medium text-text2">
+                                  {perm.group}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-text2">{perm.description}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                    perm.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
+                                  }`}
+                                >
+                                  {perm.isActive ? "Aktif" : "Pasif"}
+                                </span>
+                              </td>
+                              <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
+                                <div className="inline-flex items-center gap-1">
+                                  {canManage ? (
+                                    <IconButton
+                                      onClick={() => openEditPermDrawer(perm)}
+                                      disabled={togglingPermIds.includes(perm.id)}
+                                      aria-label="Yetki duzenle"
+                                      title="Duzenle"
+                                    >
+                                      <EditIcon />
+                                    </IconButton>
+                                  ) : null}
+                                  {canManage ? (
+                                    <ToggleSwitch
+                                      checked={perm.isActive}
+                                      onChange={(next) => onTogglePermActive(perm, next)}
+                                      disabled={togglingPermIds.includes(perm.id)}
+                                    />
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {permMeta ? (
+                    <TablePagination
+                      page={permPage}
+                      totalPages={permTotalPages}
+                      total={permMeta.total}
+                      pageSize={permPageSize}
+                      pageSizeId="permissions-page-size"
+                      loading={permLoading}
+                      onPageChange={setPermPage}
+                      onPageSizeChange={onPermPageSizeChange}
+                    />
+                  ) : null}
+                </>
+              )}
+            </section>
+          )}
         </>
       )}
 
       {/* ── ROLLER SEKMESİ ───────────────────────────────────────────────────── */}
       {activeTab === "roles" && (
-        <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-          {rolesLoading ? (
-            <div className="p-6 text-sm text-muted">Roller yükleniyor...</div>
-          ) : rolesError ? (
-            <div className="p-6">
-              <p className="text-sm text-error">{rolesError}</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead className="border-b border-border bg-surface2/70">
-                  <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                    <th className="px-4 py-3">Rol</th>
-                    <th className="px-4 py-3">Durum</th>
-                    <th className="px-4 py-3">Yetki Sayısı</th>
-                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">İşlemler</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted">
-                        Kayıt bulunamadı.
-                      </td>
+        isMobile ? (
+          <RolesMobileList
+            loading={rolesLoading}
+            error={rolesError}
+            roles={roles}
+            canManage={canManage}
+            onEditRole={openRoleDrawer}
+          />
+        ) : (
+          <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
+            {rolesLoading ? (
+              <div className="p-6 text-sm text-muted">Roller yukleniyor...</div>
+            ) : rolesError ? (
+              <div className="p-6">
+                <p className="text-sm text-error">{rolesError}</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px]">
+                  <thead className="border-b border-border bg-surface2/70">
+                    <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                      <th className="px-4 py-3">Rol</th>
+                      <th className="px-4 py-3">Durum</th>
+                      <th className="px-4 py-3">Yetki Sayisi</th>
+                      <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
                     </tr>
-                  ) : (
-                    roles.map((role) => (
-                      <tr
-                        key={role.role}
-                        className="group border-b border-border last:border-b-0 hover:bg-surface2/50 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-text font-mono">
-                          {role.role}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                              role.isActive
-                                ? "bg-primary/15 text-primary"
-                                : "bg-error/15 text-error"
-                            }`}
-                          >
-                            {role.isActive ? "Aktif" : "Pasif"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-text2">
-                          {role.permissions.length} yetki
-                        </td>
-                        <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                          <div className="inline-flex items-center gap-1">
-                            {canManage && (
-                              <IconButton
-                                onClick={() => void openRoleDrawer(role)}
-                                aria-label="Rol yetkilerini düzenle"
-                                title="Yetkileri Düzenle"
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            )}
-                          </div>
+                  </thead>
+                  <tbody>
+                    {roles.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted">
+                          Kayit bulunamadi.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                    ) : (
+                      roles.map((role) => (
+                        <tr
+                          key={role.role}
+                          className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
+                        >
+                          <td className="px-4 py-3 font-mono text-sm font-medium text-text">
+                            {role.role}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                role.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
+                              }`}
+                            >
+                              {role.isActive ? "Aktif" : "Pasif"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-text2">
+                            {role.permissions.length} yetki
+                          </td>
+                          <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
+                            <div className="inline-flex items-center gap-1">
+                              {canManage ? (
+                                <IconButton
+                                  onClick={() => void openRoleDrawer(role)}
+                                  aria-label="Rol yetkilerini duzenle"
+                                  title="Yetkileri Duzenle"
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )
       )}
 
       {/* ── YETKİ DRAWER ─────────────────────────────────────────────────────── */}
@@ -594,7 +615,7 @@ export default function PermissionsPage() {
             : "Sisteme yeni bir yetki tanımı ekleyin."
         }
         closeDisabled={permSubmitting}
-        className={cn(isMobile && "!max-w-none")}
+        mobileFullscreen
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -655,7 +676,7 @@ export default function PermissionsPage() {
         title={`${editingRole?.role ?? ""} — Yetkiler`}
         description="Rol için aktif yetkileri seçin. Kaydet ile mevcut atama tamamen değiştirilir."
         closeDisabled={roleSubmitting || roleLoading}
-        className={cn(isMobile && "!max-w-none")}
+        mobileFullscreen
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button

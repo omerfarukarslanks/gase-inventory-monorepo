@@ -1,12 +1,13 @@
 "use client";
 
 import SuppliersFilters from "@/components/suppliers/SuppliersFilters";
+import SuppliersMobileList from "@/components/suppliers/SuppliersMobileList";
 import SupplierDrawer from "@/components/suppliers/SupplierDrawer";
 import SuppliersTable from "@/components/suppliers/SuppliersTable";
 import TablePagination from "@/components/ui/TablePagination";
 import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
 import { useSupplierList } from "./hooks/useSupplierList";
 import { useSupplierDrawer } from "./hooks/useSupplierDrawer";
@@ -14,7 +15,7 @@ import { useSupplierDrawer } from "./hooks/useSupplierDrawer";
 export default function SuppliersPage() {
   const { t } = useLang();
   const { can } = usePermissions();
-  const isMobile = !useMediaQuery();
+  const isMobile = useViewportMode() === "mobile";
 
   const canCreate = can("SUPPLIER_CREATE");
   const canUpdate = can("SUPPLIER_UPDATE");
@@ -40,36 +41,61 @@ export default function SuppliersPage() {
         />
       }
     >
-      <SuppliersTable
-        loading={list.loading}
-        error={list.error}
-        suppliers={list.suppliers}
-        canUpdate={canUpdate}
-        togglingSupplierIds={list.togglingSupplierIds}
-        onEditSupplier={(id) => void drawer.onEditSupplier(id)}
-        onToggleSupplierActive={(supplier, next) => void list.onToggleSupplierActive(supplier, next)}
-        footer={
-          list.meta ? (
-            <TablePagination
-              page={list.currentPage}
-              totalPages={list.totalPages}
-              total={list.meta.total}
-              pageSize={list.pageSize}
-              pageSizeId="suppliers-page-size"
-              loading={list.loading}
-              onPageChange={list.setCurrentPage}
-              onPageSizeChange={list.onChangePageSize}
-            />
-          ) : null
-        }
-      />
+      {isMobile ? (
+        <SuppliersMobileList
+          loading={list.loading}
+          error={list.error}
+          suppliers={list.suppliers}
+          canUpdate={canUpdate}
+          togglingSupplierIds={list.togglingSupplierIds}
+          onEditSupplier={(id) => void drawer.onEditSupplier(id)}
+          onToggleSupplierActive={(supplier, next) => void list.onToggleSupplierActive(supplier, next)}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="suppliers-page-size"
+                loading={list.loading}
+                onPageChange={list.setCurrentPage}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      ) : (
+        <SuppliersTable
+          loading={list.loading}
+          error={list.error}
+          suppliers={list.suppliers}
+          canUpdate={canUpdate}
+          togglingSupplierIds={list.togglingSupplierIds}
+          onEditSupplier={(id) => void drawer.onEditSupplier(id)}
+          onToggleSupplierActive={(supplier, next) => void list.onToggleSupplierActive(supplier, next)}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="suppliers-page-size"
+                loading={list.loading}
+                onPageChange={list.setCurrentPage}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      )}
 
       <SupplierDrawer
         open={drawer.drawerOpen}
         editingSupplierId={drawer.editingSupplierId}
         submitting={drawer.submitting}
         loadingSupplierDetail={drawer.loadingSupplierDetail}
-        isMobile={isMobile}
         form={drawer.form}
         formError={drawer.formError}
         nameError={drawer.nameError}

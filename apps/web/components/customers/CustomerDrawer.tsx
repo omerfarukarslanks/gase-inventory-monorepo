@@ -5,7 +5,6 @@ import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { cn } from "@/lib/cn";
 import { useLang } from "@/context/LangContext";
 import { GENDER_OPTIONS, type CustomerForm } from "@/components/customers/types";
 
@@ -14,7 +13,6 @@ type CustomerDrawerProps = {
   editingCustomerId: string | null;
   submitting: boolean;
   loadingCustomerDetail: boolean;
-  isMobile: boolean;
   form: CustomerForm;
   formError: string;
   nameError: string;
@@ -32,7 +30,6 @@ export default function CustomerDrawer({
   editingCustomerId,
   submitting,
   loadingCustomerDetail,
-  isMobile,
   form,
   formError,
   nameError,
@@ -54,7 +51,7 @@ export default function CustomerDrawer({
       title={editingCustomerId ? t("customers.update") : t("customers.new")}
       description={editingCustomerId ? t("customers.update") : t("customers.new")}
       closeDisabled={submitting || loadingCustomerDetail}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <DrawerFooter
           cancelLabel={t("common.cancel")}
