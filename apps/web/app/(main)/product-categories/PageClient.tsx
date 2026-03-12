@@ -13,9 +13,11 @@ import {
 } from "@/lib/product-categories";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
+import { PageShell } from "@/components/layout/PageShell";
 import ProductCategoryFilters from "@/components/product-categories/ProductCategoryFilters";
+import ProductCategoryMobileList from "@/components/product-categories/ProductCategoryMobileList";
 import ProductCategoryTable from "@/components/product-categories/ProductCategoryTable";
 import ProductCategoryDrawer from "@/components/product-categories/ProductCategoryDrawer";
 import { EMPTY_FORM, slugifyText, type CategoryForm } from "@/components/product-categories/types";
@@ -23,9 +25,10 @@ import { EMPTY_FORM, slugifyText, type CategoryForm } from "@/components/product
 export default function ProductCategoriesPage() {
   const { t } = useLang();
   const { can } = usePermissions();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
   const canCreate = can("PRODUCT_CATEGORY_CREATE");
   const canUpdate = can("PRODUCT_CATEGORY_UPDATE");
-  const isMobile = !useMediaQuery();
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [allCategories, setAllCategories] = useState<ProductCategory[]>([]);
@@ -270,51 +273,67 @@ export default function ProductCategoriesPage() {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <ProductCategoryFilters
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        showAdvancedFilters={showAdvancedFilters}
-        onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
-        canCreate={canCreate}
-        onCreate={onOpenDrawer}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onClearFilters={() => setStatusFilter("all")}
-      />
+  const footer = meta ? (
+    <TablePagination
+      page={currentPage}
+      totalPages={totalPages}
+      total={meta.total}
+      pageSize={pageSize}
+      pageSizeId="product-categories-page-size"
+      loading={loading}
+      onPageChange={setCurrentPage}
+      onPageSizeChange={onChangePageSize}
+    />
+  ) : null;
 
-      <ProductCategoryTable
-        loading={loading}
-        error={error}
-        categories={categories}
-        parentNameMap={parentNameMap}
-        canUpdate={canUpdate}
-        togglingCategoryIds={togglingCategoryIds}
-        onEditCategory={(id) => void onEditCategory(id)}
-        onToggleCategoryActive={(category, next) => void onToggleCategoryActive(category, next)}
-        footer={
-          meta ? (
-            <TablePagination
-              page={currentPage}
-              totalPages={totalPages}
-              total={meta.total}
-              pageSize={pageSize}
-              pageSizeId="product-categories-page-size"
-              loading={loading}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={onChangePageSize}
-            />
-          ) : null
-        }
-      />
+  return (
+    <PageShell
+      error={error}
+      filters={
+        <ProductCategoryFilters
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          showAdvancedFilters={showAdvancedFilters}
+          onToggleAdvancedFilters={() => setShowAdvancedFilters((prev) => !prev)}
+          canCreate={canCreate}
+          onCreate={onOpenDrawer}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          onClearFilters={() => setStatusFilter("all")}
+        />
+      }
+    >
+      {isMobile ? (
+        <ProductCategoryMobileList
+          loading={loading}
+          error={error}
+          categories={categories}
+          parentNameMap={parentNameMap}
+          canUpdate={canUpdate}
+          togglingCategoryIds={togglingCategoryIds}
+          onEditCategory={(id) => void onEditCategory(id)}
+          onToggleCategoryActive={(category, next) => void onToggleCategoryActive(category, next)}
+          footer={footer}
+        />
+      ) : (
+        <ProductCategoryTable
+          loading={loading}
+          error={error}
+          categories={categories}
+          parentNameMap={parentNameMap}
+          canUpdate={canUpdate}
+          togglingCategoryIds={togglingCategoryIds}
+          onEditCategory={(id) => void onEditCategory(id)}
+          onToggleCategoryActive={(category, next) => void onToggleCategoryActive(category, next)}
+          footer={footer}
+        />
+      )}
 
       <ProductCategoryDrawer
         open={drawerOpen}
         editingCategoryId={editingCategoryId}
         submitting={submitting}
         loadingCategoryDetail={loadingCategoryDetail}
-        isMobile={isMobile}
         form={form}
         parentOptions={parentOptions}
         formError={formError}
@@ -324,6 +343,6 @@ export default function ProductCategoriesPage() {
         onSubmit={onSubmitCategory}
         onFormChange={onFormChange}
       />
-    </div>
+    </PageShell>
   );
 }

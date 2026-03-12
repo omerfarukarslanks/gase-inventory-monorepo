@@ -55,6 +55,7 @@ export default function AttributeDrawer({
       description={`Adim ${drawerStep}/2`}
       closeDisabled={submitting}
       className="!max-w-[640px]"
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button label={t("common.cancel")} onClick={onClose} disabled={submitting} variant="secondary" />

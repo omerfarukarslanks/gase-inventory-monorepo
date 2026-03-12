@@ -93,9 +93,11 @@ export default function Drawer({
       <aside
         className={cn(
           "fixed z-50 overflow-y-auto border border-border bg-surface shadow-xl transition-transform duration-300",
-          fullscreen ? "inset-0 h-[100dvh] max-h-none w-full max-w-none rounded-none border-0" : placementClasses[side].panel,
-          open ? "translate-x-0 translate-y-0" : transitionClasses[side],
           className,
+          fullscreen
+            ? "inset-0 !h-[100dvh] max-h-none !w-full !max-w-none rounded-none !border-0"
+            : placementClasses[side].panel,
+          open ? "translate-x-0 translate-y-0" : transitionClasses[side],
         )}
         style={fullscreen ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
       >

@@ -13,7 +13,6 @@ import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { cn } from "@/lib/cn";
 import { CURRENCY_FILTER_OPTIONS } from "@/components/products/types";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -71,7 +70,6 @@ type PriceDrawerProps = {
   open: boolean;
   target: PriceTarget | null;
   allStoreOptions: { value: string; label: string }[];
-  isMobile: boolean;
   showStoreScopeControls?: boolean;
   fixedStoreId?: string;
   onClose: () => void;
@@ -82,7 +80,6 @@ export default function PriceDrawer({
   open,
   target,
   allStoreOptions,
-  isMobile,
   showStoreScopeControls = true,
   fixedStoreId,
   onClose,
@@ -239,7 +236,8 @@ export default function PriceDrawer({
       title="Fiyat Duzenle"
       description={target ? `${target.productName}${target.variantName ? ` / ${target.variantName}` : ""}` : ""}
       closeDisabled={submitting}
-      className={cn(isMobile ? "!max-w-none" : "!max-w-[480px]")}
+      className="!max-w-[480px]"
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

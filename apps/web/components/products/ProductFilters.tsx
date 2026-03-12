@@ -7,9 +7,8 @@ import {
   type IsActiveFilter,
   parseIsActiveFilter,
 } from "@/components/products/types";
-import Button from "@/components/ui/Button";
+import PageFilterBar from "@/components/ui/PageFilterBar";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import SearchInput from "@/components/ui/SearchInput";
 import { useLang } from "@/context/LangContext";
 
 type ProductFiltersProps = {
@@ -60,39 +59,24 @@ export default function ProductFilters({
   onClearAdvancedFilters,
 }: ProductFiltersProps) {
   const { t } = useLang();
-  return (
-    <>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-text">{t("products.title")}</h1>
-          <p className="text-sm text-muted">{t("products.subtitle")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-          <SearchInput
-            value={searchTerm}
-            onChange={onSearchChange}
-            placeholder={t("common.search")}
-            containerClassName="w-full lg:w-64"
-          />
-          <Button
-            label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-            onClick={onToggleAdvancedFilters}
-            variant="secondary"
-            className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-          />
-          {canCreate && (
-            <Button
-              label={t("products.new")}
-              onClick={onNewProduct}
-              variant="primarySoft"
-              className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
-            />
-          )}
-        </div>
-      </div>
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-4">
+  return (
+    <PageFilterBar
+      title={t("products.title")}
+      subtitle={t("products.subtitle")}
+      searchTerm={searchTerm}
+      onSearchTermChange={onSearchChange}
+      searchPlaceholder={t("common.search")}
+      showAdvancedFilters={showAdvancedFilters}
+      onToggleAdvancedFilters={onToggleAdvancedFilters}
+      filterLabel={t("common.filter")}
+      hideFilterLabel={t("common.hideFilter")}
+      canCreate={canCreate}
+      createLabel={t("products.new")}
+      onCreate={onNewProduct}
+      mobileAdvancedFiltersTitle={t("common.filter")}
+      advancedFilters={(
+        <>
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted">{t("products.currencyLabel")}</label>
             <SearchableDropdown
@@ -132,7 +116,7 @@ export default function ProductFilters({
               toggleAriaLabel="Varyant durum listesini aç"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs font-semibold text-muted">{t("products.salePriceMin")}</label>
             <input
               type="number"
@@ -142,7 +126,7 @@ export default function ProductFilters({
               className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs font-semibold text-muted">{t("products.salePriceMax")}</label>
             <input
               type="number"
@@ -152,7 +136,7 @@ export default function ProductFilters({
               className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs font-semibold text-muted">{t("products.purchasePriceMin")}</label>
             <input
               type="number"
@@ -162,7 +146,7 @@ export default function ProductFilters({
               className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 lg:col-span-2">
             <label className="text-xs font-semibold text-muted">{t("products.purchasePriceMax")}</label>
             <input
               type="number"
@@ -172,16 +156,17 @@ export default function ProductFilters({
               className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="md:col-span-2 lg:col-span-4">
-            <Button
-              label={t("products.clearAdvancedFilters")}
+          <div className="md:col-span-2 lg:col-span-3">
+            <button
+              type="button"
               onClick={onClearAdvancedFilters}
-              variant="secondary"
-              className="w-full sm:w-auto"
-            />
+              className="inline-flex rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text transition-colors hover:bg-surface2"
+            >
+              {t("products.clearAdvancedFilters")}
+            </button>
           </div>
-        </div>
+        </>
       )}
-    </>
+    />
   );
 }
