@@ -4,14 +4,25 @@ import { locales } from "@gase/i18n";
 // Add web-only keys here; shared keys are inherited from @gase/i18n.
 const tr = {
   ...locales.tr,
+  nav: {
+    ...locales.tr.nav,
+    catalog: "Katalog",
+    settings: "Ayarlar",
+  },
   shell: {
     activeStore: "Aktif Magaza",
     noActiveStore: "Magaza baglami yok",
     navigationMenu: "Navigasyon menusu",
+    breadcrumbsLabel: "Sayfa yolu",
     more: "Menu",
     menuTitle: "Menu",
     quickPreferences: "Hizli tercihler",
     filtersTitle: "Filtreler",
+    sectionsTitle: "Bolumler",
+    switchSection: "Bolum Sec",
+    expandGroup: "Grubu ac",
+    collapseGroup: "Grubu kapat",
+    noModuleAccess: "Bu modül için erişiminiz yok.",
   },
 };
 

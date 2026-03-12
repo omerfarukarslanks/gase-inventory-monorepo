@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import ProductsPageClient from "./PageClient";
+import { redirectToRoute, type LegacyRoutePageProps } from "@/lib/module-redirect";
 
 export const metadata: Metadata = {
   title: "Ürünler",
   robots: { index: false, follow: false },
 };
 
-export default function ProductsPage() {
-  return (
-    <>
-      <h1 className="sr-only">Ürünler</h1>
-      <ProductsPageClient />
-    </>
-  );
+export default async function ProductsPage({ searchParams }: LegacyRoutePageProps) {
+  return redirectToRoute("/catalog/products", searchParams);
 }

@@ -10,11 +10,13 @@ export default function robots(): MetadataRoute.Robots {
         allow: ["/auth/login", "/auth/signup"],
         disallow: [
           "/dashboard",
+          "/catalog",
           "/products",
           "/product-packages",
           "/product-categories",
           "/stock",
           "/sales",
+          "/settings",
           "/stores",
           "/suppliers",
           "/customers",

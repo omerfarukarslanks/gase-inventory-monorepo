@@ -26,7 +26,7 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
 
           return (
             <Link
-              key={item.id}
+              key={item.key}
               href={item.href}
               className={cn(
                 "flex min-w-0 flex-col items-center gap-1 rounded-xl2 px-2 py-2 text-[11px] font-medium transition-colors",

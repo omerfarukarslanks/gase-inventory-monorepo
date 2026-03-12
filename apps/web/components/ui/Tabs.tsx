@@ -22,7 +22,7 @@ export default function Tabs({ items, activeKey, className }: TabsProps) {
           key={item.key}
           onClick={item.onClick}
           className={cn(
-            "flex-1 rounded-[9px] py-3 text-[14px] font-semibold tracking-[0.2px] transition-all cursor-pointer duration-250",
+            "min-w-0 flex-1 cursor-pointer rounded-[9px] px-2 py-3 text-center text-[14px] font-semibold leading-tight tracking-[0.2px] whitespace-normal transition-all duration-250",
             activeKey === item.key
               ? "bg-primary/10 text-primary"
               : "text-muted font-medium hover:text-text2"

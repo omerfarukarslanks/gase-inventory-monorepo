@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useLang } from "@/context/LangContext";
+import type { AppNavigationChild, AppNavigationItem } from "@/lib/navigation";
 
 type SidebarMode = "desktop" | "panel" | "sheet";
 
@@ -23,23 +24,52 @@ type SidebarProps = {
 
 type NavigationSectionProps = {
   title: string;
-  items: Array<{
-    id: string;
-    href: string;
-    labelKey: string;
-    icon: string;
-    badge?: string;
-  }>;
+  items: AppNavigationItem[];
   collapsed: boolean;
+  openGroupKey: string | null;
+  activeChildKey?: string;
+  onToggleGroup: (key: string) => void;
   onNavigate?: () => void;
   isActiveItem: (href: string) => boolean;
   t: (key: string) => string;
 };
 
+function NavigationChildLink({
+  child,
+  active,
+  onNavigate,
+  t,
+}: {
+  child: AppNavigationChild;
+  active: boolean;
+  onNavigate?: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <li>
+      <Link
+        href={child.href}
+        aria-current={active ? "page" : undefined}
+        onClick={() => onNavigate?.()}
+        className={cn(
+          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+          active ? "bg-primary/10 font-medium text-primary" : "text-text2 hover:bg-surface2 hover:text-text",
+        )}
+      >
+        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", active ? "bg-primary" : "bg-border")} />
+        <span className="truncate">{t(child.labelKey)}</span>
+      </Link>
+    </li>
+  );
+}
+
 function NavigationSection({
   title,
   items,
   collapsed,
+  openGroupKey,
+  activeChildKey,
+  onToggleGroup,
   onNavigate,
   isActiveItem,
   t,
@@ -55,37 +85,73 @@ function NavigationSection({
       <ul className="space-y-1">
         {items.map((item) => {
           const active = isActiveItem(item.href);
+          const hasChildren = !collapsed && !!item.children?.length;
+          const groupOpen = hasChildren && openGroupKey === item.key;
 
           return (
-            <li key={item.id}>
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => onNavigate?.()}
+            <li key={item.key}>
+              <div
                 className={cn(
-                  "flex items-center gap-3 rounded-xl2 border px-3 py-2.5 text-sm transition-colors",
+                  "rounded-xl2 border transition-colors",
                   active
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-transparent text-text2 hover:border-border hover:bg-surface2",
                 )}
               >
-                <span
-                  className={cn(
-                    "grid h-9 w-9 shrink-0 place-items-center rounded-xl2 border",
-                    active ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-surface2 text-text",
-                  )}
-                >
-                  {item.icon}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">{t(item.labelKey)}</span>
-                    {item.badge && (
-                      <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">{item.badge}</span>
-                    )}
-                  </>
-                )}
-              </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => onNavigate?.()}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-sm"
+                  >
+                    <span
+                      className={cn(
+                        "grid h-9 w-9 shrink-0 place-items-center rounded-xl2 border",
+                        active ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-surface2 text-text",
+                      )}
+                    >
+                      {item.icon}
+                    </span>
+                    {!collapsed ? (
+                      <>
+                        <span className="flex-1 truncate">{t(item.labelKey)}</span>
+                        {item.badge && (
+                          <span className="rounded-full bg-error px-2 py-0.5 text-[10px] font-bold text-white">{item.badge}</span>
+                        )}
+                      </>
+                    ) : null}
+                  </Link>
+
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleGroup(item.key)}
+                      aria-label={`${t(groupOpen ? "shell.collapseGroup" : "shell.expandGroup")}: ${t(item.labelKey)}`}
+                      aria-expanded={groupOpen}
+                      className="me-2 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-text2 transition-colors hover:bg-surface"
+                    >
+                      <span className={cn("inline-block select-none transition-transform", groupOpen && "rotate-90")}>
+                        {">"}
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+
+                {hasChildren && groupOpen ? (
+                  <ul className="space-y-1 border-t border-border/70 px-2 py-2">
+                    {item.children?.map((child) => (
+                      <NavigationChildLink
+                        key={child.key}
+                        child={child}
+                        active={activeChildKey === child.key}
+                        onNavigate={onNavigate}
+                        t={t}
+                      />
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </li>
           );
         })}
@@ -104,13 +170,16 @@ export default function Sidebar({
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { t } = useLang();
-  const { mainItems, managementItems, isActiveItem } = useAppNavigation();
+  const { mainItems, managementItems, activeItem, activeChild, isActiveItem } = useAppNavigation();
   const { displayName, displayRole, initials } = useSessionProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
 
   const isDesktop = mode === "desktop";
   const isCollapsed = isDesktop ? collapsed : false;
+  const activeGroupKey = activeItem?.children?.length ? activeItem.key : null;
+  const openGroupKey = isCollapsed ? null : activeGroupKey ?? expandedGroupKey;
 
   useEffect(() => {
     const onDocClick = (event: MouseEvent) => {
@@ -122,6 +191,17 @@ export default function Sidebar({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
+
+  useEffect(() => {
+    if (isCollapsed) {
+      setExpandedGroupKey(null);
+      return;
+    }
+
+    if (activeGroupKey) {
+      setExpandedGroupKey(activeGroupKey);
+    }
+  }, [activeGroupKey, isCollapsed]);
 
   const onLogout = async () => {
     if (loggingOut) return;
@@ -140,6 +220,11 @@ export default function Sidebar({
       onNavigate?.();
       router.push("/auth/login");
     }
+  };
+
+  const onToggleGroup = (key: string) => {
+    if (isCollapsed || activeGroupKey === key) return;
+    setExpandedGroupKey((current) => (current === key ? null : key));
   };
 
   return (
@@ -183,21 +268,29 @@ export default function Sidebar({
           title={t("nav.mainMenu")}
           items={mainItems}
           collapsed={isCollapsed}
+          openGroupKey={openGroupKey}
+          activeChildKey={activeChild?.key}
+          onToggleGroup={onToggleGroup}
           onNavigate={onNavigate}
           isActiveItem={isActiveItem}
           t={t}
         />
 
-        <div className="mt-5">
-          <NavigationSection
-            title={t("nav.management")}
-            items={managementItems}
-            collapsed={isCollapsed}
-            onNavigate={onNavigate}
-            isActiveItem={isActiveItem}
-            t={t}
-          />
-        </div>
+        {managementItems.length > 0 ? (
+          <div className="mt-5">
+            <NavigationSection
+              title={t("nav.management")}
+              items={managementItems}
+              collapsed={isCollapsed}
+              openGroupKey={openGroupKey}
+              activeChildKey={activeChild?.key}
+              onToggleGroup={onToggleGroup}
+              onNavigate={onNavigate}
+              isActiveItem={isActiveItem}
+              t={t}
+            />
+          </div>
+        ) : null}
       </nav>
 
       <div className="shrink-0 border-t border-border bg-surface p-3" ref={menuRef}>
