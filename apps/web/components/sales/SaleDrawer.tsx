@@ -108,6 +108,7 @@ export default function SaleDrawer({
       }
       closeDisabled={submitting}
       className="!max-h-[90vh]"
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

@@ -50,6 +50,7 @@ export default function SaleReturnDrawer({
           : "Iade edilecek satirlari ve adetleri secin."
       }
       closeDisabled={returnSubmitting}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

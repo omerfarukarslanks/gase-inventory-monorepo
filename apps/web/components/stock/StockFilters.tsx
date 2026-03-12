@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import PageFilterBar from "@/components/ui/PageFilterBar";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
-import SearchInput from "@/components/ui/SearchInput";
 import { useLang } from "@/context/LangContext";
+import { useViewportMode } from "@/hooks/useViewportMode";
 
 type StockFiltersProps = {
   searchTerm: string;
@@ -22,21 +24,27 @@ export default function StockFilters({
   canTenantOnly = true,
 }: StockFiltersProps) {
   const { t } = useLang();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const showStoreFilter = canTenantOnly && !isMobile;
+
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <div>
-        <h1 className="text-xl font-semibold text-text">{t("stock.title")}</h1>
-        <p className="text-sm text-muted">{t("stock.subtitle")}</p>
-      </div>
-      <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
-        <SearchInput
-          value={searchTerm}
-          onChange={onSearchChange}
-          placeholder={t("stock.searchPlaceholder")}
-          containerClassName="w-full lg:w-72"
-        />
-        {canTenantOnly && (
-          <div className="w-full lg:w-72">
+    <PageFilterBar
+      title={t("stock.title")}
+      subtitle={t("stock.subtitle")}
+      searchTerm={searchTerm}
+      onSearchTermChange={onSearchChange}
+      searchPlaceholder={t("stock.searchPlaceholder")}
+      showAdvancedFilters={showAdvancedFilters}
+      onToggleAdvancedFilters={showStoreFilter ? () => setShowAdvancedFilters((prev) => !prev) : undefined}
+      filterLabel={t("common.filter")}
+      hideFilterLabel={t("common.hideFilter")}
+      mobileAdvancedFiltersTitle={t("common.filter")}
+      advancedFilters={
+        showStoreFilter ? (
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted">Magaza</label>
             <SearchableMultiSelectDropdown
               options={storeOptions}
               values={storeFilterIds}
@@ -44,8 +52,8 @@ export default function StockFilters({
               placeholder={t("common.allStores")}
             />
           </div>
-        )}
-      </div>
-    </div>
+        ) : undefined
+      }
+    />
   );
 }

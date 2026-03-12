@@ -85,6 +85,7 @@ export default function ReceiveDrawer({
       description={target ? `${target.productName}${target.variantName ? ` / ${target.variantName}` : ""}` : ""}
       closeDisabled={submitting}
       className={cn(isMobile ? "!max-w-none" : "!max-w-[600px]")}
+      mobileFullscreen
     >
       <div className="space-y-3 p-5">
         {loading ? (

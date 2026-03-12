@@ -105,6 +105,7 @@ export default function SaleLinesDrawer({
       title="Satirlari Yonet"
       description={sale ? `Fis: ${sale.receiptNo ?? sale.id}` : ""}
       closeDisabled={lineOpSubmitting || deletingLine}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button label="Kapat" onClick={onClose} variant="secondary" disabled={lineOpSubmitting || deletingLine} />

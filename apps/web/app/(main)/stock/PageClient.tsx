@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useStores } from "@/hooks/useStores";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
+import type { InventoryProductStockItem } from "@/lib/inventory";
 
 import { useStockScope } from "./hooks/useStockScope";
 import { useStockList } from "./hooks/useStockList";
@@ -21,24 +23,22 @@ import StockPagination from "@/components/stock/StockPagination";
 import AdjustDrawer from "@/components/stock/AdjustDrawer";
 import TransferDrawer from "@/components/stock/TransferDrawer";
 import ReceiveDrawer from "@/components/stock/ReceiveDrawer";
-import ProductInventoryDrawer from "@/components/stock/ProductInventoryDrawer";
-
-/* ── Page ── */
+import ProductInventoryDrawer, { type ProductInventoryOperation } from "@/components/stock/ProductInventoryDrawer";
+import StockMobileList from "@/components/stock/StockMobileList";
+import StockTaskFlow, { type StockTaskMode } from "@/components/stock/StockTaskFlow";
+import type { VariantActionParams } from "@/components/stock/StockTable";
 
 export default function StockPage() {
   const { t } = useLang();
   const { can } = usePermissions();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
   const stores = useStores();
-  const isMobile = !useMediaQuery();
   const canTenantOnly = can("TENANT_ONLY");
 
-  /* ── Suppliers ── */
   const { suppliers } = useSuppliers();
-
-  /* ── Scope ── */
   const scope = useStockScope();
 
-  /* ── List ── */
   const list = useStockList({
     scopeReady: scope.scopeReady,
     isStoreScopedUser: scope.isStoreScopedUser,
@@ -46,7 +46,6 @@ export default function StockPage() {
     t,
   });
 
-  /* ── Receive drawer ── */
   const receive = useStockReceive({
     stores,
     getVariantStores: list.getVariantStores,
@@ -56,7 +55,6 @@ export default function StockPage() {
     t,
   });
 
-  /* ── Adjust drawer ── */
   const adjust = useStockAdjust({
     getVariantStores: list.getVariantStores,
     resolveVariantStores: list.resolveVariantStores,
@@ -67,7 +65,6 @@ export default function StockPage() {
     t,
   });
 
-  /* ── Transfer drawer ── */
   const transfer = useStockTransfer({
     getVariantStores: list.getVariantStores,
     resolveVariantStores: list.resolveVariantStores,
@@ -77,13 +74,11 @@ export default function StockPage() {
     t,
   });
 
-  /* ── Product inventory drawer ── */
   const productDrawer = useProductInventoryDrawer({
     refetchList: list.refetch,
     onSuccess: list.setSuccess,
   });
 
-  /* ── Derived ── */
   const derived = useStockDerived({
     stores,
     adjustTarget: adjust.adjustTarget,
@@ -92,7 +87,75 @@ export default function StockPage() {
     debouncedSearch: list.debouncedSearch,
   });
 
-  /* ── Render ── */
+  const [stockTaskOpen, setStockTaskOpen] = useState(false);
+  const [stockTaskMode, setStockTaskMode] = useState<StockTaskMode>("task");
+  const [stockInitialProduct, setStockInitialProduct] = useState<InventoryProductStockItem | null>(null);
+  const [pendingMobileOperation, setPendingMobileOperation] = useState(false);
+
+  const mobileOperationOpen = receive.receiveOpen || adjust.adjustOpen || transfer.transferOpen;
+
+  useEffect(() => {
+    if (isMobile) return;
+    setStockTaskOpen(false);
+    setStockTaskMode("task");
+    setStockInitialProduct(null);
+    setPendingMobileOperation(false);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!pendingMobileOperation) return;
+    if (mobileOperationOpen) return;
+    if (!list.success) return;
+
+    setStockTaskMode("success");
+    setStockTaskOpen(true);
+    setPendingMobileOperation(false);
+  }, [isMobile, list.success, mobileOperationOpen, pendingMobileOperation]);
+
+  const openStockTask = (product: InventoryProductStockItem | null = null) => {
+    if (list.success) list.setSuccess("");
+    setStockInitialProduct(product);
+    setStockTaskMode("task");
+    setStockTaskOpen(true);
+    setPendingMobileOperation(false);
+  };
+
+  const closeStockTask = () => {
+    setStockTaskOpen(false);
+    setStockInitialProduct(null);
+  };
+
+  const handleStockTaskOperation = (params: VariantActionParams, operation: ProductInventoryOperation) => {
+    setPendingMobileOperation(true);
+    setStockTaskOpen(false);
+
+    if (operation === "receive") {
+      void receive.openReceiveDrawer(params);
+      return;
+    }
+    if (operation === "adjust") {
+      void adjust.openAdjustDrawer(params);
+      return;
+    }
+    void transfer.openTransferDrawer(params);
+  };
+
+  const footer =
+    !list.loading && !list.error ? (
+      <StockPagination
+        page={list.page}
+        totalPages={list.totalPages}
+        limit={list.limit}
+        total={list.total}
+        loading={list.loading}
+        onPageChange={list.setPage}
+        onLimitChange={(next) => {
+          list.setLimit(next);
+          list.setPage(1);
+        }}
+      />
+    ) : null;
 
   return (
     <PageShell
@@ -107,42 +170,48 @@ export default function StockPage() {
         />
       }
     >
-      {list.success && (
+      {list.success ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
           {list.success}
         </div>
+      ) : null}
+
+      {isMobile ? (
+        <StockMobileList
+          products={derived.filteredProducts}
+          loading={list.loading}
+          error={list.error}
+          onStartTask={(product) => openStockTask(product)}
+          footer={footer}
+        />
+      ) : (
+        <StockTable
+          products={derived.filteredProducts}
+          loading={list.loading}
+          error={list.error}
+          getVariantStores={list.getVariantStores}
+          onReceive={receive.openReceiveDrawer}
+          onAdjust={adjust.openAdjustDrawer}
+          onTransfer={transfer.openTransferDrawer}
+          onProductReceive={(params) => productDrawer.openProductDrawer("receive", params)}
+          onProductAdjust={(params) => productDrawer.openProductDrawer("adjust", params)}
+          onProductTransfer={(params) => productDrawer.openProductDrawer("transfer", params)}
+          canReceive={can("STOCK_RECEIVE")}
+          canAdjust={can("STOCK_ADJUST")}
+          canTransfer={can("STOCK_TRANSFER")}
+          footer={footer}
+        />
       )}
 
-      <StockTable
+      <StockTaskFlow
+        open={stockTaskOpen}
+        mode={stockTaskMode}
         products={derived.filteredProducts}
-        loading={list.loading}
-        error={list.error}
-        getVariantStores={list.getVariantStores}
-        onReceive={receive.openReceiveDrawer}
-        onAdjust={adjust.openAdjustDrawer}
-        onTransfer={transfer.openTransferDrawer}
-        onProductReceive={(params) => productDrawer.openProductDrawer("receive", params)}
-        onProductAdjust={(params) => productDrawer.openProductDrawer("adjust", params)}
-        onProductTransfer={(params) => productDrawer.openProductDrawer("transfer", params)}
-        canReceive={can("STOCK_RECEIVE")}
-        canAdjust={can("STOCK_ADJUST")}
-        canTransfer={can("STOCK_TRANSFER")}
-        footer={
-          !list.loading && !list.error ? (
-            <StockPagination
-              page={list.page}
-              totalPages={list.totalPages}
-              limit={list.limit}
-              total={list.total}
-              loading={list.loading}
-              onPageChange={list.setPage}
-              onLimitChange={(next) => {
-                list.setLimit(next);
-                list.setPage(1);
-              }}
-            />
-          ) : null
-        }
+        initialProduct={stockInitialProduct}
+        successMessage={list.success}
+        onClose={closeStockTask}
+        onStartOperation={handleStockTaskOperation}
+        onStartAnother={() => openStockTask(null)}
       />
 
       <AdjustDrawer
@@ -156,11 +225,21 @@ export default function StockPage() {
         stores={stores}
         initialEntriesByVariant={adjust.adjustInitial}
         isMobile={isMobile}
-        showStoreSelector={canTenantOnly && !adjust.adjustApplyToAllStores}
-        canTenantOnly={canTenantOnly}
+        showStoreSelector={
+          isMobile
+            ? !scope.scopedStoreId
+            : canTenantOnly && !adjust.adjustApplyToAllStores
+        }
+        canTenantOnly={isMobile ? false : canTenantOnly}
         applyToAllStores={adjust.adjustApplyToAllStores}
         onApplyToAllStoresChange={adjust.setAdjustApplyToAllStores}
-        fixedStoreId={scope.isStoreScopedUser ? scope.scopedStoreId : undefined}
+        fixedStoreId={
+          isMobile
+            ? scope.scopedStoreId || undefined
+            : scope.isStoreScopedUser
+              ? scope.scopedStoreId
+              : undefined
+        }
         onClose={adjust.closeAdjustDrawer}
         onSubmit={adjust.submitAdjust}
       />
@@ -193,23 +272,25 @@ export default function StockPage() {
         onSupplierChange={receive.setReceiveSupplierId}
         initialEntriesByVariant={receive.receiveInitial}
         isMobile={isMobile}
-        canTenantOnly={canTenantOnly}
-        fixedStoreId={scope.isStoreScopedUser ? scope.scopedStoreId : undefined}
+        canTenantOnly={isMobile ? !scope.scopedStoreId : canTenantOnly}
+        fixedStoreId={isMobile ? scope.scopedStoreId || undefined : scope.isStoreScopedUser ? scope.scopedStoreId : undefined}
         onClose={receive.closeReceiveDrawer}
         onSubmit={receive.submitReceive}
       />
 
-      <ProductInventoryDrawer
-        open={productDrawer.productDrawerOpen}
-        operation={productDrawer.productDrawerOperation}
-        target={productDrawer.productDrawerTarget}
-        stores={stores}
-        canTenantOnly={canTenantOnly}
-        suppliers={suppliers}
-        isMobile={isMobile}
-        onClose={productDrawer.closeProductDrawer}
-        onSuccess={(msg) => void productDrawer.handleProductSuccess(msg)}
-      />
+      {!isMobile ? (
+        <ProductInventoryDrawer
+          open={productDrawer.productDrawerOpen}
+          operation={productDrawer.productDrawerOperation}
+          target={productDrawer.productDrawerTarget}
+          stores={stores}
+          canTenantOnly={canTenantOnly}
+          suppliers={suppliers}
+          isMobile={isMobile}
+          onClose={productDrawer.closeProductDrawer}
+          onSuccess={(msg) => void productDrawer.handleProductSuccess(msg)}
+        />
+      ) : null}
     </PageShell>
   );
 }

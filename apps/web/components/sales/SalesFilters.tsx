@@ -1,11 +1,12 @@
 "use client";
 
-import Button from "@/components/ui/Button";
+import PageFilterBar from "@/components/ui/PageFilterBar";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import SearchableMultiSelectDropdown from "@/components/ui/SearchableMultiSelectDropdown";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { PAYMENT_STATUS_OPTIONS, SALES_STATUS_OPTIONS } from "@/components/sales/types";
 import { useLang } from "@/context/LangContext";
+import { useViewportMode } from "@/hooks/useViewportMode";
 
 type SalesFiltersProps = {
   showAdvancedFilters: boolean;
@@ -71,29 +72,31 @@ export default function SalesFilters({
   onResetPage,
 }: SalesFiltersProps) {
   const { t } = useLang();
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button
-          label={showAdvancedFilters ? t("common.hideFilter") : t("common.filter")}
-          onClick={onToggleAdvancedFilters}
-          variant="secondary"
-          className="px-3 py-1.5"
-        />
-        {canCreate && (
-          <Button
-            label={t("sales.new")}
-            onClick={onNewSale}
-            variant="primarySoft"
-            className="px-3 py-1.5"
-          />
-        )}
-      </div>
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
 
-      {showAdvancedFilters && (
-        <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 xl:grid-cols-4">
-          {canTenantOnly && (
-            <div className="xl:col-span-2">
+  return (
+    <PageFilterBar
+      title="Satis"
+      subtitle="Fisler, odemeler ve iadeleri yonetin."
+      searchTerm={receiptNoFilter}
+      onSearchTermChange={(value) => {
+        onReceiptNoFilterChange(value);
+        onResetPage();
+      }}
+      searchPlaceholder={t("sales.receiptNo")}
+      showAdvancedFilters={showAdvancedFilters}
+      onToggleAdvancedFilters={onToggleAdvancedFilters}
+      filterLabel={t("common.filter")}
+      hideFilterLabel={t("common.hideFilter")}
+      canCreate={canCreate}
+      createLabel={t("sales.new")}
+      onCreate={onNewSale}
+      mobileAdvancedFiltersTitle={t("common.filter")}
+      advancedFilters={
+        <>
+          {canTenantOnly && !isMobile ? (
+            <div className="lg:col-span-3">
               <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.filterByStore")}</label>
               <SearchableMultiSelectDropdown
                 options={storeOptions}
@@ -105,44 +108,48 @@ export default function SalesFilters({
                 placeholder={t("sales.allStores")}
               />
             </div>
-          )}
+          ) : null}
+
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">Receipt No</label>
             <input
               type="text"
               value={receiptNoFilter}
-              onChange={(e) => {
-                onReceiptNoFilterChange(e.target.value);
+              onChange={(event) => {
+                onReceiptNoFilterChange(event.target.value);
                 onResetPage();
               }}
               className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.firstName")}</label>
             <input
               type="text"
               value={nameFilter}
-              onChange={(e) => {
-                onNameFilterChange(e.target.value);
+              onChange={(event) => {
+                onNameFilterChange(event.target.value);
                 onResetPage();
               }}
               className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.surname")}</label>
             <input
               type="text"
               value={surnameFilter}
-              onChange={(e) => {
-                onSurnameFilterChange(e.target.value);
+              onChange={(event) => {
+                onSurnameFilterChange(event.target.value);
                 onResetPage();
               }}
               className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div>
+
+          <div className={isMobile ? "md:col-span-2" : undefined}>
             <label className="mb-1 block text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableMultiSelectDropdown
               options={SALES_STATUS_OPTIONS}
@@ -154,7 +161,8 @@ export default function SalesFilters({
               placeholder={t("sales.statusSelect")}
             />
           </div>
-          <div>
+
+          <div className={isMobile ? "md:col-span-2" : undefined}>
             <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.paymentStatus")}</label>
             <SearchableDropdown
               options={PAYMENT_STATUS_OPTIONS}
@@ -167,63 +175,72 @@ export default function SalesFilters({
               emptyOptionLabel={t("sales.allPaymentStatuses")}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minUnitPrice")}</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={minUnitPriceFilter}
-              onChange={(e) => {
-                onMinUnitPriceFilterChange(e.target.value);
-                onResetPage();
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxUnitPrice")}</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={maxUnitPriceFilter}
-              onChange={(e) => {
-                onMaxUnitPriceFilterChange(e.target.value);
-                onResetPage();
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minLineTotal")}</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={minLineTotalFilter}
-              onChange={(e) => {
-                onMinLineTotalFilterChange(e.target.value);
-                onResetPage();
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxLineTotal")}</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={maxLineTotalFilter}
-              onChange={(e) => {
-                onMaxLineTotalFilterChange(e.target.value);
-                onResetPage();
-              }}
-              className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div className="flex items-end">
+
+          {!isMobile ? (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minUnitPrice")}</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={minUnitPriceFilter}
+                  onChange={(event) => {
+                    onMinUnitPriceFilterChange(event.target.value);
+                    onResetPage();
+                  }}
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxUnitPrice")}</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={maxUnitPriceFilter}
+                  onChange={(event) => {
+                    onMaxUnitPriceFilterChange(event.target.value);
+                    onResetPage();
+                  }}
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.minLineTotal")}</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={minLineTotalFilter}
+                  onChange={(event) => {
+                    onMinLineTotalFilterChange(event.target.value);
+                    onResetPage();
+                  }}
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-muted">{t("sales.maxLineTotal")}</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={maxLineTotalFilter}
+                  onChange={(event) => {
+                    onMaxLineTotalFilterChange(event.target.value);
+                    onResetPage();
+                  }}
+                  className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </>
+          ) : null}
+
+          <div className={isMobile ? "md:col-span-2" : "flex items-end"}>
             <div className="flex w-full items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2">
               <span className="text-xs font-semibold text-muted">{t("sales.includeLines")}</span>
               <ToggleSwitch
@@ -235,8 +252,8 @@ export default function SalesFilters({
               />
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        </>
+      }
+    />
   );
 }
