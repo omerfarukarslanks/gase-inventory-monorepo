@@ -1,25 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getReportSalesSummary, type SalesSummaryResponse } from "@/lib/reports";
 import { formatPrice } from "@/lib/format";
+import { getDateRange, exportRowsToCsv, reportInputClassName } from "@/lib/analytics";
+import { ReportShell } from "@/components/reports/ReportShell";
+import { ReportFilterPanel } from "@/components/reports/ReportFilterPanel";
+import { ReportField } from "@/components/reports/ReportField";
+import { ReportStoreField } from "@/components/reports/ReportStoreField";
+import { ReportSummaryCards } from "@/components/reports/ReportSummaryCards";
+import { ReportTableSurface } from "@/components/reports/ReportTableSurface";
+import { useReportScopeState } from "@/hooks/useReportScopeState";
+import { useSyncAiReportContext } from "@/hooks/useSyncAiReportContext";
 
-const today = new Date().toISOString().slice(0, 10);
-const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+const { startDate: defaultStartDate, endDate: defaultEndDate } = getDateRange(30);
 
 export default function SalesSummaryPage() {
-  const [startDate, setStartDate] = useState(monthAgo);
-  const [endDate, setEndDate] = useState(today);
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   const [data, setData] = useState<SalesSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { storeIds, setStoreIds, storeOptions, activeStoreId } = useReportScopeState();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await getReportSalesSummary({ startDate, endDate });
+      const res = await getReportSalesSummary({ startDate, endDate, storeIds });
       setData(res);
     } catch {
       setData(null);
@@ -27,109 +35,80 @@ export default function SalesSummaryPage() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [endDate, startDate, storeIds]);
 
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
 
   const totals = data?.totals;
+  const cards = useMemo(
+    () => [
+      { label: "Satis Adedi", value: String(totals?.saleCount ?? 0) },
+      { label: "Onaylanan", value: String(totals?.confirmedCount ?? 0) },
+      { label: "Iptal Edilen", value: String(totals?.cancelledCount ?? 0) },
+      { label: "Toplam Birim Fiyat", value: formatPrice(totals?.totalUnitPrice) },
+      { label: "Toplam Ciro", value: formatPrice(totals?.totalLineTotal) },
+      { label: "Ortalama Sepet", value: formatPrice(totals?.averageBasket) },
+      { label: "Iptal Orani", value: totals?.cancelRate != null ? `%${(totals.cancelRate * 100).toFixed(1)}` : "-" },
+    ],
+    [totals],
+  );
 
-  const cards: { label: string; value: string }[] = [
-    { label: "Satis Adedi", value: String(totals?.saleCount ?? 0) },
-    { label: "Onaylanan", value: String(totals?.confirmedCount ?? 0) },
-    { label: "Iptal Edilen", value: String(totals?.cancelledCount ?? 0) },
-    { label: "Toplam Birim Fiyat", value: formatPrice(totals?.totalUnitPrice) },
-    { label: "Toplam Ciro", value: formatPrice(totals?.totalLineTotal) },
-    { label: "Ortalama Sepet", value: formatPrice(totals?.averageBasket) },
-    {
-      label: "Iptal Orani",
-      value:
-        totals?.cancelRate != null
-          ? `%${(totals.cancelRate * 100).toFixed(1)}`
-          : "-",
-    },
-  ];
+  useSyncAiReportContext({
+    reportType: "sales-summary",
+    title: "Satis Ozeti",
+    description: "Secilen tarih araligindaki genel satis istatistikleri",
+    path: "/reports/sales-summary",
+    filters: { startDate, endDate, storeIds },
+    scope: { route: "/reports/sales-summary", storeIds, activeStoreId },
+    summary: cards,
+    rowCount: cards.length,
+    promptPresets: [
+      "Satis ozetini yorumla ve en kritik metriyi belirt",
+      "Iptal orani ve ortalama sepet uzerinden kisa analiz yap",
+      "Bu ozet icin yonetici aksiyon listesi cikar",
+    ],
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link
-          href="/reports"
-          className="mb-2 inline-block text-sm text-primary hover:underline"
-        >
-          &larr; Raporlar
-        </Link>
-        <h1 className="text-xl font-semibold text-text">Satis Ozeti</h1>
-        <p className="text-sm text-muted">
-          Secilen tarih araligindaki genel satis istatistikleri
-        </p>
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-muted">
-            Baslangic
-          </label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
+    <ReportShell
+      title="Satis Ozeti"
+      description="Secilen tarih araligindaki genel satis istatistikleri"
+      filters={
+        <ReportFilterPanel onApply={() => void fetchData()} loading={loading}>
+          <ReportField label="Baslangic">
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={reportInputClassName} />
+          </ReportField>
+          <ReportField label="Bitis">
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className={reportInputClassName} />
+          </ReportField>
+          <ReportStoreField options={storeOptions} values={storeIds} onChange={setStoreIds} />
+        </ReportFilterPanel>
+      }
+      summary={!loading && !error && totals ? <ReportSummaryCards items={cards} columnsClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" /> : null}
+      onExport={() => exportRowsToCsv("sales-summary", cards.map((card) => ({ metric: card.label, value: card.value })))}
+      disableExport={!totals}
+    >
+      <ReportTableSurface
+        loading={loading}
+        error={error}
+        isEmpty={!totals}
+        emptyMessage="Secilen tarih araliginda veri bulunamadi."
+        className="rounded-2xl border border-border bg-surface p-6 shadow-glow"
+      >
+        <div className="space-y-3">
+          <div className="text-sm font-semibold text-text">Rapor ozeti</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {cards.map((card) => (
+              <div key={card.label} className="rounded-xl2 border border-border bg-surface2/60 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{card.label}</p>
+                <p className="mt-2 text-xl font-bold text-text">{card.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-muted">
-            Bitis
-          </label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <button
-          onClick={() => void fetchData()}
-          disabled={loading}
-          className="h-10 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? "Yukleniyor..." : "Filtrele"}
-        </button>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-surface p-12">
-          <p className="text-sm text-muted">Yukleniyor...</p>
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-red-300 bg-red-50 p-6 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-          {error}
-        </div>
-      ) : !totals ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-surface p-12">
-          <p className="text-sm text-muted">
-            Secilen tarih araliginda veri bulunamadi.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {cards.map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-border bg-surface p-5"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                {card.label}
-              </p>
-              <p className="mt-2 text-2xl font-bold text-text">{card.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      </ReportTableSurface>
+    </ReportShell>
   );
 }

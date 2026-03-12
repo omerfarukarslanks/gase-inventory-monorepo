@@ -12,6 +12,7 @@ import { setAuthCookie } from "@/lib/cookie";
 import { readSessionToken, setSessionUser } from "@/lib/session";
 import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
+import { AiReportContextProvider } from "@/context/AiReportContext";
 import { cn } from "@/lib/cn";
 
 export default function MainAppShell({ children }: { children: React.ReactNode }) {
@@ -64,40 +65,42 @@ export default function MainAppShell({ children }: { children: React.ReactNode }
   );
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-bg text-text">
-      <div className="flex min-h-screen">
-        {mode === "desktop" ? <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} mode="desktop" /> : null}
+    <AiReportContextProvider>
+      <div className="min-h-screen overflow-x-clip bg-bg text-text">
+        <div className="flex min-h-screen">
+          {mode === "desktop" ? <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} mode="desktop" /> : null}
 
-        <div className="min-w-0 flex-1">
-          <Topbar mode={mode} onOpenNavigation={mode === "tablet" ? () => setTabletNavOpen(true) : undefined} />
-          <main className={cn("px-4 py-4 md:px-6 md:py-6", mode === "mobile" && "pb-28")}>{children}</main>
-        </div>
-      </div>
-
-      {mode === "tablet" ? (
-        <Drawer open={tabletNavOpen} onClose={() => setTabletNavOpen(false)} side="left" title={t("shell.menuTitle")}>
-          <div className="h-full min-h-0">
-            <Sidebar mode="panel" onNavigate={() => setTabletNavOpen(false)} footerExtras={quickPreferences} />
+          <div className="min-w-0 flex-1">
+            <Topbar mode={mode} onOpenNavigation={mode === "tablet" ? () => setTabletNavOpen(true) : undefined} />
+            <main className={cn("px-4 py-4 md:px-6 md:py-6", mode === "mobile" && "pb-28")}>{children}</main>
           </div>
-        </Drawer>
-      ) : null}
+        </div>
 
-      {mode === "mobile" ? (
-        <>
-          <Drawer
-            open={mobileMenuOpen}
-            onClose={() => setMobileMenuOpen(false)}
-            side="bottom"
-            title={t("shell.menuTitle")}
-            mobileFullscreen
-          >
+        {mode === "tablet" ? (
+          <Drawer open={tabletNavOpen} onClose={() => setTabletNavOpen(false)} side="left" title={t("shell.menuTitle")}>
             <div className="h-full min-h-0">
-              <Sidebar mode="sheet" onNavigate={() => setMobileMenuOpen(false)} footerExtras={quickPreferences} />
+              <Sidebar mode="panel" onNavigate={() => setTabletNavOpen(false)} footerExtras={quickPreferences} />
             </div>
           </Drawer>
-          <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
-        </>
-      ) : null}
-    </div>
+        ) : null}
+
+        {mode === "mobile" ? (
+          <>
+            <Drawer
+              open={mobileMenuOpen}
+              onClose={() => setMobileMenuOpen(false)}
+              side="bottom"
+              title={t("shell.menuTitle")}
+              mobileFullscreen
+            >
+              <div className="h-full min-h-0">
+                <Sidebar mode="sheet" onNavigate={() => setMobileMenuOpen(false)} footerExtras={quickPreferences} />
+              </div>
+            </Drawer>
+            <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
+          </>
+        ) : null}
+      </div>
+    </AiReportContextProvider>
   );
 }

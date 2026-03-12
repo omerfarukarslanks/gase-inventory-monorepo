@@ -13,6 +13,7 @@ export type AppNavigationItem = {
   anyPermission?: PermissionName[];
   requiresWholesale?: boolean;
   bottomNav?: boolean;
+  visibleInNav?: boolean;
 };
 
 const APP_NAV_ITEMS: AppNavigationItem[] = [
@@ -30,7 +31,7 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     bottomNav: true,
   },
   { id: "sales", href: "/sales", labelKey: "nav.sales", icon: "TL", section: "main", permission: "SALE_READ", bottomNav: true },
-  { id: "chat", href: "/chat", labelKey: "nav.chat", icon: "AI", section: "main", permission: "AI_CHAT" },
+  { id: "chat", href: "/chat", labelKey: "nav.chat", icon: "AI", section: "main", permission: "AI_CHAT", visibleInNav: false },
   {
     id: "attributes",
     href: "/attributes",
@@ -90,7 +91,9 @@ export function canAccessNavigationItem(
 }
 
 export function getVisibleNavigation(permissions: string[], canSeePackages: boolean) {
-  const visibleItems = APP_NAV_ITEMS.filter((item) => canAccessNavigationItem(item, permissions, canSeePackages));
+  const visibleItems = APP_NAV_ITEMS.filter(
+    (item) => item.visibleInNav !== false && canAccessNavigationItem(item, permissions, canSeePackages),
+  );
 
   return {
     mainItems: visibleItems.filter((item) => item.section === "main"),

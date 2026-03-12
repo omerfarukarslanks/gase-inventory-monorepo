@@ -5,12 +5,14 @@ import Button from "@/components/ui/Button";
 import { sendChatMessage, type ChatMessage } from "@/lib/chat";
 import { cn } from "@/lib/cn";
 import { FieldError } from "@/components/ui/FieldError";
+import { useAiReportContext } from "@/context/AiReportContext";
 
 type ChatPanelProps = {
   className?: string;
   contentClassName?: string;
   quickPrompts?: string[];
   headerSlot?: ReactNode;
+  metadata?: Record<string, unknown>;
 };
 
 const DEFAULT_PROMPTS = [
@@ -23,13 +25,18 @@ const DEFAULT_PROMPTS = [
 export default function ChatPanel({
   className,
   contentClassName,
-  quickPrompts = DEFAULT_PROMPTS,
+  quickPrompts,
   headerSlot,
+  metadata,
 }: ChatPanelProps) {
+  const { context } = useAiReportContext();
+  const contextTitle = context?.title?.trim();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Merhaba, raporlar ve operasyon akislari icin yardimci olabilirim.",
+      content: contextTitle
+        ? `${contextTitle} baglaminda analiz, yorum ve aksiyon onerileri uretebilirim.`
+        : "Merhaba, raporlar ve operasyon akislari icin yardimci olabilirim.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -41,6 +48,40 @@ export default function ChatPanel({
     () => input.trim().length > 0 && !sending,
     [input, sending],
   );
+  const resolvedPrompts = useMemo(() => {
+    if (quickPrompts && quickPrompts.length > 0) return quickPrompts;
+    if (context?.promptPresets?.length) return context.promptPresets;
+    return DEFAULT_PROMPTS;
+  }, [context?.promptPresets, quickPrompts]);
+  const resolvedMetadata = useMemo(
+    () => ({
+      ...(context
+        ? {
+            reportType: context.reportType,
+            title: context.title,
+            description: context.description,
+            path: context.path,
+            filters: context.filters,
+            scope: context.scope,
+            summary: context.summary,
+            rowCount: context.rowCount,
+          }
+        : {}),
+      ...metadata,
+    }),
+    [context, metadata],
+  );
+
+  useEffect(() => {
+    setMessages([
+      {
+        role: "assistant",
+        content: contextTitle
+          ? `${contextTitle} baglaminda analiz, yorum ve aksiyon onerileri uretebilirim.`
+          : "Merhaba, raporlar ve operasyon akislari icin yardimci olabilirim.",
+      },
+    ]);
+  }, [contextTitle]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -69,6 +110,7 @@ export default function ChatPanel({
             content,
           },
         ],
+        metadata: resolvedMetadata,
       });
       setMessages((prev) => [...prev, response.message]);
     } catch {
@@ -82,9 +124,15 @@ export default function ChatPanel({
     <div className={cn("flex min-h-0 flex-1 flex-col", className)}>
       {headerSlot}
 
-      {quickPrompts.length > 0 && (
+      {contextTitle ? (
+        <div className="mt-3 rounded-xl2 border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-text2">
+          Aktif baglam: <span className="font-semibold text-text">{contextTitle}</span>
+        </div>
+      ) : null}
+
+      {resolvedPrompts.length > 0 && (
         <div className="mt-3 grid gap-2">
-          {quickPrompts.map((prompt) => (
+          {resolvedPrompts.map((prompt) => (
             <button
               key={prompt}
               type="button"
