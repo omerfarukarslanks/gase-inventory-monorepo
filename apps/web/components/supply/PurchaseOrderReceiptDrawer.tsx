@@ -3,8 +3,10 @@
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
+import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { FieldError } from "@/components/ui/FieldError";
 import type { CreatePurchaseOrderReceiptPayload, PurchaseOrder } from "@/lib/procurement";
+import { getWarehouses, type Warehouse } from "@/lib/warehouse";
 
 type ReceiptDraftLine = {
   purchaseOrderLineId: string;
@@ -19,6 +21,7 @@ type PurchaseOrderReceiptDrawerProps = {
   open: boolean;
   submitting: boolean;
   purchaseOrder: PurchaseOrder | null;
+  fallbackStoreId?: string | null;
   onClose: () => void;
   onSubmit: (payload: CreatePurchaseOrderReceiptPayload) => Promise<void>;
 };
@@ -36,18 +39,32 @@ function buildDraftLines(purchaseOrder: PurchaseOrder): ReceiptDraftLine[] {
     .filter((line) => line.remainingQuantity > 0);
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export default function PurchaseOrderReceiptDrawer({
   open,
   submitting,
   purchaseOrder,
+  fallbackStoreId,
   onClose,
   onSubmit,
 }: PurchaseOrderReceiptDrawerProps) {
+  const [warehouseId, setWarehouseId] = useState("");
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState("");
   const [draftLines, setDraftLines] = useState<ReceiptDraftLine[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+
+  const resolvedStoreId = purchaseOrder?.store?.id ?? fallbackStoreId ?? "";
 
   const resetDraft = useEffectEvent((currentPurchaseOrder: PurchaseOrder) => {
+    setWarehouseId("");
     setNotes("");
     setFormError("");
     setDraftLines(buildDraftLines(currentPurchaseOrder));
@@ -58,13 +75,66 @@ export default function PurchaseOrderReceiptDrawer({
     resetDraft(purchaseOrder);
   }, [open, purchaseOrder]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (!resolvedStoreId) {
+      setWarehouses([]);
+      setWarehouseId("");
+      return;
+    }
+
+    let mounted = true;
+    setWarehousesLoading(true);
+    setFormError("");
+
+    void (async () => {
+      try {
+        const data = await getWarehouses({ storeId: resolvedStoreId });
+        if (!mounted) return;
+        setWarehouses(data);
+        setWarehouseId((current) => {
+          if (current && data.some((warehouse) => warehouse.id === current)) return current;
+          if (data.length === 1) return data[0].id;
+          return "";
+        });
+      } catch (loadError) {
+        if (!mounted) return;
+        setWarehouses([]);
+        setWarehouseId("");
+        setFormError(getErrorMessage(loadError, "Depolar yuklenemedi."));
+      } finally {
+        if (mounted) {
+          setWarehousesLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, resolvedStoreId]);
+
   const availableLines = useMemo(
     () => draftLines.filter((line) => line.remainingQuantity > 0),
     [draftLines],
   );
 
+  const warehouseOptions = useMemo(
+    () =>
+      warehouses.map((warehouse) => ({
+        value: warehouse.id,
+        label: warehouse.name,
+      })),
+    [warehouses],
+  );
+
   const submit = async () => {
     setFormError("");
+    if (!warehouseId) {
+      setFormError("Devam etmek icin bir depo secin.");
+      return;
+    }
+
     const lines = draftLines
       .map((line) => ({
         purchaseOrderLineId: line.purchaseOrderLineId,
@@ -80,6 +150,7 @@ export default function PurchaseOrderReceiptDrawer({
     }
 
     await onSubmit({
+      warehouseId,
       notes: notes.trim() || undefined,
       lines,
     });
@@ -109,6 +180,22 @@ export default function PurchaseOrderReceiptDrawer({
           </div>
         ) : (
           <>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-muted">Depo *</label>
+              <SearchableDropdown
+                options={warehouseOptions}
+                value={warehouseId}
+                onChange={setWarehouseId}
+                placeholder={warehousesLoading ? "Depolar yukleniyor..." : "Depo secin"}
+                inputAriaLabel="Depo secimi"
+                toggleAriaLabel="Depo listesini ac"
+                clearAriaLabel="Depo secimini temizle"
+                noResultsText="Depo bulunamadi."
+                disabled={warehousesLoading || warehouseOptions.length === 0}
+                allowClear
+              />
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-semibold text-muted">Not</label>
               <textarea

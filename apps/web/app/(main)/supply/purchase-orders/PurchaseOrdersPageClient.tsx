@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ApiError } from "@/lib/api";
 import { PageShell } from "@/components/layout/PageShell";
 import TablePagination from "@/components/ui/TablePagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -27,10 +28,18 @@ import PurchaseOrdersMobileList from "@/components/supply/PurchaseOrdersMobileLi
 import PurchaseOrderCreateDrawer from "@/components/supply/PurchaseOrderCreateDrawer";
 import PurchaseOrderDetailDrawer from "@/components/supply/PurchaseOrderDetailDrawer";
 import PurchaseOrderReceiptDrawer from "@/components/supply/PurchaseOrderReceiptDrawer";
+import GoodsReceiptPutawayDrawer from "@/components/supply/GoodsReceiptPutawayDrawer";
 import SupplyStoreBlocker from "@/components/supply/SupplyStoreBlocker";
+import { createPutawayTasksFromGoodsReceipt, getWarehouses, type Warehouse } from "@/lib/warehouse";
 
 function getSupplierLabel(name?: string, surname?: string | null) {
   return [name, surname].filter(Boolean).join(" ").trim();
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError && error.message.trim()) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
 }
 
 export default function PurchaseOrdersPageClient() {
@@ -61,8 +70,12 @@ export default function PurchaseOrdersPageClient() {
   const [detailActing, setDetailActing] = useState(false);
   const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState<PurchaseOrder | null>(null);
   const [receipts, setReceipts] = useState<PurchaseOrderReceipt[]>([]);
+  const [receiptWarehouses, setReceiptWarehouses] = useState<Warehouse[]>([]);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptSubmitting, setReceiptSubmitting] = useState(false);
+  const [receiptPutawayOpen, setReceiptPutawayOpen] = useState(false);
+  const [selectedReceiptForPutaway, setSelectedReceiptForPutaway] = useState<PurchaseOrderReceipt | null>(null);
+  const [receiptPutawaySubmitting, setReceiptPutawaySubmitting] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const closingPurchaseOrderIdRef = useRef<string | null>(null);
@@ -72,6 +85,7 @@ export default function PurchaseOrdersPageClient() {
   const canApprove = can("PO_APPROVE");
   const canCancel = can("PO_CANCEL");
   const canCreateReceipt = can("PO_RECEIPT_CREATE");
+  const canCreatePutaway = can("WAREHOUSE_MANAGE");
   const canTenantOnly = can("TENANT_ONLY");
 
   const activeStoreName = useMemo(
@@ -89,6 +103,11 @@ export default function PurchaseOrdersPageClient() {
         suppliers.map((supplier) => [supplier.id, getSupplierLabel(supplier.name, supplier.surname) || supplier.id]),
       ),
     [suppliers],
+  );
+
+  const receiptWarehouseNameById = useMemo(
+    () => Object.fromEntries(receiptWarehouses.map((warehouse) => [warehouse.id, warehouse.name])),
+    [receiptWarehouses],
   );
 
   const fetchList = useCallback(async (targetPage = page, targetLimit = limit) => {
@@ -123,6 +142,35 @@ export default function PurchaseOrdersPageClient() {
   useEffect(() => {
     void fetchList();
   }, [fetchList]);
+
+  useEffect(() => {
+    if (!detailOpen) {
+      setReceiptWarehouses([]);
+      return;
+    }
+
+    const storeId = selectedPurchaseOrder?.store?.id ?? activeStoreId;
+    if (!storeId) {
+      setReceiptWarehouses([]);
+      return;
+    }
+
+    let mounted = true;
+    void (async () => {
+      try {
+        const data = await getWarehouses({ storeId });
+        if (!mounted) return;
+        setReceiptWarehouses(data);
+      } catch {
+        if (!mounted) return;
+        setReceiptWarehouses([]);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeStoreId, detailOpen, selectedPurchaseOrder?.store?.id]);
 
   const visibleItems = useMemo<PurchaseOrderListItem[]>(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -211,6 +259,8 @@ export default function PurchaseOrdersPageClient() {
     setSelectedPurchaseOrder(null);
     setReceipts([]);
     setReceiptOpen(false);
+    setReceiptPutawayOpen(false);
+    setSelectedReceiptForPutaway(null);
     router.replace(pathname, { scroll: false });
   };
 
@@ -265,7 +315,7 @@ export default function PurchaseOrdersPageClient() {
     }
   };
 
-  const handleCreateReceipt = async (payload: { notes?: string; lines: Array<{ purchaseOrderLineId: string; receivedQuantity: number; lotNumber?: string; expiryDate?: string }> }) => {
+  const handleCreateReceipt = async (payload: { warehouseId: string; notes?: string; lines: Array<{ purchaseOrderLineId: string; receivedQuantity: number; lotNumber?: string; expiryDate?: string }> }) => {
     if (!selectedPurchaseOrder?.id) return;
     setReceiptSubmitting(true);
     try {
@@ -274,10 +324,27 @@ export default function PurchaseOrdersPageClient() {
       await fetchList();
       setReceiptOpen(false);
       setSuccess("Mal kabul kaydi olusturuldu.");
-    } catch {
-      setError("Mal kabul kaydi olusturulamadi.");
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, "Mal kabul kaydi olusturulamadi."));
     } finally {
       setReceiptSubmitting(false);
+    }
+  };
+
+  const handleCreateReceiptPutaway = async (
+    receiptId: string,
+    payload: { notes?: string; lines: Array<{ goodsReceiptLineId: string; toLocationId: string }> },
+  ) => {
+    setReceiptPutawaySubmitting(true);
+    try {
+      await createPutawayTasksFromGoodsReceipt(receiptId, payload);
+      setReceiptPutawayOpen(false);
+      setSelectedReceiptForPutaway(null);
+      setSuccess("Putaway gorevleri olusturuldu.");
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, "Putaway gorevleri olusturulamadi."));
+    } finally {
+      setReceiptPutawaySubmitting(false);
     }
   };
 
@@ -360,21 +427,44 @@ export default function PurchaseOrdersPageClient() {
         purchaseOrder={selectedPurchaseOrder}
         receipts={receipts}
         suppliers={suppliers}
+        receiptWarehouseNameById={receiptWarehouseNameById}
         onClose={closeDetail}
         onApprove={() => setApproveDialogOpen(true)}
         onCancel={() => setCancelDialogOpen(true)}
         onOpenReceipt={() => setReceiptOpen(true)}
+        onOpenReceiptPutaway={(receipt) => {
+          setSelectedReceiptForPutaway(receipt);
+          setReceiptPutawayOpen(true);
+        }}
         canApprove={canApprove}
         canCancel={canCancel}
         canCreateReceipt={canCreateReceipt}
+        canCreatePutaway={canCreatePutaway}
       />
 
       <PurchaseOrderReceiptDrawer
         open={receiptOpen}
         submitting={receiptSubmitting}
         purchaseOrder={selectedPurchaseOrder}
+        fallbackStoreId={activeStoreId}
         onClose={() => setReceiptOpen(false)}
         onSubmit={handleCreateReceipt}
+      />
+
+      <GoodsReceiptPutawayDrawer
+        open={receiptPutawayOpen}
+        submitting={receiptPutawaySubmitting}
+        receipt={selectedReceiptForPutaway}
+        warehouseLabel={
+          selectedReceiptForPutaway?.warehouseId
+            ? (receiptWarehouseNameById[selectedReceiptForPutaway.warehouseId] ?? selectedReceiptForPutaway.warehouseId)
+            : null
+        }
+        onClose={() => {
+          setReceiptPutawayOpen(false);
+          setSelectedReceiptForPutaway(null);
+        }}
+        onSubmit={handleCreateReceiptPutaway}
       />
 
       <ConfirmDialog

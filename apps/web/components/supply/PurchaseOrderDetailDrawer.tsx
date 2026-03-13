@@ -15,13 +15,16 @@ type PurchaseOrderDetailDrawerProps = {
   purchaseOrder: PurchaseOrder | null;
   receipts: PurchaseOrderReceipt[];
   suppliers: Supplier[];
+  receiptWarehouseNameById?: Record<string, string>;
   onClose: () => void;
   onApprove: () => void;
   onCancel: () => void;
   onOpenReceipt: () => void;
+  onOpenReceiptPutaway: (receipt: PurchaseOrderReceipt) => void;
   canApprove: boolean;
   canCancel: boolean;
   canCreateReceipt: boolean;
+  canCreatePutaway: boolean;
 };
 
 function buildLineLabels(productName?: string | null, variantName?: string | null) {
@@ -38,13 +41,16 @@ export default function PurchaseOrderDetailDrawer({
   purchaseOrder,
   receipts,
   suppliers,
+  receiptWarehouseNameById = {},
   onClose,
   onApprove,
   onCancel,
   onOpenReceipt,
+  onOpenReceiptPutaway,
   canApprove,
   canCancel,
   canCreateReceipt,
+  canCreatePutaway,
 }: PurchaseOrderDetailDrawerProps) {
   const supplier = suppliers.find((item) => item.id === purchaseOrder?.supplierId);
   const supplierName = supplier?.surname ? `${supplier.name} ${supplier.surname}` : supplier?.name ?? "-";
@@ -157,8 +163,25 @@ export default function PurchaseOrderDetailDrawer({
                 ) : (
                   receipts.map((receipt) => (
                     <div key={receipt.id} className="rounded-xl border border-border bg-surface2/20 p-3">
-                      <div className="text-sm font-medium text-text">Mal Kabul Kaydi</div>
-                      <div className="mt-1 text-xs text-muted">{formatDate(receipt.receivedAt)}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-medium text-text">Mal Kabul Kaydi</div>
+                          <div className="mt-1 text-xs text-muted">{formatDate(receipt.receivedAt)}</div>
+                          {receipt.warehouseId ? (
+                            <div className="mt-1 text-xs text-muted">
+                              Depo: {receiptWarehouseNameById[receipt.warehouseId] ?? receipt.warehouseId}
+                            </div>
+                          ) : null}
+                        </div>
+                        {canCreatePutaway && receipt.warehouseId && (receipt.lines?.length ?? 0) > 0 ? (
+                          <Button
+                            label="Putaway Olustur"
+                            onClick={() => onOpenReceiptPutaway(receipt)}
+                            disabled={acting}
+                            variant="primarySoft"
+                          />
+                        ) : null}
+                      </div>
                       <div className="mt-2 space-y-1">
                         {(receipt.lines ?? []).map((line) => {
                           const labels = buildLineLabels(

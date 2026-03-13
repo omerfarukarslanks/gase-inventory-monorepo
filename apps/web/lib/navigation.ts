@@ -85,6 +85,24 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         labelKey: "nav.locations",
         permission: "WAREHOUSE_READ",
       },
+      {
+        key: "putaway-tasks",
+        href: "/warehouse/putaway-tasks",
+        labelKey: "nav.putawayTasks",
+        permission: "WAREHOUSE_READ",
+      },
+      {
+        key: "picking-tasks",
+        href: "/warehouse/picking-tasks",
+        labelKey: "nav.pickingTasks",
+        permission: "WAREHOUSE_READ",
+      },
+      {
+        key: "waves",
+        href: "/warehouse/waves",
+        labelKey: "nav.waves",
+        permission: "WAREHOUSE_READ",
+      },
     ],
   },
   {

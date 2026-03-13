@@ -99,17 +99,11 @@ export default function CountSessionDetailDrawer({
     const term = debouncedProductSearchTerm.trim();
     let cancelled = false;
 
-    if (!term) {
-      setProductResults([]);
-      setProductsLoading(false);
-      return;
-    }
-
     setProductsLoading(true);
     void getProducts({
       page: 1,
       limit: 15,
-      search: term,
+      search: term || undefined,
       isActive: true,
       variantIsActive: true,
     })
@@ -298,29 +292,26 @@ export default function CountSessionDetailDrawer({
                   </div>
 
                   <div className="space-y-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-muted">{t("warehouse.countSessions.productSearchLabel")}</label>
-                      <input
-                        className={INPUT_CLASSNAME}
-                        value={productSearchTerm}
-                        onChange={(event) => setProductSearchTerm(event.target.value)}
-                        placeholder={t("warehouse.countSessions.productSearchPlaceholder")}
-                      />
-                    </div>
-
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
                         <label className="mb-1 block text-xs font-semibold text-muted">{t("warehouse.common.product")}</label>
                         <SearchableDropdown
                           options={productOptions}
                           value={selectedProduct?.id ?? ""}
+                          searchValue={productSearchTerm}
+                          onSearchChange={setProductSearchTerm}
+                          searchPlaceholder={t("warehouse.countSessions.productSearchPlaceholder")}
+                          loading={productsLoading}
+                          loadingText={t("warehouse.countSessions.productsLoading")}
                           onChange={(value) => {
                             const nextProduct = productResults.find((product) => product.id === value) ?? null;
                             setSelectedProduct(nextProduct);
                             setSelectedVariantId("");
+                            setProductSearchTerm("");
                           }}
-                          placeholder={productsLoading ? t("warehouse.countSessions.productsLoading") : t("warehouse.countSessions.productPlaceholder")}
-                          disabled={productsLoading || productOptions.length === 0}
+                          placeholder={t("warehouse.countSessions.productPlaceholder")}
+                          showEmptyOption={false}
+                          allowClear={false}
                         />
                       </div>
 

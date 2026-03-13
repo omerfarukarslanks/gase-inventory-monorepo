@@ -80,6 +80,7 @@ export type PurchaseOrderReceiptLinePayload = {
 };
 
 export type CreatePurchaseOrderReceiptPayload = {
+  warehouseId: string;
   notes?: string;
   lines: PurchaseOrderReceiptLinePayload[];
 };
@@ -103,6 +104,7 @@ export type PurchaseOrderReceiptLine = {
 
 export type PurchaseOrderReceipt = {
   id: string;
+  warehouseId?: string | null;
   receivedAt?: string;
   notes?: string | null;
   store?: PurchaseOrderStoreRef | null;
@@ -247,6 +249,7 @@ function normalizePurchaseOrderReceipt(payload: unknown): PurchaseOrderReceipt |
 
   return {
     id,
+    warehouseId: pickString(root.warehouseId, asObject(root.warehouse)?.id) || null,
     receivedAt: pickString(root.receivedAt, root.createdAt) || undefined,
     notes: pickString(root.notes) || null,
     store: store
