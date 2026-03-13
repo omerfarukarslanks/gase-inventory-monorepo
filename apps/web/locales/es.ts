@@ -1,12 +1,21 @@
 import { locales } from "@gase/i18n";
+import en from "./en";
 
 const es = {
   ...locales.es,
+  common: {
+    ...locales.es.common,
+    delete: "Eliminar",
+  },
   nav: {
     ...locales.es.nav,
     supply: "Abastecimiento",
     supplySuggestions: "Sugerencias",
     purchaseOrders: "Ordenes de compra",
+    warehouse: "Almacen",
+    countSessions: "Sesiones de conteo",
+    warehouses: "Almacenes",
+    locations: "Ubicaciones",
     approvals: "Aprobaciones",
     pendingApprovals: "Pendientes",
     approvalHistory: "Historial",
@@ -28,6 +37,7 @@ const es = {
     collapseGroup: "Contraer grupo",
     noModuleAccess: "No tienes acceso a este modulo.",
   },
+  warehouse: en.warehouse,
 };
 
 export default es;

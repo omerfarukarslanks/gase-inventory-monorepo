@@ -61,6 +61,33 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     ],
   },
   {
+    key: "warehouse",
+    href: "/warehouse/count-sessions",
+    labelKey: "nav.warehouse",
+    icon: "DP",
+    matchesRoute: ["/warehouse"],
+    children: [
+      {
+        key: "count-sessions",
+        href: "/warehouse/count-sessions",
+        labelKey: "nav.countSessions",
+        permission: "COUNT_SESSION_READ",
+      },
+      {
+        key: "warehouses",
+        href: "/warehouse/warehouses",
+        labelKey: "nav.warehouses",
+        permission: "WAREHOUSE_READ",
+      },
+      {
+        key: "locations",
+        href: "/warehouse/locations",
+        labelKey: "nav.locations",
+        permission: "WAREHOUSE_READ",
+      },
+    ],
+  },
+  {
     key: "catalog",
     href: "/catalog/products",
     labelKey: "nav.catalog",

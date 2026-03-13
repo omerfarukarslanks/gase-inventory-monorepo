@@ -84,6 +84,12 @@ export type PermissionName =
   | "PO_APPROVE"
   | "PO_CANCEL"
   | "PO_RECEIPT_CREATE"
+  // Depo
+  | "WAREHOUSE_READ"
+  | "WAREHOUSE_MANAGE"
+  | "COUNT_SESSION_READ"
+  | "COUNT_SESSION_MANAGE"
+  | "COUNT_SESSION_ADJUST"
   // Onaylar
   | "APPROVAL_READ"
   | "APPROVAL_REQUEST"

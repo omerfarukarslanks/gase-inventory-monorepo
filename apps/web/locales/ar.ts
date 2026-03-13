@@ -1,12 +1,21 @@
 import { locales } from "@gase/i18n";
+import en from "./en";
 
 const ar = {
   ...locales.ar,
+  common: {
+    ...locales.ar.common,
+    delete: "حذف",
+  },
   nav: {
     ...locales.ar.nav,
     supply: "التوريد",
     supplySuggestions: "الاقتراحات",
     purchaseOrders: "اوامر الشراء",
+    warehouse: "المستودع",
+    countSessions: "جلسات الجرد",
+    warehouses: "المستودعات",
+    locations: "المواقع",
     approvals: "الموافقات",
     pendingApprovals: "قيد الانتظار",
     approvalHistory: "السجل",
@@ -28,6 +37,7 @@ const ar = {
     collapseGroup: "طي المجموعة",
     noModuleAccess: "ليس لديك صلاحية الوصول إلى هذه الوحدة.",
   },
+  warehouse: en.warehouse,
 };
 
 export default ar;

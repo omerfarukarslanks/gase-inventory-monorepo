@@ -37,7 +37,7 @@ export default function Button({
   const variantClasses: Record<NonNullable<Props["variant"]>, string> = {
     link: "text-[13px] font-semibold text-primary hover:opacity-90",
     primarySoft:
-      "rounded-xl2 border border-primary/30 bg-primary/10 text-sm font-semibold text-primary hover:bg-primary/15",
+      "rounded-xl2 border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/15",
     secondary:
       "rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2",
     primarySolid:
