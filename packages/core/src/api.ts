@@ -56,7 +56,11 @@ export function createApiClient({
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      const message = body?.message ?? body?.error ?? `Request failed (${response.status})`;
+      const message =
+        body?.error?.message
+        ?? body?.message
+        ?? (typeof body?.error === "string" ? body.error : null)
+        ?? `Request failed (${response.status})`;
 
       if (response.status === 401 && onUnauthorized) {
         await onUnauthorized();

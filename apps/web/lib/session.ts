@@ -6,6 +6,7 @@ export const SESSION_CHANGE_EVENT = "stockpulse:session-change";
 
 export type SessionProfileSnapshot = {
   user: SessionUser | null;
+  userId: string;
   token: string | null;
   permissions: string[];
   displayName: string;
@@ -65,7 +66,7 @@ export function clearSessionStorage(): void {
 export function subscribeToSessionChange(callback: () => void): () => void {
   if (!isBrowser()) return () => {};
 
-  const handleEvent = (_event: Event) => callback();
+  const handleEvent = () => callback();
 
   window.addEventListener(SESSION_CHANGE_EVENT, handleEvent);
   window.addEventListener("storage", handleEvent);
@@ -93,6 +94,7 @@ export function getSessionProfileSnapshot(): SessionProfileSnapshot {
 
   return {
     user,
+    userId: user?.id?.trim() || "",
     token,
     permissions: user?.permissions ?? [],
     displayName,

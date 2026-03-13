@@ -84,6 +84,11 @@ export type PermissionName =
   | "PO_APPROVE"
   | "PO_CANCEL"
   | "PO_RECEIPT_CREATE"
+  // Onaylar
+  | "APPROVAL_READ"
+  | "APPROVAL_REQUEST"
+  | "APPROVAL_REVIEW"
+  | "APPROVAL_REVIEW_L2"
   // Sistem
   | "EXCHANGE_RATE_READ"
   | "AI_CHAT"
@@ -92,6 +97,7 @@ export type PermissionName =
   | 'TENANT_ONLY';
 
 export type SessionUser = {
+  id?: string;
   name?: string;
   surname?: string;
   role?: string;

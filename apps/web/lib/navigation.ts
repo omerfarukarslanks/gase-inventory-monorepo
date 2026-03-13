@@ -128,6 +128,27 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     bottomNav: true,
   },
   {
+    key: "approvals",
+    href: "/approvals/pending",
+    labelKey: "nav.approvals",
+    icon: "ON",
+    matchesRoute: ["/approvals"],
+    children: [
+      {
+        key: "pending",
+        href: "/approvals/pending",
+        labelKey: "nav.pendingApprovals",
+        permission: "APPROVAL_READ",
+      },
+      {
+        key: "history",
+        href: "/approvals/history",
+        labelKey: "nav.approvalHistory",
+        permission: "APPROVAL_READ",
+      },
+    ],
+  },
+  {
     key: "settings",
     href: "/settings/stores",
     labelKey: "nav.settings",
