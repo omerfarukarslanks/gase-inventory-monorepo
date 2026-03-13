@@ -40,6 +40,27 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     bottomNav: true,
   },
   {
+    key: "supply",
+    href: "/supply/suggestions",
+    labelKey: "nav.supply",
+    icon: "TD",
+    matchesRoute: ["/supply"],
+    children: [
+      {
+        key: "suggestions",
+        href: "/supply/suggestions",
+        labelKey: "nav.supplySuggestions",
+        permission: "REPLENISHMENT_READ",
+      },
+      {
+        key: "purchase-orders",
+        href: "/supply/purchase-orders",
+        labelKey: "nav.purchaseOrders",
+        anyPermission: ["PO_READ", "PO_CREATE"],
+      },
+    ],
+  },
+  {
     key: "catalog",
     href: "/catalog/products",
     labelKey: "nav.catalog",

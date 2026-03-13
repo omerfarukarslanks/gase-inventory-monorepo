@@ -110,6 +110,12 @@ export default function DashboardPage() {
     () =>
       [
         {
+          href: "/supply/suggestions",
+          label: "Tedarik Onerileri",
+          description: "Ikmal ve PO akislarini yonet",
+          enabled: canAny(["REPLENISHMENT_READ", "PO_READ", "PO_CREATE"]),
+        },
+        {
           href: "/reports/sales-summary",
           label: "Satis Ozeti",
           description: "Haftalik satis ozetine git",
@@ -236,9 +242,16 @@ export default function DashboardPage() {
               <h3 className="text-lg font-semibold text-text">{t("dashboard.lowStockWarnings")}</h3>
               <p className="text-sm text-muted">Kritik esigin altindaki urunler.</p>
             </div>
-            <Link href="/reports/low-stock" className="text-sm font-semibold text-primary hover:underline">
-              Raporu ac
-            </Link>
+            <div className="flex items-center gap-3">
+              {canAny(["REPLENISHMENT_READ", "PO_READ", "PO_CREATE"]) ? (
+                <Link href="/supply/suggestions" className="text-sm font-semibold text-primary hover:underline">
+                  Tedarik
+                </Link>
+              ) : null}
+              <Link href="/reports/low-stock" className="text-sm font-semibold text-primary hover:underline">
+                Raporu ac
+              </Link>
+            </div>
           </div>
           <DashboardLowStock data={lowStock} loading={tablesLoading} />
         </div>

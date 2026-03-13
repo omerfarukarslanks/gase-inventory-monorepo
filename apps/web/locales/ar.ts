@@ -4,6 +4,9 @@ const ar = {
   ...locales.ar,
   nav: {
     ...locales.ar.nav,
+    supply: "التوريد",
+    supplySuggestions: "الاقتراحات",
+    purchaseOrders: "اوامر الشراء",
     catalog: "الكتالوج",
     settings: "الإعدادات",
   },

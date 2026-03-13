@@ -4,6 +4,9 @@ const es = {
   ...locales.es,
   nav: {
     ...locales.es.nav,
+    supply: "Abastecimiento",
+    supplySuggestions: "Sugerencias",
+    purchaseOrders: "Ordenes de compra",
     catalog: "Catalogo",
     settings: "Configuracion",
   },

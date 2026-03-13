@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getReportLowStock, type LowStockItem } from "@/lib/reports";
 import { exportRowsToCsv, reportInputClassName } from "@/lib/analytics";
 import { ReportShell } from "@/components/reports/ReportShell";
@@ -11,8 +12,10 @@ import { ReportSummaryCards } from "@/components/reports/ReportSummaryCards";
 import { ReportTableSurface } from "@/components/reports/ReportTableSurface";
 import { useReportScopeState } from "@/hooks/useReportScopeState";
 import { useSyncAiReportContext } from "@/hooks/useSyncAiReportContext";
+import Button from "@/components/ui/Button";
 
 export default function LowStockPage() {
+  const router = useRouter();
   const [data, setData] = useState<LowStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,6 +75,14 @@ export default function LowStockPage() {
     <ReportShell
       title="Dusuk Stok"
       description="Esik degerinin altindaki stoklar"
+      extraActions={
+        <Button
+          label="Tedarikte Ac"
+          onClick={() => router.push("/supply/suggestions")}
+          variant="secondary"
+          className="px-3 py-2"
+        />
+      }
       filters={
         <ReportFilterPanel onApply={handleFilter} loading={loading}>
           <ReportField label="Esik Degeri">

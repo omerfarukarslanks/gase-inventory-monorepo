@@ -4,6 +4,9 @@ const en = {
   ...locales.en,
   nav: {
     ...locales.en.nav,
+    supply: "Supply",
+    supplySuggestions: "Suggestions",
+    purchaseOrders: "Purchase Orders",
     catalog: "Catalog",
     settings: "Settings",
   },

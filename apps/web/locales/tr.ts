@@ -6,6 +6,9 @@ const tr = {
   ...locales.tr,
   nav: {
     ...locales.tr.nav,
+    supply: "Tedarik",
+    supplySuggestions: "Oneriler",
+    purchaseOrders: "Satin Alma Siparisleri",
     catalog: "Katalog",
     settings: "Ayarlar",
   },

@@ -16,6 +16,7 @@ type ReportShellProps = {
   disableExport?: boolean;
   aiHref?: string;
   showAiAction?: boolean;
+  extraActions?: ReactNode;
 };
 
 export function ReportShell({
@@ -28,6 +29,7 @@ export function ReportShell({
   disableExport = false,
   aiHref = "/chat",
   showAiAction = true,
+  extraActions,
 }: ReportShellProps) {
   const router = useRouter();
   const viewportMode = useViewportMode();
@@ -38,6 +40,7 @@ export function ReportShell({
       if (!onExport && !showAiAction) return null;
       return (
         <div className="flex flex-wrap items-center gap-2">
+          {extraActions}
           {onExport ? (
             <Button
               label="Export"
@@ -58,7 +61,7 @@ export function ReportShell({
         </div>
       );
     },
-    [aiHref, disableExport, onExport, router, showAiAction],
+    [aiHref, disableExport, extraActions, onExport, router, showAiAction],
   );
 
   return (
