@@ -5,7 +5,6 @@ import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { CURRENCY_OPTIONS } from "@/components/products/types";
-import { cn } from "@/lib/cn";
 import { useLang } from "@/context/LangContext";
 import type { Currency } from "@/lib/products";
 import type { StoreType } from "@/lib/stores";
@@ -16,7 +15,6 @@ type StoreDrawerProps = {
   editingStoreId: string | null;
   submitting: boolean;
   loadingStoreDetail: boolean;
-  isMobile: boolean;
   form: StoreForm;
   formError: string;
   nameError: string;
@@ -33,7 +31,6 @@ export default function StoreDrawer({
   editingStoreId,
   submitting,
   loadingStoreDetail,
-  isMobile,
   form,
   formError,
   nameError,
@@ -54,7 +51,7 @@ export default function StoreDrawer({
       title={editingStoreId ? t("stores.update") : t("stores.create")}
       description={editingStoreId ? t("stores.update") : t("stores.name")}
       closeDisabled={submitting || loadingStoreDetail}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <DrawerFooter
           cancelLabel={t("common.cancel")}

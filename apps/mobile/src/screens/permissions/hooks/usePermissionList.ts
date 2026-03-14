@@ -139,7 +139,7 @@ export function usePermissionList({ isActive }: UsePermissionListParams) {
     try {
       const [rolePermissions, allPermissionsResponse] = await Promise.all([
         getRole(role.role),
-        getPermissions({ page: 1, limit: 200 }),
+        getPermissions({ page: 1, limit: 100 }),
       ]);
       setSelectedPermissionNames(new Set(rolePermissions.map((permission) => permission.name)));
       setAllPermissionsForRole(allPermissionsResponse.data ?? []);

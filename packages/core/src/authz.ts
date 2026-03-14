@@ -74,6 +74,27 @@ export type PermissionName =
   | "REPORT_EMPLOYEE_READ"
   | "REPORT_CUSTOMER_READ"
   | "REPORT_INVENTORY_READ"
+  // Tedarik ve ikmal
+  | "REPLENISHMENT_READ"
+  | "REPLENISHMENT_ACCEPT"
+  | "REPLENISHMENT_DISMISS"
+  | "REPLENISHMENT_RULE_MANAGE"
+  | "PO_CREATE"
+  | "PO_READ"
+  | "PO_APPROVE"
+  | "PO_CANCEL"
+  | "PO_RECEIPT_CREATE"
+  // Depo
+  | "WAREHOUSE_READ"
+  | "WAREHOUSE_MANAGE"
+  | "COUNT_SESSION_READ"
+  | "COUNT_SESSION_MANAGE"
+  | "COUNT_SESSION_ADJUST"
+  // Onaylar
+  | "APPROVAL_READ"
+  | "APPROVAL_REQUEST"
+  | "APPROVAL_REVIEW"
+  | "APPROVAL_REVIEW_L2"
   // Sistem
   | "EXCHANGE_RATE_READ"
   | "AI_CHAT"
@@ -82,6 +103,9 @@ export type PermissionName =
   | 'TENANT_ONLY';
 
 export type SessionUser = {
+  id?: string;
+  name?: string;
+  surname?: string;
   role?: string;
   storeType?: string;
   storeId?: string;

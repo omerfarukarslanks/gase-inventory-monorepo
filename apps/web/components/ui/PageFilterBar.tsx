@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { useLang } from "@/context/LangContext";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import type { ReactNode } from "react";
 import Button from "./Button";
+import Drawer from "./Drawer";
 import SearchInput from "./SearchInput";
 
 type PageFilterBarProps = {
@@ -28,6 +32,8 @@ type PageFilterBarProps = {
   /** Advanced filter panel content (rendered when showAdvancedFilters is true) */
   advancedFilters?: ReactNode;
   className?: string;
+  mobileAdvancedFiltersTitle?: string;
+  mobileAdvancedFiltersDescription?: string;
 };
 
 /**
@@ -54,7 +60,15 @@ export default function PageFilterBar({
   extraActions,
   advancedFilters,
   className,
+  mobileAdvancedFiltersTitle,
+  mobileAdvancedFiltersDescription,
 }: PageFilterBarProps) {
+  const { t } = useLang();
+  const viewportMode = useViewportMode();
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const isMobile = viewportMode === "mobile";
+  const canRenderAdvancedFilters = Boolean(advancedFilters);
+
   return (
     <>
       <div className={cn("flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between", className)}>
@@ -69,10 +83,10 @@ export default function PageFilterBar({
             placeholder={searchPlaceholder}
             containerClassName="w-full lg:w-64"
           />
-          {onToggleAdvancedFilters ? (
+          {(isMobile ? canRenderAdvancedFilters : onToggleAdvancedFilters) ? (
             <Button
-              label={showAdvancedFilters ? hideFilterLabel : filterLabel}
-              onClick={onToggleAdvancedFilters}
+              label={isMobile ? filterLabel : showAdvancedFilters ? hideFilterLabel : filterLabel}
+              onClick={isMobile ? () => setMobileFiltersOpen(true) : onToggleAdvancedFilters}
               variant="secondary"
               className="w-full px-2.5 py-2 lg:w-auto lg:px-3"
             />
@@ -89,10 +103,23 @@ export default function PageFilterBar({
         </div>
       </div>
 
-      {showAdvancedFilters && advancedFilters ? (
+      {!isMobile && showAdvancedFilters && advancedFilters ? (
         <div className="grid gap-3 rounded-xl2 border border-border bg-surface p-3 md:grid-cols-2 lg:grid-cols-3">
           {advancedFilters}
         </div>
+      ) : null}
+
+      {isMobile && canRenderAdvancedFilters ? (
+        <Drawer
+          open={mobileFiltersOpen}
+          onClose={() => setMobileFiltersOpen(false)}
+          side="bottom"
+          title={mobileAdvancedFiltersTitle ?? t("shell.filtersTitle")}
+          description={mobileAdvancedFiltersDescription}
+          mobileFullscreen
+        >
+          <div className="space-y-3 p-4">{advancedFilters}</div>
+        </Drawer>
       ) : null}
     </>
   );

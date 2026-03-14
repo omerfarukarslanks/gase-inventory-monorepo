@@ -1,9 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { getReportStockSummary, type StockSummaryProduct } from "@/lib/reports";
-import { formatPrice } from "@/lib/format";
+import { exportRowsToCsv, reportInputClassName } from "@/lib/analytics";
+import { ReportShell } from "@/components/reports/ReportShell";
+import { ReportFilterPanel } from "@/components/reports/ReportFilterPanel";
+import { ReportField } from "@/components/reports/ReportField";
+import { ReportStoreField } from "@/components/reports/ReportStoreField";
+import { ReportSummaryCards } from "@/components/reports/ReportSummaryCards";
+import { ReportTableSurface } from "@/components/reports/ReportTableSurface";
+import { useReportScopeState } from "@/hooks/useReportScopeState";
+import { useSyncAiReportContext } from "@/hooks/useSyncAiReportContext";
 
 export default function StockSummaryPage() {
   const [data, setData] = useState<StockSummaryProduct[]>([]);
@@ -14,12 +21,13 @@ export default function StockSummaryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [expandedVariants, setExpandedVariants] = useState<Set<string>>(new Set());
+  const { storeIds, setStoreIds, storeOptions, activeStoreId } = useReportScopeState();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await getReportStockSummary({ limit: 50, search: search || undefined });
+      const res = await getReportStockSummary({ limit: 50, search: search || undefined, storeIds });
       setData(res.data ?? []);
       setTotalQuantity(res.totalQuantity ?? 0);
     } catch {
@@ -28,7 +36,7 @@ export default function StockSummaryPage() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, storeIds]);
 
   useEffect(() => {
     void fetchData();
@@ -56,122 +64,133 @@ export default function StockSummaryPage() {
     setSearch(searchInput);
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <Link href="/reports" className="text-sm text-primary hover:underline">
-          &larr; Raporlar
-        </Link>
-        <h1 className="mt-2 text-xl font-semibold text-text">Stok Ozeti</h1>
-        <p className="text-sm text-muted">Urun-varyant-magaza bazli stok durumu</p>
-      </div>
+  const summary = useMemo(
+    () => [
+      { label: "Toplam Stok Miktari", value: totalQuantity.toLocaleString("tr-TR") },
+      { label: "Urun Sayisi", value: data.length.toLocaleString("tr-TR") },
+    ],
+    [data.length, totalQuantity],
+  );
 
-      {/* Filters */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-semibold text-muted">Arama</label>
+  useSyncAiReportContext({
+    reportType: "stock-summary",
+    title: "Stok Ozeti",
+    description: "Urun-varyant-magaza bazli stok durumu",
+    path: "/reports/stock-summary",
+    filters: { search, storeIds },
+    scope: { route: "/reports/stock-summary", storeIds, activeStoreId },
+    summary,
+    rowCount: data.length,
+    promptPresets: [
+      "Stok ozetini ve toplam miktari yorumla",
+      "Hangi urunlerde stok yogunlugu var, ozetle",
+      "Bu dagilima gore aksiyon listesi cikar",
+    ],
+  });
+
+  return (
+    <ReportShell
+      title="Stok Ozeti"
+      description="Urun-varyant-magaza bazli stok durumu"
+      filters={
+        <ReportFilterPanel onApply={handleFilter} loading={loading}>
+          <ReportField label="Arama" className="min-w-[220px] flex-1">
             <input
               type="text"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleFilter()}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && handleFilter()}
               placeholder="Urun adi ile ara..."
-              className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              className={`${reportInputClassName} w-full`}
             />
-          </div>
-          <button
-            onClick={handleFilter}
-            className="h-10 rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-          >
-            Filtrele
-          </button>
+          </ReportField>
+          <ReportStoreField options={storeOptions} values={storeIds} onChange={setStoreIds} />
+        </ReportFilterPanel>
+      }
+      summary={!loading && !error ? <ReportSummaryCards items={summary} columnsClassName="grid-cols-1 sm:grid-cols-2" /> : null}
+      onExport={() =>
+        exportRowsToCsv(
+          "stock-summary",
+          data.flatMap((product) =>
+            (product.variants ?? []).flatMap((variant) =>
+              (variant.stores ?? []).map((store) => ({
+                urun: product.productName ?? "-",
+                varyant: variant.variantName ?? "-",
+                kod: variant.variantCode ?? "-",
+                magaza: store.storeName ?? "-",
+                miktar: store.quantity ?? store.totalQuantity ?? 0,
+              })),
+            ),
+          ),
+        )
+      }
+      disableExport={data.length === 0}
+    >
+      <ReportTableSurface
+        loading={loading}
+        error={error}
+        isEmpty={data.length === 0}
+        emptyMessage="Gosterilecek veri bulunamadi."
+        className="rounded-2xl border border-border bg-surface p-6 shadow-glow"
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+                <th className="pb-3 pr-4" />
+                <th className="pb-3 pr-4">Urun Adi</th>
+                <th className="pb-3 pr-4 text-right">Toplam Miktar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((product) => {
+                const productKey = product.productId ?? product.productName ?? "";
+                const isProductExpanded = expandedProducts.has(productKey);
+                return (
+                  <Fragment key={productKey}>
+                    <tr
+                      className="cursor-pointer border-b border-border/50 transition-colors hover:bg-primary/5"
+                      onClick={() => toggleProduct(productKey)}
+                    >
+                      <td className="py-3 pr-4 text-muted">{isProductExpanded ? "▼" : "▶"}</td>
+                      <td className="py-3 pr-4 font-medium text-text">{product.productName ?? "-"}</td>
+                      <td className="py-3 pr-4 text-right text-text">{product.totalQuantity ?? 0}</td>
+                    </tr>
+                    {isProductExpanded &&
+                      (product.variants ?? []).map((variant) => {
+                        const variantKey = variant.productVariantId ?? variant.variantCode ?? "";
+                        const isVariantExpanded = expandedVariants.has(variantKey);
+                        return (
+                          <Fragment key={variantKey}>
+                            <tr
+                              className="cursor-pointer border-b border-border/30 bg-surface2/50 transition-colors hover:bg-primary/5"
+                              onClick={() => toggleVariant(variantKey)}
+                            >
+                              <td className="py-2 pl-6 pr-4 text-muted">{isVariantExpanded ? "▽" : "▷"}</td>
+                              <td className="py-2 pr-4">
+                                <span className="text-text">{variant.variantName ?? "-"}</span>
+                                {variant.variantCode ? <span className="ml-2 text-xs text-muted">({variant.variantCode})</span> : null}
+                              </td>
+                              <td className="py-2 pr-4 text-right text-text">{variant.totalQuantity ?? 0}</td>
+                            </tr>
+                            {isVariantExpanded &&
+                              (variant.stores ?? []).map((store) => (
+                                <tr key={store.storeId ?? store.storeName} className="border-b border-border/20 bg-surface2/80">
+                                  <td className="py-2 pl-12 pr-4" />
+                                  <td className="py-2 pr-4 text-muted">{store.storeName ?? "-"}</td>
+                                  <td className="py-2 pr-4 text-right text-text">{store.quantity ?? store.totalQuantity ?? 0}</td>
+                                </tr>
+                              ))}
+                          </Fragment>
+                        );
+                      })}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      </div>
-
-      {/* Total */}
-      {!loading && !error && (
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
-          <p className="text-sm text-muted">Toplam Stok Miktari</p>
-          <p className="text-2xl font-bold text-text">{totalQuantity.toLocaleString("tr-TR")}</p>
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-glow">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          </div>
-        ) : error ? (
-          <p className="py-8 text-center text-sm text-red-500">{error}</p>
-        ) : data.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">Gosterilecek veri bulunamadi.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
-                  <th className="pb-3 pr-4" />
-                  <th className="pb-3 pr-4">Urun Adi</th>
-                  <th className="pb-3 pr-4 text-right">Toplam Miktar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((product) => {
-                  const productKey = product.productId ?? product.productName ?? "";
-                  const isProductExpanded = expandedProducts.has(productKey);
-                  return (
-                    <Fragment key={productKey}>
-                      <tr
-                        className="cursor-pointer border-b border-border/50 transition-colors hover:bg-primary/5"
-                        onClick={() => toggleProduct(productKey)}
-                      >
-                        <td className="py-3 pr-4 text-muted">{isProductExpanded ? "▼" : "▶"}</td>
-                        <td className="py-3 pr-4 font-medium text-text">{product.productName ?? "-"}</td>
-                        <td className="py-3 pr-4 text-right text-text">{product.totalQuantity ?? 0}</td>
-                      </tr>
-                      {isProductExpanded &&
-                        (product.variants ?? []).map((variant) => {
-                          const variantKey = variant.productVariantId ?? variant.variantCode ?? "";
-                          const isVariantExpanded = expandedVariants.has(variantKey);
-                          return (
-                            <Fragment key={variantKey}>
-                              <tr
-                                className="cursor-pointer border-b border-border/30 bg-surface2/50 transition-colors hover:bg-primary/5"
-                                onClick={() => toggleVariant(variantKey)}
-                              >
-                                <td className="py-2 pl-6 pr-4 text-muted">{isVariantExpanded ? "▽" : "▷"}</td>
-                                <td className="py-2 pr-4">
-                                  <span className="text-text">{variant.variantName ?? "-"}</span>
-                                  {variant.variantCode && (
-                                    <span className="ml-2 text-xs text-muted">({variant.variantCode})</span>
-                                  )}
-                                </td>
-                                <td className="py-2 pr-4 text-right text-text">{variant.totalQuantity ?? 0}</td>
-                              </tr>
-                              {isVariantExpanded &&
-                                (variant.stores ?? []).map((store) => (
-                                  <tr
-                                    key={store.storeId ?? store.storeName}
-                                    className="border-b border-border/20 bg-surface2/80"
-                                  >
-                                    <td className="py-2 pl-12 pr-4" />
-                                    <td className="py-2 pr-4 text-muted">{store.storeName ?? "-"}</td>
-                                    <td className="py-2 pr-4 text-right text-text">{store.quantity ?? store.totalQuantity ?? 0}</td>
-                                  </tr>
-                                ))}
-                            </Fragment>
-                          );
-                        })}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+      </ReportTableSurface>
+    </ReportShell>
   );
 }

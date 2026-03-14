@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type SearchableDropdownOption = {
   value: string;
@@ -11,9 +11,14 @@ type SearchableDropdownProps = {
   options: SearchableDropdownOption[];
   value: string;
   onChange: (value: string) => void;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
   placeholder?: string;
+  searchPlaceholder?: string;
   emptyOptionLabel?: string;
   noResultsText?: string;
+  loading?: boolean;
+  loadingText?: string;
   clearAriaLabel?: string;
   toggleAriaLabel?: string;
   inputAriaLabel?: string;
@@ -62,9 +67,14 @@ export default function SearchableDropdown({
   options,
   value,
   onChange,
+  searchValue,
+  onSearchChange,
   placeholder = "Seçiniz",
+  searchPlaceholder = "Ara...",
   emptyOptionLabel = "Tümü",
   noResultsText = "Sonuç bulunamadı.",
+  loading = false,
+  loadingText = "Yukleniyor...",
   clearAriaLabel = "Seçimi temizle",
   toggleAriaLabel = "Listeyi aç",
   inputAriaLabel = "Seçim filtresi",
@@ -79,6 +89,18 @@ export default function SearchableDropdown({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const isSearchControlled = typeof searchValue === "string";
+  const resolvedQuery = isSearchControlled ? searchValue : query;
+
+  const closeMenu = useCallback((resetSearch = true) => {
+    setOpen(false);
+    if (!resetSearch) return;
+    if (isSearchControlled) {
+      onSearchChange?.("");
+      return;
+    }
+    setQuery("");
+  }, [isSearchControlled, onSearchChange]);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value),
@@ -88,25 +110,16 @@ export default function SearchableDropdown({
   useEffect(() => {
     const onOutsideClick = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        closeMenu();
       }
     };
 
     document.addEventListener("mousedown", onOutsideClick);
     return () => document.removeEventListener("mousedown", onOutsideClick);
-  }, []);
+  }, [closeMenu]);
 
   useEffect(() => {
-    if (disabled) {
-      setOpen(false);
-    }
-  }, [disabled]);
-
-  useEffect(() => {
-    if (!open) {
-      setQuery("");
-      return;
-    }
+    if (!open) return;
     if (!showSearchInput) return;
     requestAnimationFrame(() => {
       searchInputRef.current?.focus();
@@ -115,17 +128,23 @@ export default function SearchableDropdown({
 
   const filteredOptions = useMemo(() => {
     if (!showSearchInput) return options;
-    const normalized = query.trim().toLowerCase();
+    const normalized = resolvedQuery.trim().toLowerCase();
     if (!normalized) return options;
     return options.filter((option) =>
       option.label.toLowerCase().includes(normalized),
     );
-  }, [options, query, showSearchInput]);
+  }, [options, resolvedQuery, showSearchInput]);
 
   const selectOption = (nextValue: string) => {
     onChange(nextValue);
-    setQuery("");
-    setOpen(false);
+    closeMenu();
+  };
+
+  const handleSearchChange = (nextValue: string) => {
+    if (!isSearchControlled) {
+      setQuery(nextValue);
+    }
+    onSearchChange?.(nextValue);
   };
 
   return (
@@ -135,11 +154,15 @@ export default function SearchableDropdown({
           type="button"
           onClick={() => {
             if (disabled) return;
-            setOpen((prev) => !prev);
+            if (open) {
+              closeMenu();
+              return;
+            }
+            setOpen(true);
           }}
           onKeyDown={(e) => {
             if (disabled) return;
-            if (e.key === "Escape") setOpen(false);
+            if (e.key === "Escape") closeMenu();
             if (e.key === "ArrowDown") setOpen(true);
           }}
           className={`h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary ${
@@ -171,7 +194,11 @@ export default function SearchableDropdown({
           type="button"
           onClick={() => {
             if (disabled) return;
-            setOpen((prev) => !prev);
+            if (open) {
+              closeMenu();
+              return;
+            }
+            setOpen(true);
           }}
           className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted transition-colors hover:bg-surface2 hover:text-text ${
             disabled ? "cursor-not-allowed opacity-50" : ""
@@ -194,11 +221,11 @@ export default function SearchableDropdown({
               <input
                 ref={searchInputRef}
                 type="text"
-                value={query}
-                placeholder="Ara..."
-                onChange={(e) => setQuery(e.target.value)}
+                value={resolvedQuery}
+                placeholder={searchPlaceholder}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") setOpen(false);
+                  if (e.key === "Escape") closeMenu();
                 }}
                 className="h-9 w-full rounded-lg border border-border bg-surface2 px-2.5 text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
                 aria-label={inputAriaLabel}
@@ -216,7 +243,9 @@ export default function SearchableDropdown({
             </button>
           )}
 
-          {filteredOptions.length === 0 ? (
+          {loading ? (
+            <div className="px-3 py-2 text-sm text-muted">{loadingText}</div>
+          ) : filteredOptions.length === 0 ? (
             <div className="px-3 py-2 text-sm text-muted">{noResultsText}</div>
           ) : (
             filteredOptions.map((option) => (

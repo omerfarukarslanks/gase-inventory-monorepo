@@ -2,7 +2,6 @@
 
 import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/format";
 import { useLang } from "@/context/LangContext";
 import type { CustomerBalance } from "@/lib/customers";
@@ -11,7 +10,6 @@ import { formatCount } from "@/components/customers/types";
 type CustomerBalanceDrawerProps = {
   open: boolean;
   onClose: () => void;
-  isMobile: boolean;
   customerBalanceLoading: boolean;
   customerBalanceError: string;
   customerBalance: CustomerBalance | null;
@@ -23,7 +21,6 @@ type CustomerBalanceDrawerProps = {
 export default function CustomerBalanceDrawer({
   open,
   onClose,
-  isMobile,
   customerBalanceLoading,
   customerBalanceError,
   customerBalance,
@@ -55,7 +52,7 @@ export default function CustomerBalanceDrawer({
       title={t("customers.balance")}
       description={customerBalance?.customerName || selectedBalanceCustomerName}
       closeDisabled={customerBalanceLoading}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button
@@ -113,7 +110,7 @@ export default function CustomerBalanceDrawer({
 
             <div className="rounded-xl2 border border-primary/30 bg-primary/10 p-4">
               <p className="text-xs font-semibold text-muted">Cari Durum</p>
-              <p className={cn("mt-1 text-2xl font-bold", balanceToneClass)}>
+              <p className={`mt-1 text-2xl font-bold ${balanceToneClass}`}>
                 {formatPrice(customerBalance.balance)}
               </p>
               <p className="mt-1 text-xs font-semibold text-muted">{balanceStatusLabel}</p>

@@ -3,7 +3,9 @@
 import TablePagination from "@/components/ui/TablePagination";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useLang } from "@/context/LangContext";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import AttributesFilters from "@/components/attributes/AttributesFilters";
+import AttributesMobileList from "@/components/attributes/AttributesMobileList";
 import AttributesTable from "@/components/attributes/AttributesTable";
 import AttributeDrawer from "@/components/attributes/AttributeDrawer";
 import { PageShell } from "@/components/layout/PageShell";
@@ -13,6 +15,8 @@ import { useAttributeDrawer } from "./hooks/useAttributeDrawer";
 export default function AttributesPage() {
   const { t } = useLang();
   const { can } = usePermissions();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
   const canCreate = can("PRODUCT_ATTRIBUTE_CREATE");
   const canUpdate = can("PRODUCT_ATTRIBUTE_UPDATE");
 
@@ -47,32 +51,61 @@ export default function AttributesPage() {
         </div>
       )}
 
-      <AttributesTable
-        loading={list.loading}
-        attributes={list.attributes}
-        expandedAttributeIds={list.expandedAttributeIds}
-        togglingAttributeIds={list.togglingAttributeIds}
-        togglingValueIds={list.togglingValueIds}
-        canUpdate={canUpdate}
-        onToggleExpand={list.toggleExpand}
-        onEditAttribute={drawer.openEditDrawer}
-        onToggleAttributeStatus={list.toggleAttributeStatus}
-        onToggleValueStatus={list.toggleAttributeValueStatus}
-        footer={
-          list.meta ? (
-            <TablePagination
-              page={list.currentPage}
-              totalPages={list.totalPages}
-              total={list.meta.total}
-              pageSize={list.pageSize}
-              pageSizeId="attributes-page-size"
-              loading={list.loading}
-              onPageChange={list.handlePageChange}
-              onPageSizeChange={list.onChangePageSize}
-            />
-          ) : null
-        }
-      />
+      {isMobile ? (
+        <AttributesMobileList
+          loading={list.loading}
+          attributes={list.attributes}
+          expandedAttributeIds={list.expandedAttributeIds}
+          togglingAttributeIds={list.togglingAttributeIds}
+          togglingValueIds={list.togglingValueIds}
+          canUpdate={canUpdate}
+          onToggleExpand={list.toggleExpand}
+          onEditAttribute={drawer.openEditDrawer}
+          onToggleAttributeStatus={list.toggleAttributeStatus}
+          onToggleValueStatus={list.toggleAttributeValueStatus}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="attributes-page-size"
+                loading={list.loading}
+                onPageChange={list.handlePageChange}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      ) : (
+        <AttributesTable
+          loading={list.loading}
+          attributes={list.attributes}
+          expandedAttributeIds={list.expandedAttributeIds}
+          togglingAttributeIds={list.togglingAttributeIds}
+          togglingValueIds={list.togglingValueIds}
+          canUpdate={canUpdate}
+          onToggleExpand={list.toggleExpand}
+          onEditAttribute={drawer.openEditDrawer}
+          onToggleAttributeStatus={list.toggleAttributeStatus}
+          onToggleValueStatus={list.toggleAttributeValueStatus}
+          footer={
+            list.meta ? (
+              <TablePagination
+                page={list.currentPage}
+                totalPages={list.totalPages}
+                total={list.meta.total}
+                pageSize={list.pageSize}
+                pageSizeId="attributes-page-size"
+                loading={list.loading}
+                onPageChange={list.handlePageChange}
+                onPageSizeChange={list.onChangePageSize}
+              />
+            ) : null
+          }
+        />
+      )}
 
       <AttributeDrawer
         open={drawer.drawerOpen}

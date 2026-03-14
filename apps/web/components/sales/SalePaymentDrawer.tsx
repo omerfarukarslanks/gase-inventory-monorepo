@@ -53,6 +53,7 @@ export default function SalePaymentDrawer({
       title={editingPaymentId ? "Odeme Guncelle" : "Odeme Ekle"}
       description="Satis fisine odeme adimi ekleyin veya duzenleyin."
       closeDisabled={paymentSubmitting}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

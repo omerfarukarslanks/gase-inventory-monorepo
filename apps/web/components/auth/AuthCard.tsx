@@ -11,6 +11,7 @@ import Logo from "../ui/Logo";
 import { login, signup, getMe, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
 import { clearAuthCookie, setAuthCookie } from "@/lib/cookie";
+import { clearSessionStorage, setSessionToken, setSessionUser } from "@/lib/session";
 import Button from "../ui/Button";
 import { useLang } from "@/context/LangContext";
 
@@ -106,13 +107,12 @@ export default function AuthCard({ initialMode }: Props) {
     try {
       if (mode === "login") {
         const response = await login(form.email, form.password);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        clearSessionStorage();
         clearAuthCookie();
-        localStorage.setItem("token", response.access_token);
+        setSessionToken(response.access_token);
         setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
-        localStorage.setItem("user", JSON.stringify(user));
+        setSessionUser(user);
         setSuccessMsg(t("auth.loginSuccess"));
         setTimeout(() => router.push("/dashboard"), 800);
       } else {
@@ -124,13 +124,12 @@ export default function AuthCard({ initialMode }: Props) {
           password: form.password,
         };
         const response = await signup(body);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+        clearSessionStorage();
         clearAuthCookie();
-        localStorage.setItem("token", response.access_token);
+        setSessionToken(response.access_token);
         setAuthCookie(response.access_token);
         const user = await getMe(response.access_token);
-        localStorage.setItem("user", JSON.stringify(user));
+        setSessionUser(user);
         await new Promise((r) => setTimeout(r, 1500));
         setSuccessMsg(t("auth.accountCreated"));
         setTimeout(() => {

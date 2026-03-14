@@ -1,8 +1,10 @@
 "use client";
-import { useState, useMemo } from "react";
+
+import { useMemo, useState } from "react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useStores } from "@/hooks/useStores";
 import { useLang } from "@/context/LangContext";
+import { useViewportMode } from "@/hooks/useViewportMode";
 import { downloadSaleReceipt } from "@/lib/sales";
 
 import { useSaleScope } from "./hooks/useSaleScope";
@@ -23,11 +25,15 @@ import SaleDetailModal from "@/components/sales/SaleDetailModal";
 import SalePaymentDrawer from "@/components/sales/SalePaymentDrawer";
 import SaleReturnDrawer from "@/components/sales/SaleReturnDrawer";
 import SaleLinesDrawer from "@/components/sales/SaleLinesDrawer";
+import SalesMobileList from "@/components/sales/SalesMobileList";
+import SalesTaskFlow from "@/components/sales/SalesTaskFlow";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PageShell } from "@/components/layout/PageShell";
 
 export default function SalesPage() {
   const { t } = useLang();
+  const viewportMode = useViewportMode();
+  const isMobile = viewportMode === "mobile";
   const { can } = usePermissions();
   const canTenantOnly = can("TENANT_ONLY");
   const allStores = useStores();
@@ -35,7 +41,7 @@ export default function SalesPage() {
 
   const [successMessage, setSuccessMessage] = useState("");
   const storeOptions = useMemo(
-    () => stores.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
+    () => stores.filter((store) => store.isActive).map((store) => ({ value: store.id, label: store.name })),
     [stores],
   );
 
@@ -82,14 +88,27 @@ export default function SalesPage() {
     onSuccess: setSuccessMessage,
   });
 
+  const footer =
+    list.salesMeta && !list.salesLoading && !list.salesError ? (
+      <SalesPagination
+        page={list.salesPage}
+        totalPages={list.salesMeta.totalPages ?? 1}
+        limit={list.salesLimit}
+        total={list.salesMeta.total ?? 0}
+        loading={list.salesLoading}
+        onPageChange={list.setSalesPage}
+        onLimitChange={list.setSalesLimit}
+      />
+    ) : null;
+
   const handleDownloadReceipt = async (saleId: string) => {
     try {
       const blob = await downloadSaleReceipt(saleId);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `fis-${saleId}.pdf`;
-      a.click();
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `fis-${saleId}.pdf`;
+      anchor.click();
       URL.revokeObjectURL(url);
     } catch {
       // sessizce gec
@@ -99,136 +118,207 @@ export default function SalesPage() {
   return (
     <PageShell
       error={list.salesError}
-      filters={<SalesFilters
-        showAdvancedFilters={list.showSalesAdvancedFilters}
-        onToggleAdvancedFilters={() => list.setShowSalesAdvancedFilters((prev) => !prev)}
-        onNewSale={form.openSaleDrawer}
-        canCreate={can("SALE_CREATE")}
-        canTenantOnly={canTenantOnly}
-        storeOptions={storeOptions}
-        salesStoreIds={list.salesStoreIds}
-        onSalesStoreIdsChange={list.setSalesStoreIds}
-        receiptNoFilter={list.salesReceiptNoFilter}
-        onReceiptNoFilterChange={list.setSalesReceiptNoFilter}
-        nameFilter={list.salesNameFilter}
-        onNameFilterChange={list.setSalesNameFilter}
-        surnameFilter={list.salesSurnameFilter}
-        onSurnameFilterChange={list.setSalesSurnameFilter}
-        statusFilters={list.salesStatusFilters}
-        onStatusFiltersChange={list.setSalesStatusFilters}
-        paymentStatusFilter={list.salesPaymentStatusFilter}
-        onPaymentStatusFilterChange={list.setSalesPaymentStatusFilter}
-        minUnitPriceFilter={list.salesMinUnitPriceFilter}
-        onMinUnitPriceFilterChange={list.setSalesMinUnitPriceFilter}
-        maxUnitPriceFilter={list.salesMaxUnitPriceFilter}
-        onMaxUnitPriceFilterChange={list.setSalesMaxUnitPriceFilter}
-        minLineTotalFilter={list.salesMinLineTotalFilter}
-        onMinLineTotalFilterChange={list.setSalesMinLineTotalFilter}
-        maxLineTotalFilter={list.salesMaxLineTotalFilter}
-        onMaxLineTotalFilterChange={list.setSalesMaxLineTotalFilter}
-        includeLines={list.salesIncludeLines}
-        onIncludeLinesChange={list.setSalesIncludeLines}
-        onResetPage={() => list.setSalesPage(1)}
-      />}
+      filters={
+        <SalesFilters
+          showAdvancedFilters={list.showSalesAdvancedFilters}
+          onToggleAdvancedFilters={() => list.setShowSalesAdvancedFilters((prev) => !prev)}
+          onNewSale={form.openSaleDrawer}
+          canCreate={can("SALE_CREATE")}
+          canTenantOnly={canTenantOnly}
+          storeOptions={storeOptions}
+          salesStoreIds={list.salesStoreIds}
+          onSalesStoreIdsChange={list.setSalesStoreIds}
+          receiptNoFilter={list.salesReceiptNoFilter}
+          onReceiptNoFilterChange={list.setSalesReceiptNoFilter}
+          nameFilter={list.salesNameFilter}
+          onNameFilterChange={list.setSalesNameFilter}
+          surnameFilter={list.salesSurnameFilter}
+          onSurnameFilterChange={list.setSalesSurnameFilter}
+          statusFilters={list.salesStatusFilters}
+          onStatusFiltersChange={list.setSalesStatusFilters}
+          paymentStatusFilter={list.salesPaymentStatusFilter}
+          onPaymentStatusFilterChange={list.setSalesPaymentStatusFilter}
+          minUnitPriceFilter={list.salesMinUnitPriceFilter}
+          onMinUnitPriceFilterChange={list.setSalesMinUnitPriceFilter}
+          maxUnitPriceFilter={list.salesMaxUnitPriceFilter}
+          onMaxUnitPriceFilterChange={list.setSalesMaxUnitPriceFilter}
+          minLineTotalFilter={list.salesMinLineTotalFilter}
+          onMinLineTotalFilterChange={list.setSalesMinLineTotalFilter}
+          maxLineTotalFilter={list.salesMaxLineTotalFilter}
+          onMaxLineTotalFilterChange={list.setSalesMaxLineTotalFilter}
+          includeLines={list.salesIncludeLines}
+          onIncludeLinesChange={list.setSalesIncludeLines}
+          onResetPage={() => list.setSalesPage(1)}
+        />
+      }
     >
-      <SalesTable
-        salesReceipts={list.salesReceipts}
-        salesLoading={list.salesLoading}
-        salesError={list.salesError}
-        expandedPaymentSaleIds={list.expandedPaymentSaleIds}
-        paymentsBySaleId={list.paymentsBySaleId}
-        paymentLoadingBySaleId={list.paymentLoadingBySaleId}
-        paymentErrorBySaleId={list.paymentErrorBySaleId}
-        onTogglePayments={list.togglePaymentsCollapse}
-        onAddPayment={payment.openAddPaymentDrawer}
-        onEditPayment={payment.openEditPaymentDrawer}
-        onDeletePayment={payment.openDeletePaymentDialog}
-        onOpenDetail={(id) => void detail.openSaleDetailDialog(id)}
-        onEdit={(sale) => void form.openEditDrawer(sale)}
-        onOpenCancel={cancel.openCancelDialog}
-        onReturn={(sale) => void ret.openReturnDrawer(sale)}
-        onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
-        onManageLines={(sale) => void lines.openManageLinesDrawer(sale)}
-        canUpdate={can("SALE_UPDATE")}
-        canCancel={can("SALE_CANCEL")}
-        canCreateLines={can("SALE_LINE_CREATE")}
-        canUpdateLines={can("SALE_LINE_UPDATE")}
-        canReturn={can("SALE_RETURN_READ")}
-        canDownloadReceipt={can("SALE_RECEIPT_READ")}
-        canCreatePayments={can("SALE_PAYMENT_CREATE")}
-        canUpdatePayments={can("SALE_PAYMENT_UPDATE")}
-        footer={
-          list.salesMeta && !list.salesLoading && !list.salesError ? (
-            <SalesPagination
-              page={list.salesPage}
-              totalPages={list.salesMeta.totalPages ?? 1}
-              limit={list.salesLimit}
-              total={list.salesMeta.total ?? 0}
-              loading={list.salesLoading}
-              onPageChange={list.setSalesPage}
-              onLimitChange={list.setSalesLimit}
-            />
-          ) : null
-        }
-      />
+      {isMobile ? (
+        <SalesMobileList
+          salesReceipts={list.salesReceipts}
+          salesLoading={list.salesLoading}
+          salesError={list.salesError}
+          onAddPayment={payment.openAddPaymentDrawer}
+          onOpenDetail={(id) => void detail.openSaleDetailDialog(id)}
+          onEdit={(sale) => void form.openEditDrawer(sale)}
+          onOpenCancel={cancel.openCancelDialog}
+          onReturn={(sale) => void ret.openReturnDrawer(sale)}
+          onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
+          onManageLines={(sale) => void lines.openManageLinesDrawer(sale)}
+          canUpdate={can("SALE_UPDATE")}
+          canCancel={can("SALE_CANCEL")}
+          canCreateLines={can("SALE_LINE_CREATE")}
+          canUpdateLines={can("SALE_LINE_UPDATE")}
+          canReturn={can("SALE_RETURN_READ")}
+          canDownloadReceipt={can("SALE_RECEIPT_READ")}
+          canCreatePayments={can("SALE_PAYMENT_CREATE")}
+          canUpdatePayments={can("SALE_PAYMENT_UPDATE")}
+          footer={footer}
+        />
+      ) : (
+        <SalesTable
+          salesReceipts={list.salesReceipts}
+          salesLoading={list.salesLoading}
+          salesError={list.salesError}
+          expandedPaymentSaleIds={list.expandedPaymentSaleIds}
+          paymentsBySaleId={list.paymentsBySaleId}
+          paymentLoadingBySaleId={list.paymentLoadingBySaleId}
+          paymentErrorBySaleId={list.paymentErrorBySaleId}
+          onTogglePayments={list.togglePaymentsCollapse}
+          onAddPayment={payment.openAddPaymentDrawer}
+          onEditPayment={payment.openEditPaymentDrawer}
+          onDeletePayment={payment.openDeletePaymentDialog}
+          onOpenDetail={(id) => void detail.openSaleDetailDialog(id)}
+          onEdit={(sale) => void form.openEditDrawer(sale)}
+          onOpenCancel={cancel.openCancelDialog}
+          onReturn={(sale) => void ret.openReturnDrawer(sale)}
+          onDownloadReceipt={(id) => void handleDownloadReceipt(id)}
+          onManageLines={(sale) => void lines.openManageLinesDrawer(sale)}
+          canUpdate={can("SALE_UPDATE")}
+          canCancel={can("SALE_CANCEL")}
+          canCreateLines={can("SALE_LINE_CREATE")}
+          canUpdateLines={can("SALE_LINE_UPDATE")}
+          canReturn={can("SALE_RETURN_READ")}
+          canDownloadReceipt={can("SALE_RECEIPT_READ")}
+          canCreatePayments={can("SALE_PAYMENT_CREATE")}
+          canUpdatePayments={can("SALE_PAYMENT_UPDATE")}
+          footer={footer}
+        />
+      )}
 
-      {successMessage && (
+      {successMessage ? (
         <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
           {successMessage}
         </div>
-      )}
+      ) : null}
 
-      <SaleDrawer
-        open={form.saleDrawerOpen}
-        editMode={!!form.editingSaleId}
-        submitting={form.submitting}
-        scopeReady={scope.scopeReady}
-        loadingVariants={variants.loadingVariants}
-        canTenantOnly={canTenantOnly}
-        storeOptions={storeOptions}
-        customerId={form.customerId}
-        onCustomerIdChange={(value) => {
-          form.setCustomerId(value);
-          if (!value) {
-            form.setName("");
-            form.setSurname("");
-            form.setPhoneNumber("");
-            form.setEmail("");
-          }
-        }}
-        onCustomerSelected={form.onSelectCustomer}
-        customerDropdownRefreshKey={form.customerDropdownRefreshKey}
-        onQuickCreateCustomer={form.onQuickCreateCustomer}
-        variantOptions={variants.variantOptions}
-        variantFieldLabel={scope.isWholesaleStoreType ? "Paket *" : "Varyant *"}
-        variantPlaceholder={scope.isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
-        loadingMoreVariants={variants.loadingMoreVariants}
-        variantHasMore={variants.variantHasMore}
-        onLoadMoreVariants={variants.loadMoreVariants}
-        storeId={form.storeId}
-        onStoreIdChange={form.setStoreId}
-        name={form.name}
-        surname={form.surname}
-        phoneNumber={form.phoneNumber}
-        email={form.email}
-        paymentMethod={form.paymentMethod}
-        onPaymentMethodChange={form.setPaymentMethod}
-        initialPaymentAmount={form.initialPaymentAmount}
-        onInitialPaymentAmountChange={form.setInitialPaymentAmount}
-        note={form.note}
-        onNoteChange={form.setNote}
-        lines={form.lines}
-        onChangeLine={form.onChangeLine}
-        onApplyVariantPreset={form.applyVariantPreset}
-        onAddLine={form.addLine}
-        onRemoveLine={form.removeLine}
-        errors={form.errors}
-        onClearError={(field) => form.setErrors((prev) => ({ ...prev, [field]: undefined }))}
-        formError={form.formError}
-        success={successMessage}
-        onClose={form.closeSaleDrawer}
-        onSubmit={() => void form.onSubmit()}
-      />
+      {!isMobile || Boolean(form.editingSaleId) ? (
+        <SaleDrawer
+          open={form.saleDrawerOpen}
+          editMode={!!form.editingSaleId}
+          submitting={form.submitting}
+          scopeReady={scope.scopeReady}
+          loadingVariants={variants.loadingVariants}
+          canTenantOnly={canTenantOnly}
+          storeOptions={storeOptions}
+          customerId={form.customerId}
+          onCustomerIdChange={(value) => {
+            form.setCustomerId(value);
+            if (!value) {
+              form.setName("");
+              form.setSurname("");
+              form.setPhoneNumber("");
+              form.setEmail("");
+            }
+          }}
+          onCustomerSelected={form.onSelectCustomer}
+          customerDropdownRefreshKey={form.customerDropdownRefreshKey}
+          onQuickCreateCustomer={form.onQuickCreateCustomer}
+          variantOptions={variants.variantOptions}
+          variantFieldLabel={scope.isWholesaleStoreType ? "Paket *" : "Varyant *"}
+          variantPlaceholder={scope.isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
+          loadingMoreVariants={variants.loadingMoreVariants}
+          variantHasMore={variants.variantHasMore}
+          onLoadMoreVariants={variants.loadMoreVariants}
+          storeId={form.storeId}
+          onStoreIdChange={form.setStoreId}
+          name={form.name}
+          surname={form.surname}
+          phoneNumber={form.phoneNumber}
+          email={form.email}
+          paymentMethod={form.paymentMethod}
+          onPaymentMethodChange={form.setPaymentMethod}
+          initialPaymentAmount={form.initialPaymentAmount}
+          onInitialPaymentAmountChange={form.setInitialPaymentAmount}
+          note={form.note}
+          onNoteChange={form.setNote}
+          lines={form.lines}
+          onChangeLine={form.onChangeLine}
+          onApplyVariantPreset={form.applyVariantPreset}
+          onAddLine={form.addLine}
+          onRemoveLine={form.removeLine}
+          errors={form.errors}
+          onClearError={(field) => form.setErrors((prev) => ({ ...prev, [field]: undefined }))}
+          formError={form.formError}
+          success={successMessage}
+          onClose={form.closeSaleDrawer}
+          onSubmit={() => void form.onSubmit()}
+        />
+      ) : null}
+
+      {isMobile && !form.editingSaleId ? (
+        <SalesTaskFlow
+          open={form.saleDrawerOpen}
+          submitting={form.submitting}
+          scopeReady={scope.scopeReady}
+          loadingVariants={variants.loadingVariants}
+          canTenantOnly={canTenantOnly}
+          storeOptions={storeOptions}
+          customerId={form.customerId}
+          onCustomerIdChange={(value) => {
+            form.setCustomerId(value);
+            if (!value) {
+              form.setName("");
+              form.setSurname("");
+              form.setPhoneNumber("");
+              form.setEmail("");
+            }
+          }}
+          onCustomerSelected={form.onSelectCustomer}
+          customerDropdownRefreshKey={form.customerDropdownRefreshKey}
+          onQuickCreateCustomer={form.onQuickCreateCustomer}
+          variantOptions={variants.variantOptions}
+          variantFieldLabel={scope.isWholesaleStoreType ? "Paket *" : "Varyant *"}
+          variantPlaceholder={scope.isWholesaleStoreType ? "Paket secin" : "Varyant secin"}
+          loadingMoreVariants={variants.loadingMoreVariants}
+          variantHasMore={variants.variantHasMore}
+          onLoadMoreVariants={variants.loadMoreVariants}
+          storeId={form.storeId}
+          onStoreIdChange={form.setStoreId}
+          name={form.name}
+          surname={form.surname}
+          phoneNumber={form.phoneNumber}
+          email={form.email}
+          paymentMethod={form.paymentMethod}
+          onPaymentMethodChange={form.setPaymentMethod}
+          initialPaymentAmount={form.initialPaymentAmount}
+          onInitialPaymentAmountChange={form.setInitialPaymentAmount}
+          note={form.note}
+          onNoteChange={form.setNote}
+          lines={form.lines}
+          onChangeLine={form.onChangeLine}
+          onApplyVariantPreset={form.applyVariantPreset}
+          onAddLine={form.addLine}
+          onRemoveLine={form.removeLine}
+          errors={form.errors}
+          setErrors={form.setErrors}
+          onClearError={(field) => form.setErrors((prev) => ({ ...prev, [field]: undefined }))}
+          formError={form.formError}
+          successMessage={successMessage}
+          onClose={form.closeSaleDrawer}
+          onRestart={form.openSaleDrawer}
+          onSubmit={() => void form.onSubmit()}
+        />
+      ) : null}
 
       <SalePaymentDrawer
         open={payment.paymentDrawerOpen}
@@ -281,7 +371,7 @@ export default function SalesPage() {
             <input
               type="text"
               value={cancel.cancelReason}
-              onChange={(e) => cancel.setCancelReason(e.target.value)}
+              onChange={(event) => cancel.setCancelReason(event.target.value)}
               placeholder="Orn: Musteri vazgecti"
               className="h-10 w-full rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />
@@ -290,7 +380,7 @@ export default function SalesPage() {
             <label className="mb-1 block text-xs font-semibold text-muted">Not</label>
             <textarea
               value={cancel.cancelNote}
-              onChange={(e) => cancel.setCancelNote(e.target.value)}
+              onChange={(event) => cancel.setCancelNote(event.target.value)}
               placeholder="Orn: Telefon ile iptal"
               className="min-h-18 w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             />

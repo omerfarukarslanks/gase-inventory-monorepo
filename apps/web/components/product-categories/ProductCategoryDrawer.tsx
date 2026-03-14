@@ -5,7 +5,6 @@ import Drawer from "@/components/ui/Drawer";
 import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
-import { cn } from "@/lib/cn";
 import { useLang } from "@/context/LangContext";
 import type { CategoryForm } from "@/components/product-categories/types";
 
@@ -14,7 +13,6 @@ type ProductCategoryDrawerProps = {
   editingCategoryId: string | null;
   submitting: boolean;
   loadingCategoryDetail: boolean;
-  isMobile: boolean;
   form: CategoryForm;
   parentOptions: Array<{ value: string; label: string }>;
   formError: string;
@@ -30,7 +28,6 @@ export default function ProductCategoryDrawer({
   editingCategoryId,
   submitting,
   loadingCategoryDetail,
-  isMobile,
   form,
   parentOptions,
   formError,
@@ -50,7 +47,7 @@ export default function ProductCategoryDrawer({
       title={editingCategoryId ? t("common.update") : t("productCategories.new")}
       description={editingCategoryId ? t("common.update") : t("productCategories.new")}
       closeDisabled={submitting || loadingCategoryDetail}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

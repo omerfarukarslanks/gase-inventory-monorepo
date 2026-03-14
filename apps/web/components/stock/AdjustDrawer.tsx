@@ -64,6 +64,7 @@ export default function AdjustDrawer({
       description={target ? `${target.productName} / ${target.variantName}` : ""}
       closeDisabled={submitting}
       className={cn(isMobile ? "!max-w-none" : "!max-w-[560px]")}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

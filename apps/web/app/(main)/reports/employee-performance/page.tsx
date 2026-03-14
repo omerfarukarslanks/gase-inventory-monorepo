@@ -1,33 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import {
-  getReportEmployeePerformance,
-  type EmployeePerformanceItem,
-} from "@/lib/reports";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getReportEmployeePerformance, type EmployeePerformanceItem } from "@/lib/reports";
 import { formatPrice } from "@/lib/format";
+import { exportRowsToCsv, getDateRange, reportInputClassName } from "@/lib/analytics";
+import { ReportShell } from "@/components/reports/ReportShell";
+import { ReportFilterPanel } from "@/components/reports/ReportFilterPanel";
+import { ReportField } from "@/components/reports/ReportField";
+import { ReportStoreField } from "@/components/reports/ReportStoreField";
+import { ReportSummaryCards } from "@/components/reports/ReportSummaryCards";
+import { ReportTableSurface } from "@/components/reports/ReportTableSurface";
+import { useReportScopeState } from "@/hooks/useReportScopeState";
+import { useSyncAiReportContext } from "@/hooks/useSyncAiReportContext";
 
-const today = new Date().toISOString().slice(0, 10);
-const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+const { startDate: defaultStartDate, endDate: defaultEndDate } = getDateRange(30);
 
 export default function EmployeePerformancePage() {
-  const [startDate, setStartDate] = useState(monthAgo);
-  const [endDate, setEndDate] = useState(today);
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   const [limit, setLimit] = useState(50);
   const [items, setItems] = useState<EmployeePerformanceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { storeIds, setStoreIds, storeOptions, activeStoreId } = useReportScopeState();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await getReportEmployeePerformance({
-        startDate,
-        endDate,
-        limit,
-      });
+      const res = await getReportEmployeePerformance({ startDate, endDate, limit, storeIds });
       setItems(res.data ?? []);
     } catch {
       setItems([]);
@@ -35,180 +36,125 @@ export default function EmployeePerformancePage() {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, limit]);
+  }, [endDate, limit, startDate, storeIds]);
 
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
 
   const hasCurrency = items.some((item) => Boolean(item.currency));
+  const summary = useMemo(
+    () => [
+      { label: "Calisan", value: items.length.toLocaleString("tr-TR") },
+      { label: "Toplam Gelir", value: formatPrice(items.reduce((sum, item) => sum + (item.totalRevenue ?? 0), 0)) },
+      { label: "Toplam Satis", value: items.reduce((sum, item) => sum + (item.saleCount ?? 0), 0).toLocaleString("tr-TR") },
+    ],
+    [items],
+  );
+
+  useSyncAiReportContext({
+    reportType: "employee-performance",
+    title: "Calisan Performansi",
+    description: "Secilen tarih araliginda calisan satis performansi",
+    path: "/reports/employee-performance",
+    filters: { startDate, endDate, limit, storeIds },
+    scope: { route: "/reports/employee-performance", storeIds, activeStoreId },
+    summary,
+    rowCount: items.length,
+    promptPresets: [
+      "Calisan performansini yorumla ve fark yaratanlari belirt",
+      "Iptal orani yuksek kullanicilari tespit et",
+      "Ekibe yonelik gelisim aksiyonlari oner",
+    ],
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link
-          href="/reports"
-          className="mb-2 inline-block text-sm text-primary hover:underline"
-        >
-          &larr; Raporlar
-        </Link>
-        <h1 className="text-xl font-semibold text-text">
-          Calisan Performansi
-        </h1>
-        <p className="text-sm text-muted">
-          Secilen tarih araliginda calisan satis performansi
-        </p>
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface p-4">
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-muted">
-            Baslangic
-          </label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-muted">
-            Bitis
-          </label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-muted">
-            Limit
-          </label>
-          <input
-            type="number"
-            min={1}
-            max={200}
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value) || 50)}
-            className="h-10 w-20 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-          />
-        </div>
-        <button
-          onClick={() => void fetchData()}
-          disabled={loading}
-          className="h-10 rounded-xl bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? "Yukleniyor..." : "Filtrele"}
-        </button>
-      </div>
-
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-surface p-12">
-          <p className="text-sm text-muted">Yukleniyor...</p>
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-red-300 bg-red-50 p-6 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-          {error}
-        </div>
-      ) : items.length === 0 ? (
-        <div className="flex items-center justify-center rounded-2xl border border-border bg-surface p-12">
-          <p className="text-sm text-muted">
-            Secilen tarih araliginda calisan performans verisi bulunamadi.
-          </p>
-        </div>
-      ) : (
+    <ReportShell
+      title="Calisan Performansi"
+      description="Secilen tarih araliginda calisan satis performansi"
+      filters={
+        <ReportFilterPanel onApply={() => void fetchData()} loading={loading}>
+          <ReportField label="Baslangic">
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={reportInputClassName} />
+          </ReportField>
+          <ReportField label="Bitis">
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className={reportInputClassName} />
+          </ReportField>
+          <ReportField label="Limit">
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={limit}
+              onChange={(event) => setLimit(Number(event.target.value) || 50)}
+              className={`${reportInputClassName} w-24`}
+            />
+          </ReportField>
+          <ReportStoreField options={storeOptions} values={storeIds} onChange={setStoreIds} />
+        </ReportFilterPanel>
+      }
+      summary={!loading && !error && items.length > 0 ? <ReportSummaryCards items={summary} columnsClassName="grid-cols-1 sm:grid-cols-3" /> : null}
+      onExport={() =>
+        exportRowsToCsv(
+          "employee-performance",
+          items.map((item, index) => ({
+            sira: item.rank ?? index + 1,
+            ad_soyad: [item.userName, item.userSurname].filter(Boolean).join(" ") || "-",
+            email: item.userEmail ?? "-",
+            satis: item.saleCount ?? 0,
+            onayli: item.confirmedCount ?? 0,
+            iptal: item.cancelledCount ?? 0,
+            iptal_orani: item.cancelRate ?? 0,
+            para_birimi: item.currency ?? "-",
+            toplam_gelir: item.totalRevenue ?? 0,
+            ortalama_sepet: item.averageBasket ?? 0,
+          })),
+        )
+      }
+      disableExport={items.length === 0}
+    >
+      <ReportTableSurface
+        loading={loading}
+        error={error}
+        isEmpty={items.length === 0}
+        emptyMessage="Secilen tarih araliginda calisan performans verisi bulunamadi."
+        className="rounded-2xl border border-border bg-surface p-6 shadow-glow"
+      >
         <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-glow">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                  Sira
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                  Ad Soyad
-                </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Satis
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Onayli
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Iptal
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Iptal Orani
-                </th>
-                {hasCurrency && (
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                    PB
-                  </th>
-                )}
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Toplam Gelir
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">
-                  Ort. Sepet
-                </th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">Sira</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">Ad Soyad</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">Email</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Satis</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Onayli</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Iptal</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Iptal Orani</th>
+                {hasCurrency ? <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">PB</th> : null}
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Toplam Gelir</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted">Ort. Sepet</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item, idx) => (
-                <tr
-                  key={item.userId ?? idx}
-                  className="border-b border-border last:border-b-0 transition-colors hover:bg-primary/5"
-                >
-                  <td className="px-4 py-3 font-medium text-text">
-                    {item.rank ?? idx + 1}
-                  </td>
-                  <td className="px-4 py-3 text-text">
-                    {[item.userName, item.userSurname]
-                      .filter(Boolean)
-                      .join(" ") || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-muted">
-                    {item.userEmail ?? "-"}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">
-                    {item.saleCount ?? 0}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">
-                    {item.confirmedCount ?? 0}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">
-                    {item.cancelledCount ?? 0}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">
-                    {item.cancelRate != null
-                      ? item.cancelRate.toFixed(1) + "%"
-                      : "-"}
-                  </td>
-                  {hasCurrency && (
-                    <td className="px-4 py-3 text-right text-text">
-                      {item.currency ?? "-"}
-                    </td>
-                  )}
-                  <td className="px-4 py-3 text-right font-medium text-text">
-                    {formatPrice(item.totalRevenue)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-text">
-                    {formatPrice(item.averageBasket)}
-                  </td>
+              {items.map((item, index) => (
+                <tr key={item.userId ?? index} className="border-b border-border last:border-b-0 transition-colors hover:bg-primary/5">
+                  <td className="px-4 py-3 font-medium text-text">{item.rank ?? index + 1}</td>
+                  <td className="px-4 py-3 text-text">{[item.userName, item.userSurname].filter(Boolean).join(" ") || "-"}</td>
+                  <td className="px-4 py-3 text-muted">{item.userEmail ?? "-"}</td>
+                  <td className="px-4 py-3 text-right text-text">{item.saleCount ?? 0}</td>
+                  <td className="px-4 py-3 text-right text-text">{item.confirmedCount ?? 0}</td>
+                  <td className="px-4 py-3 text-right text-text">{item.cancelledCount ?? 0}</td>
+                  <td className="px-4 py-3 text-right text-text">{item.cancelRate != null ? `${item.cancelRate.toFixed(1)}%` : "-"}</td>
+                  {hasCurrency ? <td className="px-4 py-3 text-right text-text">{item.currency ?? "-"}</td> : null}
+                  <td className="px-4 py-3 text-right font-medium text-text">{formatPrice(item.totalRevenue)}</td>
+                  <td className="px-4 py-3 text-right text-text">{formatPrice(item.averageBasket)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-    </div>
+      </ReportTableSurface>
+    </ReportShell>
   );
 }

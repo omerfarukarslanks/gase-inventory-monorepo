@@ -87,6 +87,7 @@ export default function TransferDrawer({
       }
       closeDisabled={submitting}
       className={cn(isMobile ? "!max-w-none" : "!max-w-[560px]")}
+      mobileFullscreen
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button

@@ -74,6 +74,27 @@ export type PermissionName =
   | "REPORT_EMPLOYEE_READ"
   | "REPORT_CUSTOMER_READ"
   | "REPORT_INVENTORY_READ"
+  // Tedarik ve ikmal
+  | "REPLENISHMENT_READ"
+  | "REPLENISHMENT_ACCEPT"
+  | "REPLENISHMENT_DISMISS"
+  | "REPLENISHMENT_RULE_MANAGE"
+  | "PO_CREATE"
+  | "PO_READ"
+  | "PO_APPROVE"
+  | "PO_CANCEL"
+  | "PO_RECEIPT_CREATE"
+  // Depo
+  | "WAREHOUSE_READ"
+  | "WAREHOUSE_MANAGE"
+  | "COUNT_SESSION_READ"
+  | "COUNT_SESSION_MANAGE"
+  | "COUNT_SESSION_ADJUST"
+  // Onaylar
+  | "APPROVAL_READ"
+  | "APPROVAL_REQUEST"
+  | "APPROVAL_REVIEW"
+  | "APPROVAL_REVIEW_L2"
   // Sistem
   | "EXCHANGE_RATE_READ"
   | "AI_CHAT"
@@ -82,17 +103,22 @@ export type PermissionName =
   | 'TENANT_ONLY';
 
 export type SessionUser = {
+  id?: string;
+  name?: string;
+  surname?: string;
   role?: string;
   storeType?: string;
   storeId?: string;
   permissions?: string[];
   store?: {
     id?: string;
+    name?: string;
     storeType?: string;
   };
   stores?: Array<{
     id?: string;
     storeId?: string;
+    name?: string;
   }>;
   storeIds?: string[];
   userStores?: Array<{
@@ -100,6 +126,7 @@ export type SessionUser = {
     storeType?: string;
     store?: {
       id?: string;
+      name?: string;
       storeType?: string;
     };
   }>;

@@ -4,7 +4,6 @@ import type { FormEvent } from "react";
 import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import InputField from "@/components/ui/InputField";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
-import { cn } from "@/lib/cn";
 import { useLang } from "@/context/LangContext";
 import type { SupplierForm } from "@/components/suppliers/types";
 
@@ -13,7 +12,6 @@ type SupplierDrawerProps = {
   editingSupplierId: string | null;
   submitting: boolean;
   loadingSupplierDetail: boolean;
-  isMobile: boolean;
   form: SupplierForm;
   formError: string;
   nameError: string;
@@ -30,7 +28,6 @@ export default function SupplierDrawer({
   editingSupplierId,
   submitting,
   loadingSupplierDetail,
-  isMobile,
   form,
   formError,
   nameError,
@@ -51,7 +48,7 @@ export default function SupplierDrawer({
       title={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
       description={editingSupplierId ? t("suppliers.update") : t("suppliers.new")}
       closeDisabled={submitting || loadingSupplierDetail}
-      className={cn(isMobile && "!max-w-none")}
+      mobileFullscreen
       footer={
         <DrawerFooter
           cancelLabel={t("common.cancel")}
