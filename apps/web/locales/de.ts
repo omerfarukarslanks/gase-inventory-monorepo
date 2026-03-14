@@ -12,6 +12,7 @@ const de = {
     supply: "Beschaffung",
     supplySuggestions: "Vorschlage",
     purchaseOrders: "Bestellungen",
+    supplyRules: "Regeln",
     warehouse: "Lager",
     countSessions: "Inventursitzungen",
     warehouses: "Lagerhauser",
@@ -40,6 +41,7 @@ const de = {
     collapseGroup: "Gruppe einklappen",
     noModuleAccess: "Sie haben keinen Zugriff auf dieses Modul.",
   },
+  supply: en.supply,
   warehouse: en.warehouse,
 };
 

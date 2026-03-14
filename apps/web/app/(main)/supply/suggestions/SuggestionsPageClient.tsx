@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ApiError } from "@/lib/api";
 import { PageShell } from "@/components/layout/PageShell";
 import TablePagination from "@/components/ui/TablePagination";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
@@ -26,6 +27,12 @@ import SuggestionDetailDrawer from "@/components/supply/SuggestionDetailDrawer";
 
 function getSupplierLabel(name?: string, surname?: string | null) {
   return [name, surname].filter(Boolean).join(" ").trim();
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError && error.message.trim()) return error.message;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
 }
 
 export default function SuggestionsPageClient() {
@@ -57,6 +64,7 @@ export default function SuggestionsPageClient() {
 
   const canAccept = can("REPLENISHMENT_ACCEPT");
   const canDismiss = can("REPLENISHMENT_DISMISS");
+  const canManageRules = can("REPLENISHMENT_RULE_MANAGE");
   const canTenantOnly = can("TENANT_ONLY");
 
   const storeNameById = useMemo(
@@ -201,8 +209,8 @@ export default function SuggestionsPageClient() {
       setItems(refreshed.data ?? []);
       setTotal(refreshed.meta?.total ?? refreshed.data?.length ?? 0);
       setTotalPages(refreshed.meta?.totalPages ?? 1);
-    } catch {
-      setError("Oneri kabul edilemedi.");
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, "Oneri kabul edilemedi."));
     } finally {
       setDetailSubmitting(false);
     }
@@ -227,8 +235,8 @@ export default function SuggestionsPageClient() {
       setItems(refreshed.data ?? []);
       setTotal(refreshed.meta?.total ?? refreshed.data?.length ?? 0);
       setTotalPages(refreshed.meta?.totalPages ?? 1);
-    } catch {
-      setError("Oneri reddedilemedi.");
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, "Oneri reddedilemedi."));
     } finally {
       setDetailSubmitting(false);
     }
@@ -294,6 +302,11 @@ export default function SuggestionsPageClient() {
         onDismiss={() => setDismissDialogOpen(true)}
         canAccept={canAccept}
         canDismiss={canDismiss}
+        canOpenRule={canManageRules && Boolean(selectedSuggestion?.rule?.id)}
+        onOpenRule={() => {
+          if (!selectedSuggestion?.rule?.id) return;
+          router.push(`/supply/rules?ruleId=${encodeURIComponent(selectedSuggestion.rule.id)}`);
+        }}
       />
 
       <ConfirmDialog

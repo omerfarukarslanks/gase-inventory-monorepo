@@ -12,6 +12,7 @@ const ar = {
     supply: "التوريد",
     supplySuggestions: "الاقتراحات",
     purchaseOrders: "اوامر الشراء",
+    supplyRules: "قواعد التوريد",
     warehouse: "المستودع",
     countSessions: "جلسات الجرد",
     warehouses: "المستودعات",
@@ -40,6 +41,7 @@ const ar = {
     collapseGroup: "طي المجموعة",
     noModuleAccess: "ليس لديك صلاحية الوصول إلى هذه الوحدة.",
   },
+  supply: en.supply,
   warehouse: en.warehouse,
 };
 

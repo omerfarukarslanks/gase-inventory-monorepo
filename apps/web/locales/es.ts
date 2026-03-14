@@ -12,6 +12,7 @@ const es = {
     supply: "Abastecimiento",
     supplySuggestions: "Sugerencias",
     purchaseOrders: "Ordenes de compra",
+    supplyRules: "Reglas",
     warehouse: "Almacen",
     countSessions: "Sesiones de conteo",
     warehouses: "Almacenes",
@@ -40,6 +41,7 @@ const es = {
     collapseGroup: "Contraer grupo",
     noModuleAccess: "No tienes acceso a este modulo.",
   },
+  supply: en.supply,
   warehouse: en.warehouse,
 };
 

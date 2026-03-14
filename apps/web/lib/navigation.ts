@@ -58,6 +58,12 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         labelKey: "nav.purchaseOrders",
         anyPermission: ["PO_READ", "PO_CREATE"],
       },
+      {
+        key: "rules",
+        href: "/supply/rules",
+        labelKey: "nav.supplyRules",
+        permission: "REPLENISHMENT_RULE_MANAGE",
+      },
     ],
   },
   {

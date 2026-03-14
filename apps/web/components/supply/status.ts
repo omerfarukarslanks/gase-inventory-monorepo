@@ -76,3 +76,11 @@ export function formatPoStatusStep(status?: PurchaseOrderStatus | null) {
         : itemIndex <= Math.max(index, 0),
   }));
 }
+
+export function getReplenishmentRuleStatusLabel(isActive?: boolean | null): string {
+  return isActive === false ? "Pasif" : "Aktif";
+}
+
+export function getReplenishmentRuleStatusVariant(isActive?: boolean | null): StatusVariant {
+  return isActive === false ? "neutral" : "success";
+}
