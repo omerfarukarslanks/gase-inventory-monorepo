@@ -104,11 +104,45 @@ export type PurchaseOrderReceiptLine = {
 
 export type PurchaseOrderReceipt = {
   id: string;
+  purchaseOrderId?: string | null;
+  purchaseOrderReference?: string | null;
   warehouseId?: string | null;
+  warehouseName?: string | null;
   receivedAt?: string;
   notes?: string | null;
+  lineCount?: number;
+  totalReceivedQuantity?: number;
   store?: PurchaseOrderStoreRef | null;
   lines?: PurchaseOrderReceiptLine[];
+};
+
+export type CentralGoodsReceiptListItem = PurchaseOrderReceipt & {
+  purchaseOrderId: string;
+  purchaseOrderReference?: string | null;
+  warehouseId: string;
+  warehouseName?: string | null;
+  lineCount: number;
+  totalReceivedQuantity: number;
+};
+
+export type CentralGoodsReceiptListResponse = {
+  data: CentralGoodsReceiptListItem[];
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+  };
+};
+
+export type GetCentralGoodsReceiptsParams = {
+  page?: number;
+  limit?: number;
+  storeId?: string;
+  warehouseId?: string;
+  startDate?: string;
+  endDate?: string;
+  q?: string;
 };
 
 function normalizePurchaseOrderLine(payload: unknown): PurchaseOrderLine | null {
@@ -238,6 +272,7 @@ function normalizePurchaseOrderReceipt(payload: unknown): PurchaseOrderReceipt |
   if (!root) return null;
 
   const store = asObject(root.store);
+  const purchaseOrder = asObject(root.purchaseOrder);
   const id = pickString(root.id);
   if (!id) return null;
 
@@ -249,9 +284,14 @@ function normalizePurchaseOrderReceipt(payload: unknown): PurchaseOrderReceipt |
 
   return {
     id,
+    purchaseOrderId: pickString(root.purchaseOrderId, purchaseOrder?.id) || null,
+    purchaseOrderReference: pickString(root.purchaseOrderReference, purchaseOrder?.reference, purchaseOrder?.code) || null,
     warehouseId: pickString(root.warehouseId, asObject(root.warehouse)?.id) || null,
+    warehouseName: pickString(root.warehouseName, asObject(root.warehouse)?.name) || null,
     receivedAt: pickString(root.receivedAt, root.createdAt) || undefined,
     notes: pickString(root.notes) || null,
+    lineCount: pickNumberOrNull(root.lineCount) ?? lines.length,
+    totalReceivedQuantity: pickNumberOrNull(root.totalReceivedQuantity) ?? lines.reduce((sum, line) => sum + Number(line.receivedQuantity ?? 0), 0),
     store: store
       ? {
           id: pickString(store.id, root.storeId),
@@ -369,4 +409,55 @@ export async function getPurchaseOrderReceipts(id: string): Promise<PurchaseOrde
   return rawItems
     .map((item) => normalizePurchaseOrderReceipt(item))
     .filter((item): item is PurchaseOrderReceipt => Boolean(item));
+}
+
+export async function getCentralGoodsReceipts({
+  page = 1,
+  limit = 20,
+  storeId,
+  warehouseId,
+  startDate,
+  endDate,
+  q,
+}: GetCentralGoodsReceiptsParams = {}): Promise<CentralGoodsReceiptListResponse> {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  if (storeId) query.set("storeId", storeId);
+  if (warehouseId) query.set("warehouseId", warehouseId);
+  if (startDate) query.set("startDate", startDate);
+  if (endDate) query.set("endDate", endDate);
+  if (q) query.set("q", q);
+
+  const response = await apiFetch<unknown>(`/procurement/goods-receipts?${query.toString()}`);
+  const root = asObject(response);
+  const rawItems = Array.isArray(root?.data)
+    ? root.data
+    : Array.isArray(root?.items)
+      ? root.items
+      : Array.isArray(response)
+        ? response
+        : [];
+
+  return {
+    data: rawItems
+      .map((item) => normalizePurchaseOrderReceipt(item))
+      .filter((item): item is CentralGoodsReceiptListItem => Boolean(item?.id && item.purchaseOrderId && item.warehouseId)),
+    meta: {
+      total: getPaginationValue(response, "total") || rawItems.length,
+      page: getPaginationValue(response, "page") || page,
+      limit: getPaginationValue(response, "limit") || limit,
+      totalPages: getPaginationValue(response, "totalPages") || 1,
+    },
+  };
+}
+
+export async function getCentralGoodsReceipt(id: string): Promise<PurchaseOrderReceipt> {
+  const response = await apiFetch<unknown>(`/procurement/goods-receipts/${id}`);
+  return normalizePurchaseOrderReceipt(response) ?? {
+    id,
+    lines: [],
+  };
 }

@@ -12,6 +12,7 @@ const de = {
     supply: "Beschaffung",
     supplySuggestions: "Vorschlage",
     purchaseOrders: "Bestellungen",
+    receipts: "Wareneingange",
     supplyRules: "Regeln",
     warehouse: "Lager",
     countSessions: "Inventursitzungen",

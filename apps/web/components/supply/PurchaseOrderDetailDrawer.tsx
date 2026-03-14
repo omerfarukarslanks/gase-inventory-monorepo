@@ -7,6 +7,7 @@ import type { PurchaseOrder, PurchaseOrderReceipt } from "@/lib/procurement";
 import type { Supplier } from "@/lib/suppliers";
 import { formatDate, formatPrice } from "@/lib/format";
 import { formatPoStatusStep, getPurchaseOrderStatusLabel, getPurchaseOrderStatusVariant } from "@/components/supply/status";
+import { useLang } from "@/context/LangContext";
 
 type PurchaseOrderDetailDrawerProps = {
   open: boolean;
@@ -20,6 +21,7 @@ type PurchaseOrderDetailDrawerProps = {
   onApprove: () => void;
   onCancel: () => void;
   onOpenReceipt: () => void;
+  onOpenReceiptDetail: (receipt: PurchaseOrderReceipt) => void;
   onOpenReceiptPutaway: (receipt: PurchaseOrderReceipt) => void;
   canApprove: boolean;
   canCancel: boolean;
@@ -46,12 +48,14 @@ export default function PurchaseOrderDetailDrawer({
   onApprove,
   onCancel,
   onOpenReceipt,
+  onOpenReceiptDetail,
   onOpenReceiptPutaway,
   canApprove,
   canCancel,
   canCreateReceipt,
   canCreatePutaway,
 }: PurchaseOrderDetailDrawerProps) {
+  const { t } = useLang();
   const supplier = suppliers.find((item) => item.id === purchaseOrder?.supplierId);
   const supplierName = supplier?.surname ? `${supplier.name} ${supplier.surname}` : supplier?.name ?? "-";
 
@@ -169,18 +173,26 @@ export default function PurchaseOrderDetailDrawer({
                           <div className="mt-1 text-xs text-muted">{formatDate(receipt.receivedAt)}</div>
                           {receipt.warehouseId ? (
                             <div className="mt-1 text-xs text-muted">
-                              Depo: {receiptWarehouseNameById[receipt.warehouseId] ?? receipt.warehouseId}
+                              Depo: {receipt.warehouseName ?? receiptWarehouseNameById[receipt.warehouseId] ?? receipt.warehouseId}
                             </div>
                           ) : null}
                         </div>
-                        {canCreatePutaway && receipt.warehouseId && (receipt.lines?.length ?? 0) > 0 ? (
+                        <div className="flex items-center gap-2">
                           <Button
-                            label="Putaway Olustur"
-                            onClick={() => onOpenReceiptPutaway(receipt)}
+                            label={t("supply.receipts.detailAction")}
+                            onClick={() => onOpenReceiptDetail(receipt)}
                             disabled={acting}
-                            variant="primarySoft"
+                            variant="secondary"
                           />
-                        ) : null}
+                          {canCreatePutaway && receipt.warehouseId && (receipt.lines?.length ?? 0) > 0 ? (
+                            <Button
+                              label="Putaway Olustur"
+                              onClick={() => onOpenReceiptPutaway(receipt)}
+                              disabled={acting}
+                              variant="primarySoft"
+                            />
+                          ) : null}
+                        </div>
                       </div>
                       <div className="mt-2 space-y-1">
                         {(receipt.lines ?? []).map((line) => {

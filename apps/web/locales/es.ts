@@ -12,6 +12,7 @@ const es = {
     supply: "Abastecimiento",
     supplySuggestions: "Sugerencias",
     purchaseOrders: "Ordenes de compra",
+    receipts: "Recepciones",
     supplyRules: "Reglas",
     warehouse: "Almacen",
     countSessions: "Sesiones de conteo",

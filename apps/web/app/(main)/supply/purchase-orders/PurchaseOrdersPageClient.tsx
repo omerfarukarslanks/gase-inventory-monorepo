@@ -432,6 +432,10 @@ export default function PurchaseOrdersPageClient() {
         onApprove={() => setApproveDialogOpen(true)}
         onCancel={() => setCancelDialogOpen(true)}
         onOpenReceipt={() => setReceiptOpen(true)}
+        onOpenReceiptDetail={(receipt) => {
+          if (!receipt.id) return;
+          router.push(`/supply/receipts?receiptId=${encodeURIComponent(receipt.id)}`);
+        }}
         onOpenReceiptPutaway={(receipt) => {
           setSelectedReceiptForPutaway(receipt);
           setReceiptPutawayOpen(true);

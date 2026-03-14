@@ -12,6 +12,7 @@ const ar = {
     supply: "التوريد",
     supplySuggestions: "الاقتراحات",
     purchaseOrders: "اوامر الشراء",
+    receipts: "استلام البضائع",
     supplyRules: "قواعد التوريد",
     warehouse: "المستودع",
     countSessions: "جلسات الجرد",

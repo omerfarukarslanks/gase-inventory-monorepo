@@ -59,6 +59,12 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         anyPermission: ["PO_READ", "PO_CREATE"],
       },
       {
+        key: "receipts",
+        href: "/supply/receipts",
+        labelKey: "nav.receipts",
+        permission: "PO_READ",
+      },
+      {
         key: "rules",
         href: "/supply/rules",
         labelKey: "nav.supplyRules",
