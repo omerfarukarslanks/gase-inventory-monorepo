@@ -10,6 +10,8 @@ const ar = {
   nav: {
     ...locales.ar.nav,
     supply: "التوريد",
+    salesList: "المبيعات",
+    salesReturns: "المرتجعات",
     supplySuggestions: "الاقتراحات",
     purchaseOrders: "اوامر الشراء",
     receipts: "استلام البضائع",
@@ -42,6 +44,7 @@ const ar = {
     collapseGroup: "طي المجموعة",
     noModuleAccess: "ليس لديك صلاحية الوصول إلى هذه الوحدة.",
   },
+  salesReturns: en.salesReturns,
   supply: en.supply,
   warehouse: en.warehouse,
 };

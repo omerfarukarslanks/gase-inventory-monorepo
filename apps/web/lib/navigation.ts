@@ -29,7 +29,29 @@ export type AppNavigationItem = NavigationAccessRule & {
 
 const APP_NAV_ITEMS: AppNavigationItem[] = [
   { key: "dashboard", href: "/dashboard", labelKey: "nav.dashboard", icon: "D", bottomNav: true },
-  { key: "sales", href: "/sales", labelKey: "nav.sales", icon: "TL", permission: "SALE_READ", bottomNav: true },
+  {
+    key: "sales",
+    href: "/sales",
+    labelKey: "nav.sales",
+    icon: "TL",
+    anyPermission: ["SALE_READ", "SALE_RETURN_READ"],
+    bottomNav: true,
+    matchesRoute: ["/sales"],
+    children: [
+      {
+        key: "list",
+        href: "/sales",
+        labelKey: "nav.salesList",
+        permission: "SALE_READ",
+      },
+      {
+        key: "returns",
+        href: "/sales/returns",
+        labelKey: "nav.salesReturns",
+        permission: "SALE_RETURN_READ",
+      },
+    ],
+  },
   {
     key: "stock",
     href: "/stock",

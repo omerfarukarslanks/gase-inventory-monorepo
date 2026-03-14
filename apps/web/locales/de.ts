@@ -10,6 +10,8 @@ const de = {
   nav: {
     ...locales.de.nav,
     supply: "Beschaffung",
+    salesList: "Verkaufe",
+    salesReturns: "Retouren",
     supplySuggestions: "Vorschlage",
     purchaseOrders: "Bestellungen",
     receipts: "Wareneingange",
@@ -42,6 +44,7 @@ const de = {
     collapseGroup: "Gruppe einklappen",
     noModuleAccess: "Sie haben keinen Zugriff auf dieses Modul.",
   },
+  salesReturns: en.salesReturns,
   supply: en.supply,
   warehouse: en.warehouse,
 };

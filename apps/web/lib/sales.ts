@@ -2,6 +2,7 @@ import { apiFetch, BASE_URL, ApiError } from "@/lib/api";
 import type { Currency } from "@/lib/products";
 import { normalizeSalePayment, normalizeSalePaymentsResponse } from "@/lib/sales-normalize";
 import { appendIfDefined, appendArray } from "@/lib/query-builder";
+import { asObject, getPaginationValue, pickNumber, pickNumberOrNull, pickString } from "@/lib/normalize";
 
 export type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "OTHER";
 export type PaymentStatus = "ACTIVE" | "CANCELLED" | string;
@@ -184,6 +185,83 @@ export type SalePayment = {
   currency?: Currency | string | null;
   exchangeRate?: number | null;
   amountInBaseCurrency?: number | null;
+};
+
+export type SaleReturnStoreRef = {
+  id: string;
+  name?: string;
+};
+
+export type SaleReturnCustomerRef = {
+  id: string;
+  name?: string;
+  surname?: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+};
+
+export type SaleReturnPackageVariant = {
+  productVariantId: string;
+  productName?: string | null;
+  variantName?: string | null;
+  quantity: number;
+};
+
+export type SaleReturnLineSaleLine = {
+  id: string;
+  productType?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productVariantId?: string | null;
+  variantName?: string | null;
+  productPackageId?: string | null;
+  packageName?: string | null;
+  currency?: Currency | null;
+};
+
+export type SaleReturnLine = {
+  id: string;
+  saleLineId: string;
+  quantity?: number | null;
+  refundAmount?: number | null;
+  packageVariantReturns?: SaleReturnPackageVariant[] | null;
+  saleLine?: SaleReturnLineSaleLine | null;
+};
+
+export type SaleReturnListItem = {
+  id: string;
+  returnNo?: string | null;
+  saleId?: string | null;
+  saleReference?: string | null;
+  returnedAt?: string | null;
+  notes?: string | null;
+  lineCount: number;
+  totalRefundAmount?: number | null;
+  store?: SaleReturnStoreRef | null;
+  customer?: SaleReturnCustomerRef | null;
+};
+
+export type SaleReturnDetail = SaleReturnListItem & {
+  lines: SaleReturnLine[];
+};
+
+export type SaleReturnsListResponse = {
+  data: SaleReturnListItem[];
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+  };
+};
+
+export type GetCentralSaleReturnsParams = {
+  page?: number;
+  limit?: number;
+  storeId?: string;
+  startDate?: string;
+  endDate?: string;
+  q?: string;
 };
 
 export type GetSalesParams = {
@@ -438,4 +516,167 @@ export async function downloadSaleReceipt(saleId: string): Promise<Blob> {
     throw new ApiError(`Fis indirilemedi (${res.status})`, res.status);
   }
   return res.blob();
+}
+
+function normalizeSaleReturnPackageVariant(payload: unknown): SaleReturnPackageVariant | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const productVariantId = pickString(item.productVariantId, item.variantId);
+  if (!productVariantId) return null;
+
+  return {
+    productVariantId,
+    productName: pickString(item.productName) || null,
+    variantName: pickString(item.variantName) || null,
+    quantity: pickNumber(item.quantity),
+  };
+}
+
+function normalizeSaleReturnLine(payload: unknown): SaleReturnLine | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const saleLine = asObject(item.saleLine);
+  const id = pickString(item.id);
+  const saleLineId = pickString(item.saleLineId, saleLine?.id);
+
+  if (!id || !saleLineId) return null;
+
+  return {
+    id,
+    saleLineId,
+    quantity: pickNumberOrNull(item.quantity),
+    refundAmount: pickNumberOrNull(item.refundAmount),
+    packageVariantReturns: Array.isArray(item.packageVariantReturns)
+      ? item.packageVariantReturns
+          .map((variant) => normalizeSaleReturnPackageVariant(variant))
+          .filter((variant): variant is SaleReturnPackageVariant => Boolean(variant))
+      : null,
+    saleLine: saleLine
+      ? {
+          id: pickString(saleLine.id, item.saleLineId),
+          productType: pickString(saleLine.productType) || null,
+          productId: pickString(saleLine.productId) || null,
+          productName: pickString(saleLine.productName) || null,
+          productVariantId: pickString(saleLine.productVariantId) || null,
+          variantName: pickString(saleLine.variantName) || null,
+          productPackageId: pickString(saleLine.productPackageId) || null,
+          packageName: pickString(saleLine.packageName) || null,
+          currency: (pickString(saleLine.currency) || null) as Currency | null,
+        }
+      : null,
+  };
+}
+
+function normalizeSaleReturnBase(payload: unknown): SaleReturnListItem | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const store = asObject(item.store);
+  const customer = asObject(item.customer);
+  const id = pickString(item.id);
+
+  if (!id) return null;
+
+  return {
+    id,
+    returnNo: pickString(item.returnNo) || null,
+    saleId: pickString(item.saleId) || null,
+    saleReference: pickString(item.saleReference, item.receiptNo) || null,
+    returnedAt: pickString(item.returnedAt, item.createdAt) || null,
+    notes: pickString(item.notes) || null,
+    lineCount: pickNumber(item.lineCount, Array.isArray(item.lines) ? item.lines.length : 0),
+    totalRefundAmount: pickNumberOrNull(item.totalRefundAmount),
+    store: store
+      ? {
+          id: pickString(store.id, item.storeId),
+          name: pickString(store.name, item.storeName) || undefined,
+        }
+      : pickString(item.storeId)
+        ? {
+            id: pickString(item.storeId),
+            name: pickString(item.storeName) || undefined,
+          }
+        : null,
+    customer: customer
+      ? {
+          id: pickString(customer.id, item.customerId),
+          name: pickString(customer.name) || undefined,
+          surname: pickString(customer.surname) || undefined,
+          phoneNumber: pickString(customer.phoneNumber) || null,
+          email: pickString(customer.email) || null,
+        }
+      : pickString(item.customerId)
+        ? {
+            id: pickString(item.customerId),
+            name: pickString(item.name) || undefined,
+            surname: pickString(item.surname) || undefined,
+            phoneNumber: pickString(item.phoneNumber) || null,
+            email: pickString(item.email) || null,
+          }
+        : null,
+  };
+}
+
+function normalizeSaleReturnDetail(payload: unknown): SaleReturnDetail | null {
+  const base = normalizeSaleReturnBase(payload);
+  const item = asObject(payload);
+  if (!base || !item) return null;
+
+  return {
+    ...base,
+    lines: Array.isArray(item.lines)
+      ? item.lines
+          .map((line) => normalizeSaleReturnLine(line))
+          .filter((line): line is SaleReturnLine => Boolean(line))
+      : [],
+  };
+}
+
+function buildCentralSaleReturnsQuery({
+  page = 1,
+  limit = 10,
+  storeId,
+  startDate,
+  endDate,
+  q,
+}: GetCentralSaleReturnsParams): string {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  appendIfDefined(query, "storeId", storeId);
+  appendIfDefined(query, "startDate", startDate);
+  appendIfDefined(query, "endDate", endDate);
+  appendIfDefined(query, "q", q);
+
+  return query.toString();
+}
+
+export async function getCentralSaleReturns(
+  params: GetCentralSaleReturnsParams,
+): Promise<SaleReturnsListResponse> {
+  const query = buildCentralSaleReturnsQuery(params);
+  const payload = await apiFetch<unknown>(`/sales/returns?${query}`);
+  const root = asObject(payload);
+  const rawItems = Array.isArray(root?.data) ? root.data : [];
+
+  return {
+    data: rawItems
+      .map((item) => normalizeSaleReturnBase(item))
+      .filter((item): item is SaleReturnListItem => Boolean(item)),
+    meta: {
+      total: getPaginationValue(payload, "total") || undefined,
+      page: getPaginationValue(payload, "page") || undefined,
+      limit: getPaginationValue(payload, "limit") || undefined,
+      totalPages: getPaginationValue(payload, "totalPages") || undefined,
+    },
+  };
+}
+
+export async function getCentralSaleReturn(id: string): Promise<SaleReturnDetail | null> {
+  const payload = await apiFetch<unknown>(`/sales/returns/${id}`);
+  return normalizeSaleReturnDetail(payload);
 }

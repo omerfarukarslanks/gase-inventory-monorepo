@@ -411,6 +411,48 @@ const supply = {
   },
 };
 
+const salesReturns = {
+  blockers: {
+    activeStoreTitle: "Aktif Magaza Baglami Gerekli",
+    activeStoreDescription: "Iade merkezi magaza kapsamli kullanicilar icin aktif magaza baglaminda calisir.",
+  },
+  title: "Iade Merkezi",
+  subtitle: "Satis iadelerini tek merkezden inceleyin",
+  searchPlaceholder: "Iade no, satis fisi, musteri veya not ara...",
+  loading: "Iade kayitlari yukleniyor...",
+  loadError: "Iade kayitlari yuklenemedi.",
+  detailLoadError: "Iade detayi yuklenemedi.",
+  readRequired: "Iadeleri goruntulemek icin okuma yetkisi gerekli.",
+  noResults: "Gosterilecek iade kaydi bulunamadi.",
+  detailsTitle: "Iade Detayi",
+  detailsLoading: "Iade detayi yukleniyor...",
+  detailsNotFound: "Iade kaydi bulunamadi.",
+  returnNoLabel: "Iade No",
+  saleLabel: "Satis",
+  storeLabel: "Magaza",
+  customerLabel: "Musteri",
+  returnedAtLabel: "Iade Tarihi",
+  startDateLabel: "Baslangic Tarihi",
+  endDateLabel: "Bitis Tarihi",
+  lineCountLabel: "Satir",
+  totalRefundLabel: "Toplam Iade",
+  notesLabel: "Not",
+  notesEmpty: "Not yok.",
+  linesTitle: "Iade Satirlari",
+  linesEmpty: "Gosterilecek iade satiri bulunamadi.",
+  quantityLabel: "Adet",
+  refundAmountLabel: "Iade Tutari",
+  packageReturnsLabel: "Paket Varyant Iadeleri",
+  phoneLabel: "Telefon",
+  emailLabel: "E-posta",
+  detailAction: "Detay",
+  openSaleAction: "Satisi Ac",
+  productFallback: "Urun",
+  variantFallback: "Varyant bilgisi yok",
+  packageFallback: "Paket",
+  packageLine: "Paket satiri",
+};
+
 const tr = {
   ...locales.tr,
   common: {
@@ -420,6 +462,8 @@ const tr = {
   nav: {
     ...locales.tr.nav,
     supply: "Tedarik",
+    salesList: "Satislar",
+    salesReturns: "Iadeler",
     supplySuggestions: "Oneriler",
     purchaseOrders: "Satin Alma Siparisleri",
     receipts: "Mal Kabul",
@@ -452,6 +496,7 @@ const tr = {
     collapseGroup: "Grubu kapat",
     noModuleAccess: "Bu modül için erişiminiz yok.",
   },
+  salesReturns,
   supply,
   warehouse,
 };

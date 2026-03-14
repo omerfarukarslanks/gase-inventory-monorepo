@@ -409,6 +409,48 @@ const supply = {
   },
 };
 
+const salesReturns = {
+  blockers: {
+    activeStoreTitle: "Active store context required",
+    activeStoreDescription: "The returns center runs in the active store context for store-scoped users.",
+  },
+  title: "Returns Center",
+  subtitle: "Review sales returns from a single hub",
+  searchPlaceholder: "Search return no, receipt, customer or notes...",
+  loading: "Loading return records...",
+  loadError: "Return records could not be loaded.",
+  detailLoadError: "Return detail could not be loaded.",
+  readRequired: "Read permission is required to view returns.",
+  noResults: "No return records found.",
+  detailsTitle: "Return Detail",
+  detailsLoading: "Loading return detail...",
+  detailsNotFound: "Return record not found.",
+  returnNoLabel: "Return No",
+  saleLabel: "Sale",
+  storeLabel: "Store",
+  customerLabel: "Customer",
+  returnedAtLabel: "Returned At",
+  startDateLabel: "Start Date",
+  endDateLabel: "End Date",
+  lineCountLabel: "Lines",
+  totalRefundLabel: "Total Refund",
+  notesLabel: "Note",
+  notesEmpty: "No note.",
+  linesTitle: "Return Lines",
+  linesEmpty: "No return lines to display.",
+  quantityLabel: "Quantity",
+  refundAmountLabel: "Refund Amount",
+  packageReturnsLabel: "Package Variant Returns",
+  phoneLabel: "Phone",
+  emailLabel: "Email",
+  detailAction: "Details",
+  openSaleAction: "Open Sale",
+  productFallback: "Product",
+  variantFallback: "No variant info",
+  packageFallback: "Package",
+  packageLine: "Package line",
+};
+
 const en = {
   ...locales.en,
   common: {
@@ -418,6 +460,8 @@ const en = {
   nav: {
     ...locales.en.nav,
     supply: "Supply",
+    salesList: "Sales",
+    salesReturns: "Returns",
     supplySuggestions: "Suggestions",
     purchaseOrders: "Purchase Orders",
     receipts: "Goods Receipts",
@@ -450,6 +494,7 @@ const en = {
     collapseGroup: "Collapse group",
     noModuleAccess: "You do not have access to this module.",
   },
+  salesReturns,
   supply,
   warehouse,
 };

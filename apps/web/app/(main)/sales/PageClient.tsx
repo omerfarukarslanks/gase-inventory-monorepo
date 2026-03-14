@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useStores } from "@/hooks/useStores";
 import { useLang } from "@/context/LangContext";
@@ -31,18 +32,23 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PageShell } from "@/components/layout/PageShell";
 
 export default function SalesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t } = useLang();
   const viewportMode = useViewportMode();
   const isMobile = viewportMode === "mobile";
   const { can } = usePermissions();
   const canTenantOnly = can("TENANT_ONLY");
   const allStores = useStores();
-  const stores = canTenantOnly ? allStores : [];
 
   const [successMessage, setSuccessMessage] = useState("");
   const storeOptions = useMemo(
-    () => stores.filter((store) => store.isActive).map((store) => ({ value: store.id, label: store.name })),
-    [stores],
+    () =>
+      (canTenantOnly ? allStores : [])
+        .filter((store) => store.isActive)
+        .map((store) => ({ value: store.id, label: store.name })),
+    [allStores, canTenantOnly],
   );
 
   const scope = useSaleScope();
@@ -71,6 +77,7 @@ export default function SalesPage() {
   });
 
   const detail = useSaleDetail();
+  const closingSaleIdRef = useRef<string | null>(null);
 
   const lines = useSaleLines({
     isWholesaleStoreType: scope.isWholesaleStoreType,
@@ -87,6 +94,39 @@ export default function SalesPage() {
     onRefreshList: list.refetch,
     onSuccess: setSuccessMessage,
   });
+
+  const openSaleDetail = useCallback(
+    async (saleId: string, syncUrl = true) => {
+      await detail.openSaleDetailDialog(saleId);
+      if (syncUrl) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("saleId", saleId);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }
+    },
+    [detail, pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    const saleId = searchParams.get("saleId");
+    if (!saleId) {
+      closingSaleIdRef.current = null;
+      return;
+    }
+    if (closingSaleIdRef.current === saleId) return;
+    if (detail.saleDetailLoading) return;
+    if (detail.saleDetailOpen && detail.saleDetail?.id === saleId) return;
+    void openSaleDetail(saleId, false);
+  }, [detail.saleDetail?.id, detail.saleDetailLoading, detail.saleDetailOpen, openSaleDetail, searchParams]);
+
+  const closeSaleDetail = useCallback(() => {
+    closingSaleIdRef.current = detail.saleDetail?.id ?? searchParams.get("saleId");
+    detail.closeSaleDetailDialog();
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("saleId");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [detail, pathname, router, searchParams]);
 
   const footer =
     list.salesMeta && !list.salesLoading && !list.salesError ? (
@@ -158,7 +198,7 @@ export default function SalesPage() {
           salesLoading={list.salesLoading}
           salesError={list.salesError}
           onAddPayment={payment.openAddPaymentDrawer}
-          onOpenDetail={(id) => void detail.openSaleDetailDialog(id)}
+          onOpenDetail={(id) => void openSaleDetail(id)}
           onEdit={(sale) => void form.openEditDrawer(sale)}
           onOpenCancel={cancel.openCancelDialog}
           onReturn={(sale) => void ret.openReturnDrawer(sale)}
@@ -187,7 +227,7 @@ export default function SalesPage() {
           onAddPayment={payment.openAddPaymentDrawer}
           onEditPayment={payment.openEditPaymentDrawer}
           onDeletePayment={payment.openDeletePaymentDialog}
-          onOpenDetail={(id) => void detail.openSaleDetailDialog(id)}
+          onOpenDetail={(id) => void openSaleDetail(id)}
           onEdit={(sale) => void form.openEditDrawer(sale)}
           onOpenCancel={cancel.openCancelDialog}
           onReturn={(sale) => void ret.openReturnDrawer(sale)}
@@ -405,7 +445,7 @@ export default function SalesPage() {
         loading={detail.saleDetailLoading}
         error={detail.saleDetailError}
         detail={detail.saleDetail}
-        onClose={detail.closeSaleDetailDialog}
+        onClose={closeSaleDetail}
       />
 
       <SaleReturnDrawer
