@@ -58,8 +58,23 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     labelKey: "nav.stock",
     icon: "S",
     badge: "3",
-    permission: "STOCK_LIST_READ",
+    anyPermission: ["STOCK_LIST_READ", "STOCK_MOVEMENTS_READ"],
     bottomNav: true,
+    matchesRoute: ["/stock"],
+    children: [
+      {
+        key: "summary",
+        href: "/stock",
+        labelKey: "nav.stockSummary",
+        permission: "STOCK_LIST_READ",
+      },
+      {
+        key: "movements",
+        href: "/stock/movements",
+        labelKey: "nav.stockMovements",
+        permission: "STOCK_MOVEMENTS_READ",
+      },
+    ],
   },
   {
     key: "supply",
@@ -271,9 +286,24 @@ function matchesRoutePrefix(route: string, pathname: string): boolean {
   return pathname === route || pathname.startsWith(`${route}/`);
 }
 
+function getChildMatchScore(child: AppNavigationChild, pathname: string): number {
+  let score = 0;
+
+  if (matchesRoutePrefix(child.href, pathname)) {
+    score = Math.max(score, child.href.length);
+  }
+
+  child.matchesRoute?.forEach((route) => {
+    if (matchesRoutePrefix(route, pathname)) {
+      score = Math.max(score, route.length);
+    }
+  });
+
+  return score;
+}
+
 function matchesChildPath(child: AppNavigationChild, pathname: string): boolean {
-  if (matchesRoutePrefix(child.href, pathname)) return true;
-  return child.matchesRoute?.some((route) => matchesRoutePrefix(route, pathname)) ?? false;
+  return getChildMatchScore(child, pathname) > 0;
 }
 
 function canAccessRule(rule: NavigationAccessRule, permissions: string[], canSeePackages: boolean): boolean {
@@ -326,7 +356,10 @@ export function resolveNavigationChildByPath(
   const visibleChildren = getVisibleNavigationChildren(itemKey, permissions, canSeePackages);
   if (visibleChildren.length === 0) return undefined;
 
-  const matchedChild = visibleChildren.find((child) => matchesChildPath(child, pathname));
+  const matchedChild = visibleChildren
+    .map((child) => ({ child, score: getChildMatchScore(child, pathname) }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)[0]?.child;
   return matchedChild ?? visibleChildren[0];
 }
 

@@ -451,6 +451,42 @@ const salesReturns = {
   packageLine: "Package line",
 };
 
+const stockMovements = {
+  blockers: {
+    activeStoreTitle: "Active store context required",
+    activeStoreDescription: "Stock movements run in the active store context for store-scoped users.",
+  },
+  title: "Stock Movements",
+  subtitle: "Review stock in, out, transfer and adjustment history in one place",
+  searchPlaceholder: "Search by product, variant, warehouse, location or reference...",
+  loading: "Loading stock movements...",
+  loadError: "Stock movements could not be loaded.",
+  readRequired: "Read permission is required to view stock movements.",
+  noResults: "No stock movements found.",
+  productLabel: "Product",
+  typeLabel: "Type",
+  quantityLabel: "Quantity",
+  storeLabel: "Store",
+  warehouseLabel: "Warehouse",
+  locationLabel: "Location",
+  referenceLabel: "Reference",
+  reasonLabel: "Reason",
+  createdAtLabel: "Created At",
+  storePlaceholder: "Select store",
+  warehousePlaceholder: "All warehouses",
+  allWarehouses: "All warehouses",
+  typePlaceholder: "All types",
+  productFallback: "Product",
+  variantFallback: "No variant info",
+  types: {
+    ADJUSTMENT: "Adjustment",
+    TRANSFER_OUT: "Transfer Out",
+    TRANSFER_IN: "Transfer In",
+    OUT: "Out",
+    IN: "In",
+  },
+};
+
 const en = {
   ...locales.en,
   common: {
@@ -466,6 +502,8 @@ const en = {
     purchaseOrders: "Purchase Orders",
     receipts: "Goods Receipts",
     supplyRules: "Rules",
+    stockSummary: "Stock Summary",
+    stockMovements: "Movements",
     warehouse: "Warehouse",
     countSessions: "Count Sessions",
     warehouses: "Warehouses",
@@ -494,6 +532,7 @@ const en = {
     collapseGroup: "Collapse group",
     noModuleAccess: "You do not have access to this module.",
   },
+  stockMovements,
   salesReturns,
   supply,
   warehouse,

@@ -453,6 +453,42 @@ const salesReturns = {
   packageLine: "Paket satiri",
 };
 
+const stockMovements = {
+  blockers: {
+    activeStoreTitle: "Aktif Magaza Baglami Gerekli",
+    activeStoreDescription: "Stok hareketleri magaza kapsamli kullanicilar icin aktif magaza baglaminda calisir.",
+  },
+  title: "Stok Hareketleri",
+  subtitle: "Stok giris, cikis, transfer ve duzeltme kayitlarini tek merkezden inceleyin",
+  searchPlaceholder: "Urun, varyant, depo, lokasyon veya referans ara...",
+  loading: "Stok hareketleri yukleniyor...",
+  loadError: "Stok hareketleri yuklenemedi.",
+  readRequired: "Stok hareketlerini goruntulemek icin okuma yetkisi gerekli.",
+  noResults: "Gosterilecek stok hareketi bulunamadi.",
+  productLabel: "Urun",
+  typeLabel: "Hareket Tipi",
+  quantityLabel: "Miktar",
+  storeLabel: "Magaza",
+  warehouseLabel: "Depo",
+  locationLabel: "Lokasyon",
+  referenceLabel: "Referans",
+  reasonLabel: "Sebep",
+  createdAtLabel: "Tarih",
+  storePlaceholder: "Magaza secin",
+  warehousePlaceholder: "Tum Depolar",
+  allWarehouses: "Tum Depolar",
+  typePlaceholder: "Tum Tipler",
+  productFallback: "Urun",
+  variantFallback: "Varyant bilgisi yok",
+  types: {
+    ADJUSTMENT: "Duzeltme",
+    TRANSFER_OUT: "Transfer Cikis",
+    TRANSFER_IN: "Transfer Giris",
+    OUT: "Cikis",
+    IN: "Giris",
+  },
+};
+
 const tr = {
   ...locales.tr,
   common: {
@@ -468,6 +504,8 @@ const tr = {
     purchaseOrders: "Satin Alma Siparisleri",
     receipts: "Mal Kabul",
     supplyRules: "Ikmal Kurallari",
+    stockSummary: "Stok Ozeti",
+    stockMovements: "Hareketler",
     warehouse: "Depo",
     countSessions: "Sayim Oturumlari",
     warehouses: "Depolar",
@@ -496,6 +534,7 @@ const tr = {
     collapseGroup: "Grubu kapat",
     noModuleAccess: "Bu modül için erişiminiz yok.",
   },
+  stockMovements,
   salesReturns,
   supply,
   warehouse,
