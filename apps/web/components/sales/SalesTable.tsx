@@ -13,7 +13,6 @@ import {
   getPaymentStatusVariant,
   getSaleStatusLabel,
   getSaleStatusVariant,
-  getPaymentMethodLabel,
 } from "@/lib/status-labels";
 
 type SalesTableProps = {
@@ -26,6 +25,7 @@ type SalesTableProps = {
   paymentErrorBySaleId: Record<string, string>;
   onTogglePayments: (saleId: string) => void;
   onAddPayment: (saleId: string) => void;
+  onOpenPaymentCenter: (paymentId: string) => void;
   onEditPayment: (saleId: string, payment: SalePayment) => void;
   onDeletePayment: (saleId: string, payment: SalePayment) => void;
   onOpenDetail: (saleId: string) => void;
@@ -42,6 +42,7 @@ type SalesTableProps = {
   canDownloadReceipt?: boolean;
   canCreatePayments?: boolean;
   canUpdatePayments?: boolean;
+  canOpenPaymentCenter?: boolean;
   footer?: ReactNode;
 };
 
@@ -68,6 +69,7 @@ export default function SalesTable({
   paymentErrorBySaleId,
   onTogglePayments,
   onAddPayment,
+  onOpenPaymentCenter,
   onEditPayment,
   onDeletePayment,
   onOpenDetail,
@@ -84,6 +86,7 @@ export default function SalesTable({
   canDownloadReceipt = true,
   canCreatePayments = true,
   canUpdatePayments = true,
+  canOpenPaymentCenter = true,
   footer,
 }: SalesTableProps) {
   const { t } = useLang();
@@ -285,8 +288,10 @@ export default function SalesTable({
                               <VirtualSalePaymentsTable
                                 saleId={sale.id}
                                 payments={payments}
+                                onOpenPaymentCenter={onOpenPaymentCenter}
                                 onEditPayment={onEditPayment}
                                 onDeletePayment={onDeletePayment}
+                                canOpenPaymentCenter={canOpenPaymentCenter}
                                 canUpdatePayments={canUpdatePayments}
                               />
                             </div>

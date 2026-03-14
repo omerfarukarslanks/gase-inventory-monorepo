@@ -50,6 +50,12 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         labelKey: "nav.salesReturns",
         permission: "SALE_RETURN_READ",
       },
+      {
+        key: "payments",
+        href: "/sales/payments",
+        labelKey: "nav.salesPayments",
+        permission: "SALE_READ",
+      },
     ],
   },
   {

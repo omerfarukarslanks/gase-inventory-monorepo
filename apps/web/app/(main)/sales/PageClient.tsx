@@ -225,6 +225,7 @@ export default function SalesPage() {
           paymentErrorBySaleId={list.paymentErrorBySaleId}
           onTogglePayments={list.togglePaymentsCollapse}
           onAddPayment={payment.openAddPaymentDrawer}
+          onOpenPaymentCenter={(paymentId) => router.push(`/sales/payments?paymentId=${paymentId}`)}
           onEditPayment={payment.openEditPaymentDrawer}
           onDeletePayment={payment.openDeletePaymentDialog}
           onOpenDetail={(id) => void openSaleDetail(id)}
@@ -241,6 +242,7 @@ export default function SalesPage() {
           canDownloadReceipt={can("SALE_RECEIPT_READ")}
           canCreatePayments={can("SALE_PAYMENT_CREATE")}
           canUpdatePayments={can("SALE_PAYMENT_UPDATE")}
+          canOpenPaymentCenter={can("SALE_READ")}
           footer={footer}
         />
       )}

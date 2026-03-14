@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDate, formatPrice } from "@/lib/format";
-import { EditIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
+import { EditIcon, SearchIcon, TrashIcon } from "@/components/ui/icons/TableIcons";
 import type { SalePayment } from "@/lib/sales";
 import { useLang } from "@/context/LangContext";
 import { getPaymentStatusLabel, getPaymentMethodLabel } from "@/lib/status-labels";
@@ -10,8 +10,10 @@ import { getPaymentStatusLabel, getPaymentMethodLabel } from "@/lib/status-label
 type VirtualSalePaymentsTableProps = {
   saleId: string;
   payments: SalePayment[];
+  onOpenPaymentCenter: (paymentId: string) => void;
   onEditPayment: (saleId: string, payment: SalePayment) => void;
   onDeletePayment: (saleId: string, payment: SalePayment) => void;
+  canOpenPaymentCenter: boolean;
   canUpdatePayments: boolean;
 };
 
@@ -22,8 +24,10 @@ const OVERSCAN = 4;
 export function VirtualSalePaymentsTable({
   saleId,
   payments,
+  onOpenPaymentCenter,
   onEditPayment,
   onDeletePayment,
+  canOpenPaymentCenter,
   canUpdatePayments,
 }: VirtualSalePaymentsTableProps) {
   const { t } = useLang();
@@ -64,13 +68,24 @@ export function VirtualSalePaymentsTable({
                 <div className="px-3 py-2.5">{payment.currency ?? "-"}</div>
                 <div className="px-3 py-2.5">{formatDate(payment.cancelledAt ?? undefined)}</div>
                 <div className="flex items-center justify-end gap-1 px-3 py-2.5">
+                  {canOpenPaymentCenter ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPaymentCenter(payment.id)}
+                      className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                      aria-label={t("salesPayments.openInCenterAction")}
+                      title={t("salesPayments.openInCenterAction")}
+                    >
+                      <SearchIcon />
+                    </button>
+                  ) : null}
                   {canUpdatePayments && payment.status !== "CANCELLED" && (
                     <button
                       type="button"
                       onClick={() => onEditPayment(saleId, payment)}
                       className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                      aria-label="Odeme kaydini duzenle"
-                      title="Duzenle"
+                      aria-label={t("common.edit")}
+                      title={t("common.edit")}
                     >
                       <EditIcon />
                     </button>
@@ -80,8 +95,8 @@ export function VirtualSalePaymentsTable({
                       type="button"
                       onClick={() => onDeletePayment(saleId, payment)}
                       className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-error/10 hover:text-error"
-                      aria-label="Odeme kaydini sil"
-                      title="Sil"
+                      aria-label={t("common.delete")}
+                      title={t("common.delete")}
                     >
                       <TrashIcon />
                     </button>

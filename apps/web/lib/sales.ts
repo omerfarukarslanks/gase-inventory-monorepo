@@ -187,6 +187,49 @@ export type SalePayment = {
   amountInBaseCurrency?: number | null;
 };
 
+export type CentralSalePaymentListItem = {
+  id: string;
+  paymentReference?: string | null;
+  saleId?: string | null;
+  saleReference?: string | null;
+  customerName?: string | null;
+  store?: SaleReturnStoreRef | null;
+  paymentMethod?: PaymentMethod | string | null;
+  amount?: number | null;
+  currency?: Currency | string | null;
+  paidAt?: string | null;
+  status?: PaymentStatus | null;
+  note?: string | null;
+};
+
+export type CentralSalePaymentDetail = CentralSalePaymentListItem & {
+  exchangeRate?: number | null;
+  amountInBaseCurrency?: number | null;
+  cancelledAt?: string | null;
+  cancelledById?: string | null;
+};
+
+export type CentralSalePaymentsResponse = {
+  data: CentralSalePaymentListItem[];
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+  };
+};
+
+export type GetCentralSalePaymentsParams = {
+  page?: number;
+  limit?: number;
+  storeId?: string;
+  paymentMethod?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  q?: string;
+};
+
 export type SaleReturnStoreRef = {
   id: string;
   name?: string;
@@ -533,6 +576,54 @@ function normalizeSaleReturnPackageVariant(payload: unknown): SaleReturnPackageV
   };
 }
 
+function normalizeCentralSalePaymentBase(payload: unknown): CentralSalePaymentListItem | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const store = asObject(item.store);
+  const id = pickString(item.id);
+  if (!id) return null;
+
+  return {
+    id,
+    paymentReference: pickString(item.paymentReference) || null,
+    saleId: pickString(item.saleId) || null,
+    saleReference: pickString(item.saleReference) || null,
+    customerName: pickString(item.customerName) || null,
+    store: store
+      ? {
+          id: pickString(store.id, item.storeId),
+          name: pickString(store.name, item.storeName) || undefined,
+        }
+      : pickString(item.storeId)
+        ? {
+            id: pickString(item.storeId),
+            name: pickString(item.storeName) || undefined,
+          }
+        : null,
+    paymentMethod: (pickString(item.paymentMethod) || null) as PaymentMethod | string | null,
+    amount: pickNumberOrNull(item.amount),
+    currency: (pickString(item.currency) || null) as Currency | string | null,
+    paidAt: pickString(item.paidAt) || null,
+    status: (pickString(item.status) || null) as PaymentStatus | null,
+    note: pickString(item.note) || null,
+  };
+}
+
+function normalizeCentralSalePaymentDetail(payload: unknown): CentralSalePaymentDetail | null {
+  const base = normalizeCentralSalePaymentBase(payload);
+  const item = asObject(payload);
+  if (!base || !item) return null;
+
+  return {
+    ...base,
+    exchangeRate: pickNumberOrNull(item.exchangeRate),
+    amountInBaseCurrency: pickNumberOrNull(item.amountInBaseCurrency),
+    cancelledAt: pickString(item.cancelledAt) || null,
+    cancelledById: pickString(item.cancelledById) || null,
+  };
+}
+
 function normalizeSaleReturnLine(payload: unknown): SaleReturnLine | null {
   const item = asObject(payload);
   if (!item) return null;
@@ -655,6 +746,31 @@ function buildCentralSaleReturnsQuery({
   return query.toString();
 }
 
+function buildCentralSalePaymentsQuery({
+  page = 1,
+  limit = 10,
+  storeId,
+  paymentMethod,
+  status,
+  startDate,
+  endDate,
+  q,
+}: GetCentralSalePaymentsParams): string {
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  appendIfDefined(query, "storeId", storeId);
+  appendIfDefined(query, "paymentMethod", paymentMethod);
+  appendIfDefined(query, "status", status);
+  appendIfDefined(query, "startDate", startDate);
+  appendIfDefined(query, "endDate", endDate);
+  appendIfDefined(query, "q", q);
+
+  return query.toString();
+}
+
 export async function getCentralSaleReturns(
   params: GetCentralSaleReturnsParams,
 ): Promise<SaleReturnsListResponse> {
@@ -679,4 +795,30 @@ export async function getCentralSaleReturns(
 export async function getCentralSaleReturn(id: string): Promise<SaleReturnDetail | null> {
   const payload = await apiFetch<unknown>(`/sales/returns/${id}`);
   return normalizeSaleReturnDetail(payload);
+}
+
+export async function getCentralSalePayments(
+  params: GetCentralSalePaymentsParams,
+): Promise<CentralSalePaymentsResponse> {
+  const query = buildCentralSalePaymentsQuery(params);
+  const payload = await apiFetch<unknown>(`/sales/payments?${query}`);
+  const root = asObject(payload);
+  const rawItems = Array.isArray(root?.data) ? root.data : [];
+
+  return {
+    data: rawItems
+      .map((item) => normalizeCentralSalePaymentBase(item))
+      .filter((item): item is CentralSalePaymentListItem => Boolean(item)),
+    meta: {
+      total: getPaginationValue(payload, "total") || undefined,
+      page: getPaginationValue(payload, "page") || undefined,
+      limit: getPaginationValue(payload, "limit") || undefined,
+      totalPages: getPaginationValue(payload, "totalPages") || undefined,
+    },
+  };
+}
+
+export async function getCentralSalePayment(id: string): Promise<CentralSalePaymentDetail | null> {
+  const payload = await apiFetch<unknown>(`/sales/payments/${id}`);
+  return normalizeCentralSalePaymentDetail(payload);
 }
