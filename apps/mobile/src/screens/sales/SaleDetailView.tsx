@@ -11,7 +11,8 @@ import {
   StickyActionBar,
 } from "@/src/components/ui";
 import { mobileTheme } from "@/src/theme";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { formatCount, formatCurrency, formatDate } from "@/src/lib/format";
 import type { useSaleDetail } from "./hooks/useSaleDetail";
 import type { usePaymentEditor } from "./hooks/usePaymentEditor";
@@ -20,6 +21,10 @@ import type { useReturnSale } from "./hooks/useReturnSale";
 import { PaymentEditorModal } from "./modals/PaymentEditorModal";
 import { CancelSaleModal } from "./modals/CancelSaleModal";
 import { ReturnSaleModal } from "./modals/ReturnSaleModal";
+import { downloadSaleReceipt } from "@gase/core";
+import { useAuth } from "@/src/context/AuthContext";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 
 type SaleDetailViewProps = {
   detail: ReturnType<typeof useSaleDetail>;
@@ -48,6 +53,48 @@ export function SaleDetailView({
   onBack,
 }: SaleDetailViewProps) {
   const { data, payments, loading, error, remainingAmount } = detail;
+  const { token } = useAuth();
+  const [shareLoading, setShareLoading] = useState(false);
+
+  const shareReceipt = async () => {
+    if (!data?.id) return;
+    setShareLoading(true);
+    try {
+      const blob = await downloadSaleReceipt(data.id, token ?? undefined);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = (reader.result as string).split(",")[1];
+          const fileUri = `${FileSystem.cacheDirectory}fis-${data.receiptNo ?? data.id}.pdf`;
+          await FileSystem.writeAsStringAsync(fileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const canShare = await Sharing.isAvailableAsync();
+          if (canShare) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: "application/pdf",
+              dialogTitle: `Fis ${data.receiptNo ?? ""}`,
+              UTI: "com.adobe.pdf",
+            });
+          } else {
+            Alert.alert("Paylasim desteklenmiyor", "Cihaziniz dosya paylasimini desteklemiyor.");
+          }
+        } catch {
+          Alert.alert("Hata", "Fis paylasilamadi.");
+        } finally {
+          setShareLoading(false);
+        }
+      };
+      reader.onerror = () => {
+        Alert.alert("Hata", "Fis okunamadi.");
+        setShareLoading(false);
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      Alert.alert("Hata", "Fis indirilemedi.");
+      setShareLoading(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
@@ -162,6 +209,7 @@ export function SaleDetailView({
             onPress={() => paymentEditor.open(data.id, undefined, remainingAmount > 0 ? String(remainingAmount) : undefined)}
             variant="secondary"
           />
+          <Button label="Fis" onPress={() => void shareReceipt()} variant="ghost" loading={shareLoading} />
           <Button label="Iade" onPress={returnSale.prepare} variant="ghost" />
           <Button label="Iptal" onPress={cancelSale.openModal} variant="danger" />
         </StickyActionBar>

@@ -4,10 +4,14 @@ import {
   getPickingTasks,
   getPutawayTasks,
   getWarehouses,
+  getReplenishmentSuggestions,
+  getPurchaseOrders,
   type CountSession,
   type PickingTask,
   type PutawayTask,
   type Warehouse,
+  type ReplenishmentSuggestion,
+  type PurchaseOrder,
 } from "@gase/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -83,6 +87,47 @@ function useWarehouseSummary(isActive: boolean) {
   return { data, loading, error, reload: load };
 }
 
+// ─── Supply summary state ──────────────────────────────────────────────────
+
+type SupplySummary = {
+  suggestions: ReplenishmentSuggestion[];
+  purchaseOrders: PurchaseOrder[];
+};
+
+function useSupplySummary(isActive: boolean) {
+  const [data, setData] = useState<SupplySummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [suggestionsRes, ordersRes] = await Promise.all([
+        getReplenishmentSuggestions({ status: "PENDING", limit: 20 }),
+        getPurchaseOrders({ limit: 20 }),
+      ]);
+      setData({
+        suggestions: suggestionsRes.data ?? [],
+        purchaseOrders: (ordersRes.data ?? []).filter(
+          (po) => po.status === "DRAFT" || po.status === "APPROVED" || po.status === "PARTIALLY_RECEIVED",
+        ),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tedarik verileri yuklenemedi.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isActive) return;
+    void load();
+  }, [isActive, load]);
+
+  return { data, loading, error, reload: load };
+}
+
 // ─── Main Screen ───────────────────────────────────────────────────────────
 
 export default function TasksScreen({
@@ -93,6 +138,7 @@ export default function TasksScreen({
 }: TasksScreenProps) {
   const [segment, setSegment] = useState<TasksSegment>("pending");
   const warehouse = useWarehouseSummary(isActive && segment === "warehouse");
+  const supply = useSupplySummary(isActive && segment === "supply");
 
   const segments = useMemo<SegmentItem[]>(() => {
     const items: SegmentItem[] = [{ key: "pending", label: "Bekleyen" }];
@@ -125,10 +171,11 @@ export default function TasksScreen({
 
       case "supply":
         return (
-          <PlaceholderView
-            icon="truck-delivery-outline"
-            title="Tedarik islemleri"
-            subtitle="Ikmal onerileri, satin alma siparisleri ve mal kabul burada listelenecek"
+          <SupplySummaryView
+            data={supply.data}
+            loading={supply.loading}
+            error={supply.error}
+            onReload={() => void supply.reload()}
           />
         );
 
@@ -329,6 +376,168 @@ function StatusBadge({ status }: { status: string }) {
     <View style={[styles.statusBadge, { borderColor: color }]}>
       <Text style={[styles.statusText, { color }]}>{label}</Text>
     </View>
+  );
+}
+
+// ─── Supply Summary View ───────────────────────────────────────────────────
+
+type SupplySummaryViewProps = {
+  data: SupplySummary | null;
+  loading: boolean;
+  error: string;
+  onReload: () => void;
+};
+
+const PO_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Taslak",
+  APPROVED: "Onaylandi",
+  PARTIALLY_RECEIVED: "Kismen Alindi",
+  RECEIVED: "Teslim Alindi",
+  CANCELLED: "Iptal",
+};
+
+const PO_STATUS_COLORS: Record<string, string> = {
+  DRAFT: "#F59E0B",
+  APPROVED: "#10B981",
+  PARTIALLY_RECEIVED: "#3B82F6",
+  RECEIVED: "#10B981",
+  CANCELLED: colors.muted,
+};
+
+function SupplySummaryView({ data, loading, error, onReload }: SupplySummaryViewProps) {
+  if (loading) {
+    return (
+      <View style={styles.summaryLoading}>
+        <SkeletonBlock height={88} />
+        <SkeletonBlock height={120} />
+        <SkeletonBlock height={120} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.summaryLoading}>
+        <Banner text={error} />
+        <Button label="Tekrar dene" onPress={onReload} variant="secondary" size="sm" fullWidth={false} />
+      </View>
+    );
+  }
+
+  if (!data) return null;
+
+  const pendingCount = data.suggestions.length;
+  const activePoCount = data.purchaseOrders.length;
+
+  return (
+    <ScrollView
+      style={styles.summaryScroll}
+      contentContainerStyle={styles.summaryContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <ScreenHeader
+        title="Tedarik durumu"
+        subtitle={`${pendingCount} ikmal oneri, ${activePoCount} aktif siparis`}
+        action={
+          <Button label="Yenile" onPress={onReload} variant="secondary" size="sm" fullWidth={false} />
+        }
+      />
+
+      {/* Stat cards */}
+      <View style={styles.statsRow}>
+        <StatCard
+          icon="alert-circle-outline"
+          label="Bekleyen ikmal"
+          count={pendingCount}
+          total={pendingCount}
+          color="#F59E0B"
+        />
+        <StatCard
+          icon="file-document-outline"
+          label="Aktif siparis"
+          count={activePoCount}
+          total={activePoCount}
+          color="#3B82F6"
+        />
+      </View>
+
+      {/* Pending replenishment suggestions */}
+      {pendingCount > 0 && (
+        <Card>
+          <Text style={styles.cardTitle}>Bekleyen ikmal onerileri</Text>
+          {data.suggestions.slice(0, 5).map((s) => (
+            <View key={s.id} style={styles.sessionRow}>
+              <View style={[styles.sessionDot, { backgroundColor: "#F59E0B" }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sessionName} numberOfLines={1}>
+                  {s.rule?.productName ?? "Urun"}
+                  {s.rule?.variantName ? ` — ${s.rule.variantName}` : ""}
+                </Text>
+                <Text style={styles.statTotal}>
+                  Mevcut: {s.currentQuantity} → Hedef: {s.rule?.targetStock ?? s.suggestedQuantity}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { borderColor: "#F59E0B" }]}>
+                <Text style={[styles.statusText, { color: "#F59E0B" }]}>
+                  +{s.suggestedQuantity}
+                </Text>
+              </View>
+            </View>
+          ))}
+          {pendingCount > 5 && (
+            <Text style={[styles.statTotal, { textAlign: "center", paddingTop: 8 }]}>
+              +{pendingCount - 5} daha
+            </Text>
+          )}
+        </Card>
+      )}
+
+      {/* Active purchase orders */}
+      {activePoCount > 0 && (
+        <Card>
+          <Text style={styles.cardTitle}>Aktif satin alma siparisleri</Text>
+          {data.purchaseOrders.slice(0, 5).map((po) => {
+            const statusColor = PO_STATUS_COLORS[po.status] ?? colors.muted;
+            return (
+              <View key={po.id} style={styles.sessionRow}>
+                <View style={[styles.sessionDot, { backgroundColor: statusColor }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sessionName} numberOfLines={1}>
+                    {po.supplierName ?? "Tedarikci"}
+                  </Text>
+                  <Text style={styles.statTotal}>
+                    {po.lines?.length ?? 0} kalem
+                    {po.expectedAt ? ` · ${po.expectedAt.slice(0, 10)}` : ""}
+                  </Text>
+                </View>
+                <View style={[styles.statusBadge, { borderColor: statusColor }]}>
+                  <Text style={[styles.statusText, { color: statusColor }]}>
+                    {PO_STATUS_LABELS[po.status] ?? po.status}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+          {activePoCount > 5 && (
+            <Text style={[styles.statTotal, { textAlign: "center", paddingTop: 8 }]}>
+              +{activePoCount - 5} daha
+            </Text>
+          )}
+        </Card>
+      )}
+
+      {pendingCount === 0 && activePoCount === 0 && (
+        <View style={styles.placeholder}>
+          <View style={styles.placeholderIcon}>
+            <MaterialCommunityIcons name="truck-check-outline" size={40} color={colors.muted} />
+          </View>
+          <Text style={styles.placeholderTitle}>Bekleyen islem yok</Text>
+          <Text style={styles.placeholderSubtitle}>
+            Tum ikmal onerileri ve satin alma siparisleri tamamlandi.
+          </Text>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 

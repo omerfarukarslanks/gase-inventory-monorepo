@@ -132,6 +132,11 @@ export default function SalesScreen({ isActive = true, request }: SalesScreenPro
     );
   }
 
+  const openDetail = (saleId: string) => {
+    setView("detail");
+    void detail.open(saleId);
+  };
+
   // Show segment control only in list view (not detail/compose)
   if (segment === "payments" && canViewPayments) {
     return (
@@ -139,7 +144,7 @@ export default function SalesScreen({ isActive = true, request }: SalesScreenPro
         <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
           <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as SalesSegment)} />
         </View>
-        <PaymentsListView isActive={isActive} />
+        <PaymentsListView isActive={isActive} onOpenSaleDetail={openDetail} />
       </View>
     );
   }
@@ -150,7 +155,7 @@ export default function SalesScreen({ isActive = true, request }: SalesScreenPro
         <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
           <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as SalesSegment)} />
         </View>
-        <ReturnsListView isActive={isActive} />
+        <ReturnsListView isActive={isActive} onOpenSaleDetail={openDetail} />
       </View>
     );
   }

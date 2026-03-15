@@ -20,3 +20,5 @@ export * from "./suppliers";
 export * from "./users";
 export * from "./validation";
 export * from "./warehouse";
+export * from "./replenishment";
+export * from "./procurement";
