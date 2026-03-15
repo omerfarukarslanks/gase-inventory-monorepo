@@ -1,5 +1,12 @@
-import { getSessionUserStoreType, type PermissionName } from "@gase/core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getCountSessions,
+  getPickingTasks,
+  getPutawayTasks,
+  getWarehouses,
+  getSessionUserStoreType,
+  type PermissionName,
+} from "@gase/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/src/context/AuthContext";
 import type {
   CustomersRequest,
@@ -92,6 +99,41 @@ export function useShellNavigation() {
   const [stockRequest, setStockRequest] = useState<RequestEnvelope<StockRequest> | null>(null);
   const [customersRequest, setCustomersRequest] = useState<RequestEnvelope<CustomersRequest> | null>(null);
   const [tasksRequest, setTasksRequest] = useState<RequestEnvelope<TasksRequest> | null>(null);
+  const [tasksBadge, setTasksBadge] = useState<number | undefined>(undefined);
+
+  // Load pending task count for badge — runs once on auth, refreshes every 5 min
+  const loadTasksBadge = useCallback(async () => {
+    if (!canViewWarehouse) return;
+    try {
+      const warehouses = await getWarehouses();
+      const firstId = warehouses[0]?.id;
+      const [sessions, putaway, picking] = await Promise.all([
+        getCountSessions(),
+        firstId ? getPutawayTasks({ warehouseId: firstId }) : Promise.resolve([]),
+        firstId ? getPickingTasks({ warehouseId: firstId }) : Promise.resolve([]),
+      ]);
+      const openSessions = sessions.filter(
+        (s) => s.status === "OPEN" || s.status === "IN_PROGRESS",
+      ).length;
+      const pendingPutaway = putaway.filter(
+        (t) => t.status === "PENDING" || t.status === "IN_PROGRESS",
+      ).length;
+      const pendingPicking = picking.filter(
+        (t) => t.status === "PENDING" || t.status === "IN_PROGRESS",
+      ).length;
+      const total = openSessions + pendingPutaway + pendingPicking;
+      setTasksBadge(total > 0 ? total : undefined);
+    } catch {
+      // Silently ignore badge load errors
+    }
+  }, [canViewWarehouse]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    void loadTasksBadge();
+    const interval = setInterval(() => void loadTasksBadge(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [status, loadTasksBadge]);
 
   const visibleTabs = useMemo(
     () =>
@@ -100,8 +142,8 @@ export function useShellNavigation() {
           return item.anyPermission.some((perm) => permissions.includes(perm));
         }
         return !item.permission || permissions.includes(item.permission);
-      }),
-    [permissions],
+      }).map((item) => (item.key === "tasks" ? { ...item, badge: tasksBadge } : item)),
+    [permissions, tasksBadge],
   );
 
   // Permission guard: reset tab if user loses access

@@ -75,6 +75,7 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
           isActive={tab === "tasks"}
           canViewWarehouse={nav.canViewWarehouse}
           canViewSupply={nav.canViewSupply}
+          onNavigateToWarehouse={() => nav.setTab("warehouse")}
         />
       );
     case "more":
