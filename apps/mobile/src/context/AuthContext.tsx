@@ -77,7 +77,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
 
     try {
-      const nextUser = await getMe(persisted.token);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("session_check_timeout")), 8000),
+      );
+      const nextUser = await Promise.race([getMe(persisted.token), timeoutPromise]);
       await writePersistedSession(persisted.token, nextUser);
       setToken(persisted.token);
       setUser(nextUser);
