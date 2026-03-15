@@ -5,3 +5,4 @@ export * from "./modals";
 export * from "./metrics";
 export * from "./lists";
 export * from "./ComposerStepIndicator";
+export * from "./BarcodeScannerSheet";

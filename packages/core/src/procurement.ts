@@ -194,3 +194,114 @@ export async function cancelPurchaseOrder(
 ): Promise<{ id: string; status: PurchaseOrderStatus }> {
   return apiFetch(`/procurement/purchase-orders/${id}/cancel`, { method: "PATCH" });
 }
+
+// ─── Goods Receipts ──────────────────────────────────────────────────────────
+
+export type GoodsReceiptLine = {
+  id: string;
+  purchaseOrderLineId: string;
+  productName?: string | null;
+  variantName?: string | null;
+  quantity: number;
+  lotNumber?: string | null;
+  expiryDate?: string | null;
+};
+
+export type GoodsReceipt = {
+  id: string;
+  purchaseOrderId: string;
+  storeId?: string | null;
+  warehouseId?: string | null;
+  notes?: string | null;
+  receivedAt?: string | null;
+  createdAt?: string | null;
+  lines: GoodsReceiptLine[];
+};
+
+export type CreateGoodsReceiptLinePayload = {
+  purchaseOrderLineId: string;
+  quantity: number;
+  lotNumber?: string;
+  expiryDate?: string;
+};
+
+export type CreateGoodsReceiptPayload = {
+  lines: CreateGoodsReceiptLinePayload[];
+  notes?: string;
+  receivedAt?: string;
+};
+
+function normalizeGoodsReceiptLine(payload: unknown): GoodsReceiptLine | null {
+  const item = asObject(payload);
+  if (!item) return null;
+  const id = pickString(item.id);
+  const purchaseOrderLineId = pickString(item.purchaseOrderLineId, item.poLineId);
+  if (!id || !purchaseOrderLineId) return null;
+  const variant = asObject(item.productVariant) ?? asObject(item.variant);
+  return {
+    id,
+    purchaseOrderLineId,
+    productName: pickString(item.productName) || null,
+    variantName: pickString(item.variantName, variant?.name) || null,
+    quantity: pickNumber(item.quantity),
+    lotNumber: pickString(item.lotNumber) || null,
+    expiryDate: pickString(item.expiryDate) || null,
+  };
+}
+
+function normalizeGoodsReceipt(payload: unknown): GoodsReceipt | null {
+  const root = asObject(payload);
+  if (!root) return null;
+  const id = pickString(root.id);
+  const purchaseOrderId = pickString(root.purchaseOrderId, root.poId);
+  if (!id || !purchaseOrderId) return null;
+  const lines = Array.isArray(root.lines)
+    ? root.lines
+        .map((l) => normalizeGoodsReceiptLine(l))
+        .filter((l): l is GoodsReceiptLine => Boolean(l))
+    : [];
+  return {
+    id,
+    purchaseOrderId,
+    storeId: pickString(root.storeId) || null,
+    warehouseId: pickString(root.warehouseId) || null,
+    notes: pickString(root.notes) || null,
+    receivedAt: pickString(root.receivedAt) || null,
+    createdAt: pickString(root.createdAt) || null,
+    lines,
+  };
+}
+
+/**
+ * Record a goods receipt (mal kabul) for a purchase order.
+ */
+export async function createPurchaseOrderReceipt(
+  purchaseOrderId: string,
+  payload: CreateGoodsReceiptPayload,
+): Promise<GoodsReceipt> {
+  const response = await apiFetch<unknown>(
+    `/procurement/purchase-orders/${purchaseOrderId}/receipts`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+  return normalizeGoodsReceipt(response) ?? {
+    id: "",
+    purchaseOrderId,
+    lines: [],
+  };
+}
+
+/**
+ * List all receipts for a given purchase order.
+ */
+export async function getPurchaseOrderReceipts(
+  purchaseOrderId: string,
+): Promise<GoodsReceipt[]> {
+  const response = await apiFetch<unknown>(
+    `/procurement/purchase-orders/${purchaseOrderId}/receipts`,
+  );
+  const root = asObject(response);
+  const rawItems = Array.isArray(root?.data) ? root.data : Array.isArray(response) ? response : [];
+  return rawItems
+    .map((item) => normalizeGoodsReceipt(item))
+    .filter((item): item is GoodsReceipt => Boolean(item));
+}

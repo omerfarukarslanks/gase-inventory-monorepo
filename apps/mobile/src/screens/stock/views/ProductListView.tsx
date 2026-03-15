@@ -9,6 +9,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
+  BarcodeScannerButton,
   Button,
   Card,
   EmptyStateWithAction,
@@ -155,11 +156,16 @@ export function ProductListView({
 
         <Card>
           <View style={styles.filterStack}>
-            <SearchBar
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Urun, varyant veya barkod ara"
-            />
+            <View style={styles.searchRow}>
+              <View style={styles.searchFlex}>
+                <SearchBar
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Urun, varyant veya barkod ara"
+                />
+              </View>
+              <BarcodeScannerButton onScanned={setSearch} />
+            </View>
             <FilterTabs value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} />
             <Button
               label={`Magaza: ${selectedStoreName}`}
@@ -376,6 +382,12 @@ const styles = StyleSheet.create({
   filterStack: {
     gap: 12,
   },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  searchFlex: { flex: 1 },
   listWrap: {
     flex: 1,
     paddingHorizontal: 20,
