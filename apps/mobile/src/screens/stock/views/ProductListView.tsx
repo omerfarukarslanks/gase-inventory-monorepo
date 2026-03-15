@@ -5,7 +5,7 @@ import {
   type Store,
   type Supplier,
 } from "@gase/core";
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
@@ -87,6 +87,7 @@ type ProductListViewProps = {
   submitting: boolean;
   canSubmit: boolean;
   onSubmit: () => Promise<void>;
+  segmentControl?: ReactNode;
 };
 
 export function ProductListView({
@@ -138,10 +139,12 @@ export function ProductListView({
   submitting,
   canSubmit,
   onSubmit,
+  segmentControl,
 }: ProductListViewProps) {
   return (
     <View style={styles.screen}>
       <View style={styles.screenContent}>
+        {segmentControl}
         <ScreenHeader
           title="Stok"
           subtitle="Urunu sec, varyanti ac, sonra operasyonu baslat"

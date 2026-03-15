@@ -531,6 +531,110 @@ const salesPayments = {
   openInCenterAction: "Tahsilatta Ac",
 };
 
+const reportsDirectory = {
+  center: {
+    title: "Rapor Merkezi",
+    description: "Satis, stok, finans ve performans raporlarini tek merkezden yonetin.",
+    overviewTitle: "Hazir analitik akislari",
+    overviewDescription: "Tum rapor rotalari ortak filtre, export ve AI yorum katmanlari altinda gruplandi.",
+    aiTitle: "AI Copilot",
+    aiDescription: "Mevcut rapor baglamini kullanarak yorum, ozet ve aksiyon onerisi alin.",
+    noAccess: "Bu rapor kategorisine erisim yetkiniz yok.",
+  },
+  actions: {
+    openCategory: "Kategoriyi Ac",
+    backToCenter: "Rapor Merkezine Don",
+  },
+  categories: {
+    sales: {
+      title: "Satis Raporlari",
+      description: "Ciro, iptal, urun performansi ve indirim gorunurlugu.",
+    },
+    inventory: {
+      title: "Stok ve Depo",
+      description: "Stok seviyesi, olu stok, hareket ve devir hizi analizi.",
+    },
+    procurement: {
+      title: "Tedarik",
+      description: "Tedarikci odakli satin alma ve satis performansi gorunurlugu.",
+    },
+    finance: {
+      title: "Finans",
+      description: "Marj, vergi ve finansal saglik raporlari.",
+    },
+    performance: {
+      title: "Performans",
+      description: "Magaza, calisan ve musteri performansi takibi.",
+    },
+  },
+  items: {
+    salesSummary: {
+      title: "Satis Ozeti",
+      description: "Toplam satis, onay ve ciro ozetleri.",
+    },
+    cancellations: {
+      title: "Iptal Raporlari",
+      description: "Iptal edilen fisler ve iptal tutarlari.",
+    },
+    productPerformance: {
+      title: "Urun Performansi",
+      description: "Satis siralamasi ve gelir performansi.",
+    },
+    revenueTrend: {
+      title: "Gelir Trendi",
+      description: "Donem bazli gelir degisimi ve trend analizi.",
+    },
+    discountSummary: {
+      title: "Indirim Ozeti",
+      description: "Kampanya ve magaza bazli indirim etkisi.",
+    },
+    stockSummary: {
+      title: "Stok Ozeti",
+      description: "Urun, varyant ve magaza stok dagilimi.",
+    },
+    lowStock: {
+      title: "Dusuk Stok",
+      description: "Esik altindaki varyantlar.",
+    },
+    deadStock: {
+      title: "Olu Stok",
+      description: "Uzun suredir satilmayan urunler.",
+    },
+    inventoryMovements: {
+      title: "Stok Hareketleri",
+      description: "Giris, cikis ve transfer hareket ozetleri.",
+    },
+    turnover: {
+      title: "Stok Devir Hizi",
+      description: "Devir hizi ve tedarik yeterliligi.",
+    },
+    supplierPerformance: {
+      title: "Tedarikci Performansi",
+      description: "Tedarikci bazli satis ve ciro analizi.",
+    },
+    profitMargin: {
+      title: "Kar Marji",
+      description: "Urun bazli marj ve brut kar gorunurlugu.",
+    },
+    vatSummary: {
+      title: "KDV Ozeti",
+      description: "Aylik vergi ve brut toplam ozeti.",
+    },
+    storePerformance: {
+      title: "Magaza Performansi",
+      description: "Magazalar arasi satis karsilastirmasi ve trendler.",
+    },
+    employeePerformance: {
+      title: "Calisan Performansi",
+      description: "Calisan bazli satis etkinligi ve katkisi.",
+    },
+    customers: {
+      title: "Musteri Analizi",
+      description: "En degerli musteriler ve harcama dagilimi.",
+    },
+  },
+};
+
 const tr = {
   ...locales.tr,
   common: {
@@ -561,6 +665,12 @@ const tr = {
     approvalHistory: "Gecmis",
     catalog: "Katalog",
     settings: "Ayarlar",
+    reportCenter: "Rapor Merkezi",
+    salesReports: "Satis Raporlari",
+    inventoryReports: "Stok ve Depo",
+    procurementReports: "Tedarik",
+    financeReports: "Finans",
+    performanceReports: "Performans",
   },
   shell: {
     activeStore: "Aktif Magaza",
@@ -580,6 +690,7 @@ const tr = {
   stockMovements,
   salesPayments,
   salesReturns,
+  reportsDirectory,
   supply,
   warehouse,
 };

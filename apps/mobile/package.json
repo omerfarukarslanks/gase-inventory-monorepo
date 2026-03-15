@@ -4,20 +4,21 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "react-native start",
-    "android": "react-native run-android",
+    "start": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR\" && react-native start --projectRoot \"$APP_DIR\" --config \"$APP_DIR/metro.config.js\"",
+    "android": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR\" && react-native run-android --mode dev",
+    "android:native-debug": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR/android\" && ./gradlew installDebug",
+    "android:dev-debug": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR/android\" && ./gradlew installDev",
+    "android:release": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR/android\" && ./gradlew assembleRelease",
     "lint": "eslint .",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "ios": "APP_DIR=$(dirname \"$npm_package_json\"); cd \"$APP_DIR\" && expo run:ios"
   },
   "dependencies": {
     "@gase/core": "*",
     "@gase/design-tokens": "*",
     "@gase/i18n": "*",
-    "@expo/metro-runtime": "^6.1.2",
     "expo": "^54.0.0",
-    "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
-    "expo-status-bar": "~3.0.9",
     "nativewind": "^4.1.23",
     "react": "19.1.0",
     "react-native": "0.81.5",
@@ -25,9 +26,11 @@
     "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
+    "@react-native-community/cli": "latest",
+    "@react-native/metro-config": "^0.81.5",
+    "@types/react": "~19.1.10",
     "eslint": "^9.17.0",
     "eslint-config-expo": "~10.0.0",
-    "@types/react": "~19.1.10",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"
   }

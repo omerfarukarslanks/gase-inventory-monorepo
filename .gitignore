@@ -11,12 +11,15 @@ apps/*/.expo
 apps/*/.env.local
 apps/*/dist
 apps/*/coverage
-
+apps/*/android
+apps/*/ios
+apps/*/build
+apps/*/build-*
+apps/*/.idea
 .expo/*
 .idea/*
 
 *.md
-
 .package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -26,3 +29,8 @@ pnpm-lock.yaml
 packages/*/node_modules
 
 *.tsbuildinfo
+!AGENTS.md
+!.skills/
+!.skills/**/
+!.skills/**/*.md
+!.skills/**/*.yaml

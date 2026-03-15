@@ -266,6 +266,99 @@ export function InlineFieldError({ text }: { text?: string | null }) {
   return <Text style={styles.fieldHelperError}>{text}</Text>;
 }
 
+// ─── SegmentedControl ─────────────────────────────────────────────────────
+
+export type SegmentItem = {
+  key: string;
+  label: string;
+  badge?: number;
+};
+
+export function SegmentedControl({
+  segments,
+  activeKey,
+  onChange,
+}: {
+  segments: SegmentItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+}) {
+  if (segments.length < 2) return null;
+
+  return (
+    <View style={segStyles.container} accessibilityRole="tablist">
+      {segments.map((seg) => {
+        const active = seg.key === activeKey;
+        return (
+          <Pressable
+            key={seg.key}
+            onPress={() => onChange(seg.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={seg.label}
+            style={[segStyles.tab, active && segStyles.tabActive]}
+          >
+            <Text style={[segStyles.tabLabel, active && segStyles.tabLabelActive]}>
+              {seg.label}
+            </Text>
+            {seg.badge != null && seg.badge > 0 ? (
+              <View style={segStyles.badge}>
+                <Text style={segStyles.badgeText}>
+                  {seg.badge > 99 ? "99+" : String(seg.badge)}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    padding: 3,
+    gap: 2,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  tabActive: {
+    backgroundColor: brand.primary,
+  },
+  tabLabel: {
+    color: colors.text2,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  tabLabelActive: {
+    color: "#FFFFFF",
+  },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: brand.error,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+});
+
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({

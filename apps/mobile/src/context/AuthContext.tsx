@@ -89,7 +89,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     configureApiClient({
-      baseUrl: apiBaseUrl,
+      baseUrl: apiBaseUrl ?? "http://192.168.1.100:8080",
       getToken: readAccessToken,
       onUnauthorized: clearSession,
     });

@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   AppScreen,
   Banner,
@@ -36,7 +35,6 @@ export default function DashboardScreen({
   onOpenStockFocus,
 }: DashboardScreenProps = {}) {
   const { user } = useAuth();
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const {
     state,
@@ -210,12 +208,12 @@ export default function DashboardScreen({
         {quickActionButtons}
       </Card>
 
-      {/* ─── Hero Metrics + Detailed Metrics + Charts ──────────────────────── */}
+      {/* ─── Metrics ───────────────────────────────────────────────────────── */}
       <DashboardMetricsSection
         state={state}
         heroMetrics={heroMetrics}
         detailMetrics={detailMetrics}
-        detailsExpanded={detailsExpanded}
+        detailsExpanded={true}
         onOpenSalesComposer={onOpenSalesComposer}
         onOpenProducts={onOpenProducts}
       />
@@ -227,21 +225,6 @@ export default function DashboardScreen({
         onOpenSaleDetail={onOpenSaleDetail}
         onOpenStockFocus={onOpenStockFocus}
       />
-
-      {/* ─── Detailed View Toggle ──────────────────────────────────────────── */}
-      <Pressable
-        onPress={() => setDetailsExpanded((prev) => !prev)}
-        style={styles.detailsToggle}
-      >
-        <Text style={styles.detailsToggleLabel}>
-          {detailsExpanded ? "Ozet gorünume don" : "Ayrintili gorunum"}
-        </Text>
-        <MaterialCommunityIcons
-          name={detailsExpanded ? "chevron-up" : "chevron-down"}
-          size={18}
-          color={mobileTheme.colors.dark.text2}
-        />
-      </Pressable>
     </AppScreen>
   );
 }
@@ -250,17 +233,5 @@ const styles = StyleSheet.create({
   quickActions: {
     marginTop: 12,
     gap: 10,
-  },
-  detailsToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-  },
-  detailsToggleLabel: {
-    color: mobileTheme.colors.dark.text2,
-    fontSize: 13,
-    fontWeight: "500",
   },
 });

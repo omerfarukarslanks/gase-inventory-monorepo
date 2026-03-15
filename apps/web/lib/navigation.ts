@@ -8,6 +8,39 @@ type NavigationAccessRule = {
   requiresWholesale?: boolean;
 };
 
+const REPORT_PERMISSION_SET: PermissionName[] = [
+  "REPORT_SALES_READ",
+  "REPORT_STOCK_READ",
+  "REPORT_FINANCIAL_READ",
+  "REPORT_EMPLOYEE_READ",
+  "REPORT_CUSTOMER_READ",
+  "REPORT_INVENTORY_READ",
+];
+
+const REPORT_SALES_MATCHES = [
+  "/reports/sales-summary",
+  "/reports/cancellations",
+  "/reports/product-performance",
+  "/reports/revenue-trend",
+  "/reports/discount-summary",
+];
+
+const REPORT_INVENTORY_MATCHES = [
+  "/reports/stock-summary",
+  "/reports/low-stock",
+  "/reports/dead-stock",
+  "/reports/inventory-movements",
+  "/reports/turnover",
+];
+
+const REPORT_PROCUREMENT_MATCHES = ["/reports/supplier-performance"];
+const REPORT_FINANCE_MATCHES = ["/reports/profit-margin", "/reports/vat-summary"];
+const REPORT_PERFORMANCE_MATCHES = [
+  "/reports/store-performance",
+  "/reports/employee-performance",
+  "/reports/customers",
+];
+
 export type AppNavigationChild = NavigationAccessRule & {
   key: string;
   href: string;
@@ -224,8 +257,52 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
     href: "/reports",
     labelKey: "nav.reports",
     icon: "R",
-    anyPermission: ["REPORT_SALES_READ", "REPORT_STOCK_READ", "REPORT_FINANCIAL_READ"],
+    anyPermission: REPORT_PERMISSION_SET,
     bottomNav: true,
+    matchesRoute: ["/reports"],
+    children: [
+      {
+        key: "center",
+        href: "/reports",
+        labelKey: "nav.reportCenter",
+        anyPermission: REPORT_PERMISSION_SET,
+      },
+      {
+        key: "sales",
+        href: "/reports/sales",
+        labelKey: "nav.salesReports",
+        anyPermission: ["REPORT_SALES_READ", "REPORT_FINANCIAL_READ"],
+        matchesRoute: REPORT_SALES_MATCHES,
+      },
+      {
+        key: "inventory",
+        href: "/reports/inventory",
+        labelKey: "nav.inventoryReports",
+        anyPermission: ["REPORT_STOCK_READ", "REPORT_INVENTORY_READ"],
+        matchesRoute: REPORT_INVENTORY_MATCHES,
+      },
+      {
+        key: "procurement",
+        href: "/reports/procurement",
+        labelKey: "nav.procurementReports",
+        permission: "REPORT_SALES_READ",
+        matchesRoute: REPORT_PROCUREMENT_MATCHES,
+      },
+      {
+        key: "finance",
+        href: "/reports/finance",
+        labelKey: "nav.financeReports",
+        permission: "REPORT_FINANCIAL_READ",
+        matchesRoute: REPORT_FINANCE_MATCHES,
+      },
+      {
+        key: "performance",
+        href: "/reports/performance",
+        labelKey: "nav.performanceReports",
+        anyPermission: ["REPORT_SALES_READ", "REPORT_EMPLOYEE_READ", "REPORT_CUSTOMER_READ"],
+        matchesRoute: REPORT_PERFORMANCE_MATCHES,
+      },
+    ],
   },
   {
     key: "approvals",

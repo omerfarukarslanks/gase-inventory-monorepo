@@ -9,12 +9,14 @@ type CustomersScreenProps = {
   isActive?: boolean;
   request?: RequestEnvelope<CustomersRequest> | null;
   onStartSale?: (seed?: SalesDraftSeed) => void;
+  onBack?: () => void;
 };
 
 export default function CustomersScreen({
   isActive = true,
   onStartSale,
   request,
+  onBack,
 }: CustomersScreenProps = {}) {
   const list = useCustomerList({ isActive });
   const form = useCustomerForm({ fetchCustomers: list.fetchCustomers, request });

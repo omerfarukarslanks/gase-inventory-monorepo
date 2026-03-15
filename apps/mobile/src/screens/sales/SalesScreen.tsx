@@ -1,5 +1,7 @@
 import { getStores, type Store } from "@gase/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View } from "react-native";
+import { SegmentedControl, type SegmentItem } from "@/src/components/ui";
 import { useAuth } from "@/src/context/AuthContext";
 import type { RequestEnvelope, SalesRequest } from "@/src/lib/workflows";
 import { useSalesRecents } from "./hooks/useSalesRecents";
@@ -15,6 +17,10 @@ import type { SalesView } from "./hooks/types";
 import { SalesListView } from "./SalesListView";
 import { SaleDetailView } from "./SaleDetailView";
 import { SalesComposer } from "./SalesComposer";
+import { PaymentsListView } from "./PaymentsListView";
+import { ReturnsListView } from "./ReturnsListView";
+
+type SalesSegment = "list" | "payments" | "returns";
 
 type SalesScreenProps = {
   isActive?: boolean;
@@ -23,9 +29,20 @@ type SalesScreenProps = {
 
 export default function SalesScreen({ isActive = true, request }: SalesScreenProps = {}) {
   const handledRequestId = useRef<number | null>(null);
-  const { storeIds } = useAuth();
+  const { storeIds, can } = useAuth();
   const [view, setView] = useState<SalesView>("list");
+  const [segment, setSegment] = useState<SalesSegment>("list");
   const [stores, setStores] = useState<Store[]>([]);
+
+  const canViewPayments = can("SALE_PAYMENT_READ");
+  const canViewReturns = can("SALE_RETURN_READ");
+
+  const segments = useMemo<SegmentItem[]>(() => {
+    const items: SegmentItem[] = [{ key: "list", label: "Satislar" }];
+    if (canViewPayments) items.push({ key: "payments", label: "Tahsilatlar" });
+    if (canViewReturns) items.push({ key: "returns", label: "Iadeler" });
+    return items;
+  }, [canViewPayments, canViewReturns]);
 
   const recents = useSalesRecents(isActive);
   const list = useSalesList({ isActive, storeIds });
@@ -115,6 +132,29 @@ export default function SalesScreen({ isActive = true, request }: SalesScreenPro
     );
   }
 
+  // Show segment control only in list view (not detail/compose)
+  if (segment === "payments" && canViewPayments) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+          <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as SalesSegment)} />
+        </View>
+        <PaymentsListView isActive={isActive} />
+      </View>
+    );
+  }
+
+  if (segment === "returns" && canViewReturns) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+          <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as SalesSegment)} />
+        </View>
+        <ReturnsListView isActive={isActive} />
+      </View>
+    );
+  }
+
   return (
     <SalesListView
       list={list}
@@ -125,6 +165,11 @@ export default function SalesScreen({ isActive = true, request }: SalesScreenPro
         void detail.open(saleId);
       }}
       onResumeCompose={() => setView("compose")}
+      segmentControl={
+        segments.length > 1 ? (
+          <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as SalesSegment)} />
+        ) : undefined
+      }
     />
   );
 }

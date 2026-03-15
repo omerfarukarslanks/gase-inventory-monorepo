@@ -31,6 +31,12 @@ const ar = {
     approvalHistory: "السجل",
     catalog: "الكتالوج",
     settings: "الإعدادات",
+    reportCenter: "مركز التقارير",
+    salesReports: "تقارير المبيعات",
+    inventoryReports: "المخزون والمستودع",
+    procurementReports: "التوريد",
+    financeReports: "المالية",
+    performanceReports: "الاداء",
   },
   shell: {
     activeStore: "المتجر النشط",
@@ -50,6 +56,7 @@ const ar = {
   salesPayments: en.salesPayments,
   stockMovements: en.stockMovements,
   salesReturns: en.salesReturns,
+  reportsDirectory: en.reportsDirectory,
   supply: en.supply,
   warehouse: en.warehouse,
 };

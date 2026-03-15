@@ -35,6 +35,8 @@ export function createApiClient({
 }: CreateApiClientOptions) {
   return async function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T> {
     const { skipAuth, token: explicitToken, headers: optionHeaders, ...requestOptions } = options ?? {};
+    const requestUrl = `${baseUrl}${path}`;
+    const requestMethod = (requestOptions.method ?? "GET").toUpperCase();
     const resolvedToken =
       explicitToken !== undefined
         ? explicitToken
@@ -49,18 +51,46 @@ export function createApiClient({
       ...(optionHeaders ?? {}),
     };
 
-    const response = await fetch(`${baseUrl}${path}`, {
-      ...requestOptions,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(requestUrl, {
+        ...requestOptions,
+        headers,
+      });
+    } catch (error) {
+      console.error("[api] network request failed", {
+        url: requestUrl,
+        method: requestMethod,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
+      const raw = await response.text().catch(() => "");
+      let body: unknown = null;
+      if (raw) {
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          body = null;
+        }
+      }
+      const errorBody = body as { error?: { message?: string } | string; message?: string } | null;
+      const errorField = errorBody?.error;
       const message =
-        body?.error?.message
-        ?? body?.message
-        ?? (typeof body?.error === "string" ? body.error : null)
+        (typeof errorField === "object" && errorField ? errorField.message : null)
+        ?? errorBody?.message
+        ?? (typeof errorField === "string" ? errorField : null)
         ?? `Request failed (${response.status})`;
+
+      console.error("[api] request failed", {
+        url: requestUrl,
+        method: requestMethod,
+        status: response.status,
+        message,
+        response: body ?? raw,
+      });
 
       if (response.status === 401 && onUnauthorized) {
         await onUnauthorized();

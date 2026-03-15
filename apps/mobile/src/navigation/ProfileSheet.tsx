@@ -8,6 +8,7 @@ import type { ShellScreenKey } from "./useShellNavigation";
 
 type ProfileSheetProps = {
   can: (permission: PermissionName) => boolean;
+  canViewWarehouse: boolean;
   canViewStores: boolean;
   canViewPackages: boolean;
   canViewCategories: boolean;
@@ -78,6 +79,7 @@ const styles = StyleSheet.create({
 
 export function ProfileSheet({
   can,
+  canViewWarehouse,
   canViewStores,
   canViewPackages,
   canViewCategories,
@@ -98,12 +100,14 @@ export function ProfileSheet({
 
   // ─── Build navigation groups conditionally ─────────────────────────────────
 
-  const operationsGroup: NavGroup | null = can("SUPPLIER_READ")
+  const operationItems: NavItem[] = [];
+  if (canViewWarehouse) operationItems.push({ label: "Depo", screen: "warehouse", icon: "warehouse" });
+  if (can("SUPPLIER_READ")) operationItems.push({ label: "Tedarikciler", screen: "suppliers", icon: "truck-delivery-outline" });
+
+  const operationsGroup: NavGroup | null = operationItems.length
     ? {
         title: "Operasyon",
-        items: [
-          { label: "Tedarikciler", screen: "suppliers", icon: "truck-delivery-outline" },
-        ],
+        items: operationItems,
       }
     : null;
 

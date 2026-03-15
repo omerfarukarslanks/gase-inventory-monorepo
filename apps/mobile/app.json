@@ -6,11 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.gase.stockpulsemobile"
+    },
     "assetBundlePatterns": [
       "**/*"
-    ],
-    "plugins": [
-      "expo-router"
     ]
   }
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   Banner,
@@ -33,6 +34,7 @@ type SalesListViewProps = {
   recentCustomers: SalesRecentCustomer[];
   onOpenDetail: (saleId: string) => void;
   onResumeCompose: () => void;
+  segmentControl?: ReactNode;
 };
 
 const styles = StyleSheet.create({
@@ -51,6 +53,7 @@ export function SalesListView({
   recentCustomers,
   onOpenDetail,
   onResumeCompose,
+  segmentControl,
 }: SalesListViewProps) {
   const {
     sales, loading, error,
@@ -63,6 +66,7 @@ export function SalesListView({
   return (
     <View style={styles.screen}>
       <View style={styles.screenContent}>
+        {segmentControl}
         <ScreenHeader
           title="Satislar"
           subtitle="Liste, detay ve yeni satis akislarini ayri gorevler halinde yonet"

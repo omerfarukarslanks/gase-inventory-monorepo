@@ -19,3 +19,4 @@ export * from "./stores";
 export * from "./suppliers";
 export * from "./users";
 export * from "./validation";
+export * from "./warehouse";

@@ -31,6 +31,12 @@ const de = {
     approvalHistory: "Verlauf",
     catalog: "Katalog",
     settings: "Einstellungen",
+    reportCenter: "Report Center",
+    salesReports: "Sales Reports",
+    inventoryReports: "Inventory and Warehouse",
+    procurementReports: "Procurement",
+    financeReports: "Finance",
+    performanceReports: "Performance",
   },
   shell: {
     activeStore: "Aktiver Store",
@@ -50,6 +56,7 @@ const de = {
   salesPayments: en.salesPayments,
   stockMovements: en.stockMovements,
   salesReturns: en.salesReturns,
+  reportsDirectory: en.reportsDirectory,
   supply: en.supply,
   warehouse: en.warehouse,
 };

@@ -529,6 +529,110 @@ const salesPayments = {
   openInCenterAction: "Open in Payment Center",
 };
 
+const reportsDirectory = {
+  center: {
+    title: "Report Center",
+    description: "Manage sales, stock, finance and performance reports from one place.",
+    overviewTitle: "Ready analytics flows",
+    overviewDescription: "All report routes are organized under shared filtering, export and AI interpretation layers.",
+    aiTitle: "AI Copilot",
+    aiDescription: "Use the current report context to request commentary, summaries and action suggestions.",
+    noAccess: "You do not have access to this report category.",
+  },
+  actions: {
+    openCategory: "Open Category",
+    backToCenter: "Back to Report Center",
+  },
+  categories: {
+    sales: {
+      title: "Sales Reports",
+      description: "Revenue, cancellations, product performance and discount visibility.",
+    },
+    inventory: {
+      title: "Inventory and Warehouse",
+      description: "Stock levels, dead stock, movements and turnover analytics.",
+    },
+    procurement: {
+      title: "Procurement",
+      description: "Supplier-oriented purchasing and sales performance visibility.",
+    },
+    finance: {
+      title: "Finance",
+      description: "Margin, tax and financial health reporting.",
+    },
+    performance: {
+      title: "Performance",
+      description: "Store, employee and customer performance tracking.",
+    },
+  },
+  items: {
+    salesSummary: {
+      title: "Sales Summary",
+      description: "Totals for sales, approvals and turnover.",
+    },
+    cancellations: {
+      title: "Cancellation Reports",
+      description: "Cancelled receipts and cancellation amounts.",
+    },
+    productPerformance: {
+      title: "Product Performance",
+      description: "Sales ranking and revenue performance by product.",
+    },
+    revenueTrend: {
+      title: "Revenue Trend",
+      description: "Period-based revenue change and trend analysis.",
+    },
+    discountSummary: {
+      title: "Discount Summary",
+      description: "Discount impact by campaign and store.",
+    },
+    stockSummary: {
+      title: "Stock Summary",
+      description: "Product, variant and store stock distribution.",
+    },
+    lowStock: {
+      title: "Low Stock",
+      description: "Variants below their stock threshold.",
+    },
+    deadStock: {
+      title: "Dead Stock",
+      description: "Products that have not sold for a long period.",
+    },
+    inventoryMovements: {
+      title: "Inventory Movements",
+      description: "Inbound, outbound and transfer movement summaries.",
+    },
+    turnover: {
+      title: "Stock Turnover",
+      description: "Turnover rate and supply sufficiency.",
+    },
+    supplierPerformance: {
+      title: "Supplier Performance",
+      description: "Supplier-based sales and turnover analysis.",
+    },
+    profitMargin: {
+      title: "Profit Margin",
+      description: "Product-level margin and gross profit visibility.",
+    },
+    vatSummary: {
+      title: "VAT Summary",
+      description: "Monthly tax and gross total summary.",
+    },
+    storePerformance: {
+      title: "Store Performance",
+      description: "Cross-store sales comparison and trend visibility.",
+    },
+    employeePerformance: {
+      title: "Employee Performance",
+      description: "Sales effectiveness and contribution by employee.",
+    },
+    customers: {
+      title: "Customer Analysis",
+      description: "Top customers and spending distribution.",
+    },
+  },
+};
+
 const en = {
   ...locales.en,
   common: {
@@ -559,6 +663,12 @@ const en = {
     approvalHistory: "History",
     catalog: "Catalog",
     settings: "Settings",
+    reportCenter: "Report Center",
+    salesReports: "Sales Reports",
+    inventoryReports: "Inventory and Warehouse",
+    procurementReports: "Procurement",
+    financeReports: "Finance",
+    performanceReports: "Performance",
   },
   shell: {
     activeStore: "Active Store",
@@ -578,6 +688,7 @@ const en = {
   stockMovements,
   salesPayments,
   salesReturns,
+  reportsDirectory,
   supply,
   warehouse,
 };
