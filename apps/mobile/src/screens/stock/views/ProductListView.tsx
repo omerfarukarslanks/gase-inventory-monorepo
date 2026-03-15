@@ -88,7 +88,6 @@ type ProductListViewProps = {
   submitting: boolean;
   canSubmit: boolean;
   onSubmit: () => Promise<void>;
-  segmentControl?: ReactNode;
 };
 
 export function ProductListView({
@@ -141,7 +140,6 @@ export function ProductListView({
   submitting,
   canSubmit,
   onSubmit,
-  segmentControl,
 }: ProductListViewProps) {
   return (
     <View style={styles.screen}>
