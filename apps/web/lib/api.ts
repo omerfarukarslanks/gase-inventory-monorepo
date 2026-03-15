@@ -2,7 +2,7 @@ import { configureApiClient } from "@gase/core";
 import { clearAuthCookie } from "./cookie";
 import { clearSessionStorage, readSessionToken } from "./session";
 
-export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://192.168.1.100:8080";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 let unauthorizedRedirectInProgress = false;
 
