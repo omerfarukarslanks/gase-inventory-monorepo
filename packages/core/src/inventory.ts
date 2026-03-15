@@ -1,5 +1,7 @@
 import { apiFetch } from "./api";
 import type { Currency } from "./products";
+import { asObject, pickNumber, pickString } from "./normalize";
+import { appendIfDefined } from "./query-builder";
 
 export type InventoryReceiveItem = {
   storeId: string;
@@ -196,4 +198,114 @@ export async function adjustInventory(payload: InventoryAdjustPayload): Promise<
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+// ─── Inventory Movements ───────────────────────────────────────────────────
+
+export type InventoryMovementType =
+  | "ADJUSTMENT"
+  | "TRANSFER_OUT"
+  | "TRANSFER_IN"
+  | "OUT"
+  | "IN"
+  | string;
+
+export type InventoryMovement = {
+  id: string;
+  storeId?: string | null;
+  storeName?: string | null;
+  productId?: string | null;
+  productName?: string | null;
+  productVariantId?: string | null;
+  variantName?: string | null;
+  type: InventoryMovementType;
+  quantity: number;
+  reference?: string | null;
+  reason?: string | null;
+  locationId?: string | null;
+  locationName?: string | null;
+  warehouseId?: string | null;
+  warehouseName?: string | null;
+  createdAt?: string | null;
+};
+
+export type InventoryMovementsResponse = {
+  data: InventoryMovement[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+};
+
+export type GetInventoryMovementsParams = {
+  storeId?: string;
+  warehouseId?: string;
+  productVariantId?: string;
+  type?: InventoryMovementType;
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+function normalizeInventoryMovement(payload: unknown): InventoryMovement | null {
+  const item = asObject(payload);
+  if (!item) return null;
+
+  const store = asObject(item.store);
+  const productVariant = asObject(item.productVariant);
+  const meta = asObject(item.meta);
+  const id = pickString(item.id);
+  if (!id) return null;
+
+  return {
+    id,
+    storeId: pickString(item.storeId, store?.id) || null,
+    storeName: pickString(item.storeName, store?.name) || null,
+    productId: pickString(item.productId) || null,
+    productName: pickString(item.productName) || null,
+    productVariantId: pickString(item.productVariantId, productVariant?.id) || null,
+    variantName: pickString(item.variantName, productVariant?.name) || null,
+    type: pickString(item.type) || "-",
+    quantity: pickNumber(item.quantity),
+    reference: pickString(item.reference, meta?.reference) || null,
+    reason: pickString(item.reason, meta?.reason) || null,
+    locationId: pickString(item.locationId) || null,
+    locationName: pickString(item.locationName) || null,
+    warehouseId: pickString(item.warehouseId) || null,
+    warehouseName: pickString(item.warehouseName) || null,
+    createdAt: pickString(item.createdAt) || null,
+  };
+}
+
+export async function getInventoryMovements(
+  params: GetInventoryMovementsParams = {},
+): Promise<InventoryMovementsResponse> {
+  const query = new URLSearchParams({
+    limit: String(params.limit ?? 30),
+    offset: String(params.offset ?? 0),
+  });
+  appendIfDefined(query, "storeId", params.storeId);
+  appendIfDefined(query, "warehouseId", params.warehouseId);
+  appendIfDefined(query, "productVariantId", params.productVariantId);
+  appendIfDefined(query, "type", params.type);
+  appendIfDefined(query, "search", params.search);
+
+  const payload = await apiFetch<unknown>(`/inventory/movements?${query.toString()}`);
+  const root = asObject(payload);
+  const meta = asObject(root?.meta);
+  const rawItems = Array.isArray(root?.data) ? root.data : [];
+
+  return {
+    data: rawItems
+      .map((item) => normalizeInventoryMovement(item))
+      .filter((item): item is InventoryMovement => Boolean(item)),
+    meta: {
+      total: pickNumber(meta?.total),
+      limit: pickNumber(meta?.limit, params.limit, 30),
+      offset: pickNumber(meta?.offset, params.offset, 0),
+      hasMore: Boolean(meta?.hasMore),
+    },
+  };
 }
