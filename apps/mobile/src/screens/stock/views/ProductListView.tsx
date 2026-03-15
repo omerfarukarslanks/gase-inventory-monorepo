@@ -59,6 +59,7 @@ type ProductListViewProps = {
   onOpenOperation: (kind: "receive" | "transfer" | "adjust", variant: InventoryVariantStockItem, productName?: string) => void;
   onFetchStock: () => void;
   onResetFilters: () => void;
+  segmentControl?: ReactNode;
   // OperationSheet props
   activeOperation: ActiveOperation | null;
   setActiveOperation: Dispatch<SetStateAction<ActiveOperation | null>>;
@@ -112,6 +113,7 @@ export function ProductListView({
   onOpenOperation,
   onFetchStock,
   onResetFilters,
+  segmentControl,
   activeOperation,
   setActiveOperation,
   setOperationAttempted,

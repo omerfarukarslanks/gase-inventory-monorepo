@@ -226,6 +226,18 @@ export default function StockScreen({
     );
   }
 
+  // Show movements view when on "movements" segment and not in detail
+  if (segment === "movements" && !selectedProduct && !selectedVariant) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+          <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as StockSegment)} />
+        </View>
+        <StockMovementsView isActive={isActive} />
+      </View>
+    );
+  }
+
   if (selectedProduct) {
     return (
       <ProductDetailView

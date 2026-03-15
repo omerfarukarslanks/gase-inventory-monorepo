@@ -520,3 +520,81 @@ const badgeStyles = StyleSheet.create<Record<BadgeTone, ViewStyle>>({
   neutral: { backgroundColor: "rgba(156,163,175,0.18)" },
   info: { backgroundColor: "rgba(59,130,246,0.18)" },
 });
+
+// ─── SegmentedControl ──────────────────────────────────────────────────────
+export type SegmentItem = {
+  key: string;
+  label: string;
+  badge?: number;
+};
+
+type SegmentedControlProps = {
+  segments: SegmentItem[];
+  activeKey: string;
+  onChange: (key: string) => void;
+};
+
+const segStyles = StyleSheet.create({
+  row: { flexDirection: "row", gap: 6 },
+  pill: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: mobileTheme.colors.dark.surface,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.dark.border,
+  },
+  pillActive: {
+    backgroundColor: mobileTheme.colors.brand.primary,
+    borderColor: mobileTheme.colors.brand.primary,
+  },
+  pillPressed: { opacity: 0.75 },
+  label: { color: mobileTheme.colors.dark.text2, fontSize: 13, fontWeight: "700" },
+  labelActive: { color: "#FFFFFF" },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+});
+
+export function SegmentedControl({ segments, activeKey, onChange }: SegmentedControlProps) {
+  if (segments.length < 2) return null;
+  return (
+    <View style={segStyles.row} accessibilityRole="tablist">
+      {segments.map((seg) => {
+        const active = seg.key === activeKey;
+        return (
+          <Pressable
+            key={seg.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(seg.key)}
+            style={({ pressed }) => [
+              segStyles.pill,
+              active && segStyles.pillActive,
+              pressed && segStyles.pillPressed,
+            ]}
+          >
+            <Text style={[segStyles.label, active && segStyles.labelActive]}>{seg.label}</Text>
+            {seg.badge != null && seg.badge > 0 ? (
+              <View style={segStyles.badge}>
+                <Text style={segStyles.badgeText}>{seg.badge > 99 ? "99+" : seg.badge}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

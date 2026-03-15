@@ -16,9 +16,9 @@ export function ReturnsListView({ isActive = true }: ReturnsListViewProps) {
         <View style={styles.iconWrap}>
           <MaterialCommunityIcons name="undo-variant" size={40} color={colors.muted} />
         </View>
-        <Text style={styles.title}>Iade listesi</Text>
+        <Text style={styles.title}>Iadeler</Text>
         <Text style={styles.subtitle}>
-          Iade edilen satislar burada listelenecek
+          Iade yapilmis satislar burada listelenecek
         </Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>Yakinda</Text>
@@ -31,44 +31,19 @@ export function ReturnsListView({ isActive = true }: ReturnsListViewProps) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   placeholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-    gap: 12,
+    alignItems: "center", justifyContent: "center",
+    paddingVertical: 60, gap: 12,
   },
   iconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 72, height: 72, borderRadius: 20,
     backgroundColor: colors.surface2,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
+    alignItems: "center", justifyContent: "center", marginBottom: 4,
   },
-  title: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  subtitle: {
-    color: colors.text2,
-    fontSize: 13,
-    textAlign: "center",
-    maxWidth: 260,
-    lineHeight: 19,
-  },
+  title: { color: colors.text, fontSize: 17, fontWeight: "700" },
+  subtitle: { color: colors.text2, fontSize: 13, textAlign: "center", maxWidth: 260, lineHeight: 19 },
   badge: {
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(16,185,129,0.12)",
+    marginTop: 8, paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 999, backgroundColor: "rgba(16,185,129,0.12)",
   },
-  badgeText: {
-    color: brand.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
+  badgeText: { color: brand.primary, fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
 });

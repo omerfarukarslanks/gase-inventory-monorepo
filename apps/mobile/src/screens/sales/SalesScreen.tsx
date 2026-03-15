@@ -14,13 +14,13 @@ import { useReturnSale } from "./hooks/useReturnSale";
 import { useCustomerPicker } from "./hooks/useCustomerPicker";
 import { useVariantPicker } from "./hooks/useVariantPicker";
 import type { SalesView } from "./hooks/types";
+
+type SalesSegment = "list" | "payments" | "returns";
 import { SalesListView } from "./SalesListView";
 import { SaleDetailView } from "./SaleDetailView";
 import { SalesComposer } from "./SalesComposer";
 import { PaymentsListView } from "./PaymentsListView";
 import { ReturnsListView } from "./ReturnsListView";
-
-type SalesSegment = "list" | "payments" | "returns";
 
 type SalesScreenProps = {
   isActive?: boolean;

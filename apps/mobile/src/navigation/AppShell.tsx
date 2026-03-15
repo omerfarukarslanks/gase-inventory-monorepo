@@ -70,15 +70,21 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
     case "stock":
       return <StockScreen isActive={tab === "stock"} request={stockRequest} />;
     case "tasks":
-      return <TasksScreen isActive={tab === "tasks"} />;
+      return (
+        <TasksScreen
+          isActive={tab === "tasks"}
+          canViewWarehouse={nav.canViewWarehouse}
+          canViewSupply={nav.canViewSupply}
+        />
+      );
     case "more":
       return (
         <MoreScreen
           isActive={tab === "more"}
-          onNavigate={(screen) => nav.setTab(screen)}
           canViewProducts={nav.canViewProducts}
           canViewCustomers={nav.canViewCustomers}
           canViewWarehouse={nav.canViewWarehouse}
+          canViewSuppliers={nav.canViewSuppliers}
           canViewStores={nav.canViewStores}
           canViewPackages={nav.canViewPackages}
           canViewCategories={nav.canViewCategories}
@@ -86,7 +92,7 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
           canViewUsers={nav.canViewUsers}
           canViewPermissions={nav.canViewPermissions}
           canViewReports={nav.canViewReports}
-          canViewSuppliers={nav.canViewSuppliers}
+          onNavigate={(screen: ShellScreenKey) => nav.setTab(screen)}
         />
       );
     case "products":

@@ -1,8 +1,7 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AppScreen, SegmentedControl, type SegmentItem } from "@/src/components/ui";
-import { useAuth } from "@/src/context/AuthContext";
 import { mobileTheme } from "@/src/theme";
 
 const colors = mobileTheme.colors.dark;
@@ -12,15 +11,16 @@ type TasksSegment = "pending" | "warehouse" | "supply";
 
 type TasksScreenProps = {
   isActive?: boolean;
+  canViewWarehouse: boolean;
+  canViewSupply: boolean;
 };
 
-export default function TasksScreen({ isActive = true }: TasksScreenProps) {
-  const { can } = useAuth();
+export default function TasksScreen({
+  isActive = true,
+  canViewWarehouse,
+  canViewSupply,
+}: TasksScreenProps) {
   const [segment, setSegment] = useState<TasksSegment>("pending");
-
-  const canViewWarehouse = can("COUNT_SESSION_READ") || can("WAREHOUSE_READ");
-  const canViewSupply = can("REPLENISHMENT_READ") || can("PO_READ");
-  const canViewApprovals = can("APPROVAL_READ");
 
   const segments = useMemo<SegmentItem[]>(() => {
     const items: SegmentItem[] = [{ key: "pending", label: "Bekleyen" }];

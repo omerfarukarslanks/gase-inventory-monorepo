@@ -78,10 +78,11 @@ export function useShellNavigation() {
   const canViewUsers = can("USER_READ");
   const canViewPermissions = can("PERMISSION_MANAGE");
   const canViewReports = permissions.some((permission) => permission.startsWith("REPORT_"));
-  const canViewTasks = TASK_PERMISSIONS.some((perm) => permissions.includes(perm));
   const canViewProducts = can("PRODUCT_READ");
   const canViewCustomers = can("CUSTOMER_READ");
   const canViewSuppliers = can("SUPPLIER_READ");
+  const canViewTasks = TASK_PERMISSIONS.some((perm) => permissions.includes(perm));
+  const canViewSupply = can("REPLENISHMENT_READ") || can("PO_READ");
 
   const [tab, setTab] = useState<ShellScreenKey>("dashboard");
   const [mountedTabs, setMountedTabs] = useState<ShellScreenKey[]>(["dashboard"]);
@@ -116,6 +117,8 @@ export function useShellNavigation() {
       setTab(visibleTabs[0]?.key ?? "dashboard");
     }
     if (tab === "warehouse" && !canViewWarehouse) setTab(previousPrimaryTab.current);
+    if (tab === "products" && !canViewProducts) setTab(previousPrimaryTab.current);
+    if (tab === "customers" && !canViewCustomers) setTab(previousPrimaryTab.current);
     if (tab === "suppliers" && !canViewSuppliers) setTab(previousPrimaryTab.current);
     if (tab === "stores" && !canViewStores) setTab(previousPrimaryTab.current);
     if (tab === "product-packages" && !canViewPackages) setTab(previousPrimaryTab.current);
@@ -124,8 +127,6 @@ export function useShellNavigation() {
     if (tab === "users" && !canViewUsers) setTab(previousPrimaryTab.current);
     if (tab === "permissions" && !canViewPermissions) setTab(previousPrimaryTab.current);
     if (tab === "reports" && !canViewReports) setTab(previousPrimaryTab.current);
-    if (tab === "products" && !canViewProducts) setTab(previousPrimaryTab.current);
-    if (tab === "customers" && !canViewCustomers) setTab(previousPrimaryTab.current);
   }, [can, canViewAttributes, canViewCategories, canViewCustomers, canViewPackages, canViewPermissions, canViewProducts, canViewReports, canViewStores, canViewSuppliers, canViewUsers, canViewWarehouse, status, tab, visibleTabs]);
 
   // Lazy mount: add tab to mounted list on first visit
@@ -194,6 +195,7 @@ export function useShellNavigation() {
     canViewProducts,
     canViewCustomers,
     canViewSuppliers,
+    canViewSupply,
     openSalesComposer,
     openSaleDetail,
     openStockFocus,
