@@ -1,6 +1,6 @@
 import type { Currency } from "@gase/core";
 
-export type TabKey = "dashboard" | "sales" | "stock" | "products" | "customers";
+export type TabKey = "dashboard" | "sales" | "stock" | "tasks" | "more";
 export type StockOperationKind = "receive" | "transfer" | "adjust";
 
 export type RequestEnvelope<T> = {
@@ -44,3 +44,7 @@ export type StockRequest = {
 export type CustomersRequest = {
   kind: "compose";
 };
+
+export type TasksRequest =
+  | { kind: "approval"; approvalId: string }
+  | { kind: "supply"; suggestionId: string };

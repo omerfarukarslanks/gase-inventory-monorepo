@@ -9,6 +9,7 @@ type CustomersScreenProps = {
   isActive?: boolean;
   request?: RequestEnvelope<CustomersRequest> | null;
   onStartSale?: (seed?: SalesDraftSeed) => void;
+  onBack?: () => void;
 };
 
 export default function CustomersScreen({

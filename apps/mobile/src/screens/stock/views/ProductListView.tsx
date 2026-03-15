@@ -5,7 +5,7 @@ import {
   type Store,
   type Supplier,
 } from "@gase/core";
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
@@ -59,6 +59,7 @@ type ProductListViewProps = {
   onOpenOperation: (kind: "receive" | "transfer" | "adjust", variant: InventoryVariantStockItem, productName?: string) => void;
   onFetchStock: () => void;
   onResetFilters: () => void;
+  segmentControl?: ReactNode;
   // OperationSheet props
   activeOperation: ActiveOperation | null;
   setActiveOperation: Dispatch<SetStateAction<ActiveOperation | null>>;
@@ -111,6 +112,7 @@ export function ProductListView({
   onOpenOperation,
   onFetchStock,
   onResetFilters,
+  segmentControl,
   activeOperation,
   setActiveOperation,
   setOperationAttempted,
@@ -142,6 +144,7 @@ export function ProductListView({
   return (
     <View style={styles.screen}>
       <View style={styles.screenContent}>
+        {segmentControl}
         <ScreenHeader
           title="Stok"
           subtitle="Urunu sec, varyanti ac, sonra operasyonu baslat"

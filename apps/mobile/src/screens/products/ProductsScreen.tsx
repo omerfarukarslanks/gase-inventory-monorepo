@@ -8,6 +8,7 @@ type ProductsScreenProps = {
   isActive?: boolean;
   onOpenSalesDraft?: (seed?: SalesDraftSeed) => void;
   onOpenStockFocus?: (seed: StockFocusSeed) => void;
+  onBack?: () => void;
 };
 
 export default function ProductsScreen({

@@ -1,5 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoginScreen from "@/src/screens/LoginScreen";
 import DashboardScreen from "@/src/screens/DashboardScreen";
@@ -15,10 +14,11 @@ import AttributesScreen from "@/src/screens/AttributesScreen";
 import UsersScreen from "@/src/screens/UsersScreen";
 import PermissionsScreen from "@/src/screens/PermissionsScreen";
 import ReportsScreen from "@/src/screens/ReportsScreen";
+import MoreScreen from "@/src/screens/MoreScreen";
+import TasksScreen from "@/src/screens/TasksScreen";
 import { useAuth } from "@/src/context/AuthContext";
 import { mobileTheme } from "@/src/theme";
 import { useShellNavigation } from "./useShellNavigation";
-import { ProfileSheet } from "./ProfileSheet";
 import { TabBar } from "./TabBar";
 import type { ShellScreenKey } from "./useShellNavigation";
 
@@ -36,12 +36,6 @@ const styles = StyleSheet.create({
   brandLabel: { color: mobileTheme.colors.brand.primary, fontSize: 12, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   brandTitle: { color: mobileTheme.colors.dark.text, fontSize: 20, fontWeight: "700" },
   brandSubtitle: { color: mobileTheme.colors.dark.text2, fontSize: 13 },
-  profileButton: {
-    width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center",
-    backgroundColor: mobileTheme.colors.dark.surface, borderWidth: 1, borderColor: mobileTheme.colors.dark.border,
-  },
-  profileButtonPressed: { opacity: 0.75 },
-  profileInitials: { color: mobileTheme.colors.dark.text, fontSize: 14, fontWeight: "700" },
   content: { flex: 1, position: "relative" },
   screenPane: { ...StyleSheet.absoluteFillObject },
   screenPaneVisible: { display: "flex" },
@@ -68,12 +62,38 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
       return <SalesScreen isActive={tab === "sales"} request={salesRequest} />;
     case "stock":
       return <StockScreen isActive={tab === "stock"} request={stockRequest} />;
+    case "tasks":
+      return (
+        <TasksScreen
+          isActive={tab === "tasks"}
+          canViewWarehouse={nav.canViewWarehouse}
+          canViewSupply={nav.canViewSupply}
+        />
+      );
+    case "more":
+      return (
+        <MoreScreen
+          isActive={tab === "more"}
+          canViewProducts={nav.canViewProducts}
+          canViewCustomers={nav.canViewCustomers}
+          canViewSuppliers={nav.canViewSuppliers}
+          canViewStores={nav.canViewStores}
+          canViewPackages={nav.canViewPackages}
+          canViewCategories={nav.canViewCategories}
+          canViewAttributes={nav.canViewAttributes}
+          canViewUsers={nav.canViewUsers}
+          canViewPermissions={nav.canViewPermissions}
+          canViewReports={nav.canViewReports}
+          onNavigate={(screen: ShellScreenKey) => nav.setTab(screen)}
+        />
+      );
     case "products":
       return (
         <ProductsScreen
           isActive={tab === "products"}
           onOpenSalesDraft={openSalesComposer}
           onOpenStockFocus={openStockFocus}
+          onBack={goBack}
         />
       );
     case "customers":
@@ -82,6 +102,7 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
           isActive={tab === "customers"}
           request={customersRequest}
           onStartSale={openSalesComposer}
+          onBack={goBack}
         />
       );
     case "suppliers":
@@ -108,7 +129,7 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
 export function AppShell() {
   const { status, user } = useAuth();
   const nav = useShellNavigation();
-  const { tab, setTab, mountedTabs, profileOpen, setProfileOpen, visibleTabs } = nav;
+  const { tab, setTab, mountedTabs, visibleTabs } = nav;
 
   if (status === "booting") {
     return (
@@ -122,14 +143,6 @@ export function AppShell() {
     return <LoginScreen />;
   }
 
-  const displayName = [user?.name, user?.surname].filter(Boolean).join(" ").trim() || "Operator";
-  const initials = displayName
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
   const scopeLabel = user?.storeIds?.length
     ? `${user.storeIds.length} magaza`
     : user?.storeId
@@ -145,35 +158,7 @@ export function AppShell() {
             <Text style={styles.brandTitle}>Saha operator shell</Text>
             <Text style={styles.brandSubtitle}>{scopeLabel}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Profil menusu"
-            accessibilityHint="Oturum ve cikis islemlerini ac"
-            accessibilityState={{ expanded: profileOpen }}
-            hitSlop={6}
-            onPress={() => setProfileOpen((current) => !current)}
-            style={({ pressed }) => [styles.profileButton, pressed && styles.profileButtonPressed]}
-          >
-            <Text style={styles.profileInitials}>{initials}</Text>
-          </Pressable>
         </View>
-
-        {profileOpen ? (
-          <ProfileSheet
-            can={nav.can}
-            canViewStores={nav.canViewStores}
-            canViewPackages={nav.canViewPackages}
-            canViewCategories={nav.canViewCategories}
-            canViewAttributes={nav.canViewAttributes}
-            canViewUsers={nav.canViewUsers}
-            canViewPermissions={nav.canViewPermissions}
-            canViewReports={nav.canViewReports}
-            onNavigate={(screen) => {
-              setProfileOpen(false);
-              setTab(screen);
-            }}
-          />
-        ) : null}
       </SafeAreaView>
 
       <View style={styles.content}>
@@ -194,7 +179,6 @@ export function AppShell() {
         tabs={visibleTabs}
         activeTab={tab}
         onSelect={setTab}
-        onCloseProfile={() => setProfileOpen(false)}
       />
     </View>
   );

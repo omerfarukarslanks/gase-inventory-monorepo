@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { View } from "react-native";
+import { SegmentedControl, type SegmentItem } from "@/src/components/ui";
 import { useAuth } from "@/src/context/AuthContext";
 import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
 import { toNumber } from "@/src/lib/format";
@@ -10,6 +12,9 @@ import { useStockOperations, type ActiveOperation } from "./hooks/useStockOperat
 import { ProductListView } from "./views/ProductListView";
 import { ProductDetailView } from "./views/ProductDetailView";
 import { VariantDetailView } from "./views/VariantDetailView";
+import { StockMovementsView } from "./views/StockMovementsView";
+
+type StockSegment = "summary" | "critical" | "movements";
 
 type StockScreenProps = {
   isActive?: boolean;
@@ -20,9 +25,26 @@ export default function StockScreen({
   isActive = true,
   request,
 }: StockScreenProps = {}) {
-  const { storeIds } = useAuth();
+  const { storeIds, can } = useAuth();
+  const [segment, setSegment] = useState<StockSegment>("summary");
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "low">("all");
+
+  const canViewMovements = can("STOCK_MOVEMENTS_READ");
+  const segments = useMemo<SegmentItem[]>(() => {
+    const items: SegmentItem[] = [
+      { key: "summary", label: "Ozet" },
+      { key: "critical", label: "Kritik" },
+    ];
+    if (canViewMovements) items.push({ key: "movements", label: "Hareket" });
+    return items;
+  }, [canViewMovements]);
+
+  // Sync priority filter with segment
+  useEffect(() => {
+    if (segment === "critical") setPriorityFilter("low");
+    else if (segment === "summary") setPriorityFilter("all");
+  }, [segment]);
   const [selectedStoreId, setSelectedStoreId] = useState("");
   // activeOperation lifted here to break the circular dep between useOperationForm and useStockOperations
   const [activeOperation, setActiveOperation] = useState<ActiveOperation | null>(null);
@@ -192,6 +214,18 @@ export default function StockScreen({
     );
   }
 
+  // Show movements view when on "movements" segment and not in detail
+  if (segment === "movements" && !selectedProduct && !selectedVariant) {
+    return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
+          <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as StockSegment)} />
+        </View>
+        <StockMovementsView isActive={isActive} />
+      </View>
+    );
+  }
+
   if (selectedProduct) {
     return (
       <ProductDetailView
@@ -226,6 +260,9 @@ export default function StockScreen({
       onFetchStock={() => void fetchStock()}
       onResetFilters={resetFilters}
       {...operationSheetProps}
+      segmentControl={
+        <SegmentedControl segments={segments} activeKey={segment} onChange={(k) => setSegment(k as StockSegment)} />
+      }
     />
   );
 }

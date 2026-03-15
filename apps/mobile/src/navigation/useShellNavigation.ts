@@ -9,6 +9,7 @@ import type {
   StockFocusSeed,
   StockRequest,
   TabKey,
+  TasksRequest,
 } from "@/src/lib/workflows";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -17,10 +18,14 @@ export type ShellTab = {
   label: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   permission?: PermissionName;
+  anyPermission?: PermissionName[];
+  badge?: number;
 };
 
 export type ShellScreenKey =
   | TabKey
+  | "products"
+  | "customers"
   | "suppliers"
   | "stores"
   | "product-packages"
@@ -31,6 +36,8 @@ export type ShellScreenKey =
   | "reports";
 
 const SECONDARY_SCREENS: ShellScreenKey[] = [
+  "products",
+  "customers",
   "suppliers",
   "stores",
   "product-packages",
@@ -41,12 +48,20 @@ const SECONDARY_SCREENS: ShellScreenKey[] = [
   "reports",
 ];
 
+const TASK_PERMISSIONS: PermissionName[] = [
+  "WAREHOUSE_READ",
+  "COUNT_SESSION_READ",
+  "APPROVAL_READ",
+  "REPLENISHMENT_READ",
+  "PO_READ",
+];
+
 const PRIMARY_TABS: ShellTab[] = [
-  { key: "dashboard", label: "Pano", icon: "view-dashboard-outline" },
+  { key: "dashboard", label: "Ana Sayfa", icon: "view-dashboard-outline" },
   { key: "sales", label: "Satis", icon: "receipt-text-outline", permission: "SALE_READ" },
   { key: "stock", label: "Stok", icon: "warehouse", permission: "STOCK_LIST_READ" },
-  { key: "products", label: "Urun", icon: "package-variant-closed", permission: "PRODUCT_READ" },
-  { key: "customers", label: "Musteri", icon: "account-group-outline", permission: "CUSTOMER_READ" },
+  { key: "tasks", label: "Gorevler", icon: "clipboard-check-outline", anyPermission: TASK_PERMISSIONS },
+  { key: "more", label: "Diger", icon: "dots-horizontal" },
 ];
 
 export function useShellNavigation() {
@@ -59,18 +74,29 @@ export function useShellNavigation() {
   const canViewUsers = can("USER_READ");
   const canViewPermissions = can("PERMISSION_MANAGE");
   const canViewReports = permissions.some((permission) => permission.startsWith("REPORT_"));
+  const canViewProducts = can("PRODUCT_READ");
+  const canViewCustomers = can("CUSTOMER_READ");
+  const canViewSuppliers = can("SUPPLIER_READ");
+  const canViewTasks = TASK_PERMISSIONS.some((p) => permissions.includes(p));
+  const canViewWarehouse = can("WAREHOUSE_READ") || can("COUNT_SESSION_READ");
+  const canViewSupply = can("REPLENISHMENT_READ") || can("PO_READ");
 
   const [tab, setTab] = useState<ShellScreenKey>("dashboard");
   const [mountedTabs, setMountedTabs] = useState<ShellScreenKey[]>(["dashboard"]);
-  const [profileOpen, setProfileOpen] = useState(false);
   const requestCounter = useRef(0);
   const previousPrimaryTab = useRef<TabKey>("dashboard");
   const [salesRequest, setSalesRequest] = useState<RequestEnvelope<SalesRequest> | null>(null);
   const [stockRequest, setStockRequest] = useState<RequestEnvelope<StockRequest> | null>(null);
   const [customersRequest, setCustomersRequest] = useState<RequestEnvelope<CustomersRequest> | null>(null);
+  const [tasksRequest, setTasksRequest] = useState<RequestEnvelope<TasksRequest> | null>(null);
 
   const visibleTabs = useMemo(
-    () => PRIMARY_TABS.filter((item) => !item.permission || permissions.includes(item.permission)),
+    () =>
+      PRIMARY_TABS.filter((item) => {
+        if (item.anyPermission) return item.anyPermission.some((p) => permissions.includes(p));
+        if (item.permission) return permissions.includes(item.permission);
+        return true;
+      }),
     [permissions],
   );
 
@@ -80,14 +106,15 @@ export function useShellNavigation() {
       setTab("dashboard");
       setMountedTabs(["dashboard"]);
       previousPrimaryTab.current = "dashboard";
-      setProfileOpen(false);
       return;
     }
 
     if (!SECONDARY_SCREENS.includes(tab as typeof SECONDARY_SCREENS[number]) && !visibleTabs.some((item) => item.key === tab)) {
       setTab(visibleTabs[0]?.key ?? "dashboard");
     }
-    if (tab === "suppliers" && !can("SUPPLIER_READ")) setTab(previousPrimaryTab.current);
+    if (tab === "products" && !canViewProducts) setTab(previousPrimaryTab.current);
+    if (tab === "customers" && !canViewCustomers) setTab(previousPrimaryTab.current);
+    if (tab === "suppliers" && !canViewSuppliers) setTab(previousPrimaryTab.current);
     if (tab === "stores" && !canViewStores) setTab(previousPrimaryTab.current);
     if (tab === "product-packages" && !canViewPackages) setTab(previousPrimaryTab.current);
     if (tab === "product-categories" && !canViewCategories) setTab(previousPrimaryTab.current);
@@ -95,7 +122,7 @@ export function useShellNavigation() {
     if (tab === "users" && !canViewUsers) setTab(previousPrimaryTab.current);
     if (tab === "permissions" && !canViewPermissions) setTab(previousPrimaryTab.current);
     if (tab === "reports" && !canViewReports) setTab(previousPrimaryTab.current);
-  }, [can, canViewAttributes, canViewCategories, canViewPackages, canViewPermissions, canViewReports, canViewStores, canViewUsers, status, tab, visibleTabs]);
+  }, [can, canViewAttributes, canViewCategories, canViewCustomers, canViewPackages, canViewPermissions, canViewProducts, canViewReports, canViewStores, canViewSuppliers, canViewUsers, status, tab, visibleTabs]);
 
   // Lazy mount: add tab to mounted list on first visit
   useEffect(() => {
@@ -137,7 +164,6 @@ export function useShellNavigation() {
   };
 
   const goBack = () => {
-    setProfileOpen(false);
     setTab(previousPrimaryTab.current);
   };
 
@@ -145,11 +171,10 @@ export function useShellNavigation() {
     tab,
     setTab,
     mountedTabs,
-    profileOpen,
-    setProfileOpen,
     salesRequest,
     stockRequest,
     customersRequest,
+    tasksRequest,
     visibleTabs,
     previousPrimaryTab,
     can,
@@ -160,6 +185,12 @@ export function useShellNavigation() {
     canViewUsers,
     canViewPermissions,
     canViewReports,
+    canViewProducts,
+    canViewCustomers,
+    canViewSuppliers,
+    canViewTasks,
+    canViewWarehouse,
+    canViewSupply,
     openSalesComposer,
     openSaleDetail,
     openStockFocus,

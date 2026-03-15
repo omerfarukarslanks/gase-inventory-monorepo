@@ -8,7 +8,6 @@ type TabBarProps = {
   tabs: ShellTab[];
   activeTab: ShellScreenKey;
   onSelect: (key: ShellScreenKey) => void;
-  onCloseProfile: () => void;
 };
 
 const styles = StyleSheet.create({
@@ -50,9 +49,29 @@ const styles = StyleSheet.create({
   navLabelActive: {
     color: mobileTheme.colors.dark.bg,
   },
+  iconWrap: {
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: -6,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EF4444",
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "700",
+  },
 });
 
-export function TabBar({ tabs, activeTab, onSelect, onCloseProfile }: TabBarProps) {
+export function TabBar({ tabs, activeTab, onSelect }: TabBarProps) {
   return (
     <SafeAreaView edges={["bottom"]} style={styles.navSafe}>
       <View style={styles.navBar}>
@@ -66,21 +85,27 @@ export function TabBar({ tabs, activeTab, onSelect, onCloseProfile }: TabBarProp
               accessibilityHint={`${item.label} ekranini ac`}
               accessibilityState={{ selected: active }}
               hitSlop={4}
-              onPress={() => {
-                onCloseProfile();
-                onSelect(item.key);
-              }}
+              onPress={() => onSelect(item.key)}
               style={({ pressed }) => [
                 styles.navItem,
                 active && styles.navItemActive,
                 pressed && styles.navItemPressed,
               ]}
             >
-              <MaterialCommunityIcons
-                name={item.icon}
-                size={20}
-                color={active ? mobileTheme.colors.dark.bg : mobileTheme.colors.dark.text2}
-              />
+              <View style={styles.iconWrap}>
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={20}
+                  color={active ? mobileTheme.colors.dark.bg : mobileTheme.colors.dark.text2}
+                />
+                {item.badge != null && item.badge > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
             </Pressable>
           );
