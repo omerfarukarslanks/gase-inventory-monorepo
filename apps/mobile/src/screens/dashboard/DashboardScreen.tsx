@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   AppScreen,
   Banner,
@@ -24,6 +24,7 @@ type DashboardScreenProps = {
   onOpenStockFocus?: (seed: StockFocusSeed) => void;
   onOpenCustomers?: () => void;
   onOpenProducts?: () => void;
+  onOpenPendingCollections?: () => void;
 };
 
 export default function DashboardScreen({
@@ -33,6 +34,7 @@ export default function DashboardScreen({
   onOpenSaleDetail,
   onOpenSalesComposer,
   onOpenStockFocus,
+  onOpenPendingCollections,
 }: DashboardScreenProps = {}) {
   const { user } = useAuth();
 
@@ -208,6 +210,43 @@ export default function DashboardScreen({
         {quickActionButtons}
       </Card>
 
+      {/* ─── Cari Özet ─────────────────────────────────────────────────────── */}
+      {state.pendingCollections.length > 0 && (
+        <Card>
+          <SectionTitle
+            title="Cari ozet"
+            action={
+              onOpenPendingCollections ? (
+                <Button
+                  label="Tumunu gor"
+                  onPress={onOpenPendingCollections}
+                  variant="secondary"
+                  size="sm"
+                  fullWidth={false}
+                />
+              ) : undefined
+            }
+          />
+          {state.pendingCollections.slice(0, 3).map((sale) => (
+            <Pressable
+              key={sale.id}
+              style={({ pressed }) => [styles.cariRow, pressed && styles.cariRowPressed]}
+              onPress={() => onOpenSaleDetail?.(sale.id)}
+            >
+              <View style={styles.cariInfo}>
+                <Text style={styles.cariName} numberOfLines={1}>
+                  {`${sale.name ?? ""} ${sale.surname ?? ""}`.trim() || "Musteri"}
+                </Text>
+                <Text style={styles.cariReceipt}>{sale.receiptNo ?? "-"}</Text>
+              </View>
+              <Text style={styles.cariAmount}>
+                {formatCurrency(sale.remainingAmount, sale.currency ?? "TRY")}
+              </Text>
+            </Pressable>
+          ))}
+        </Card>
+      )}
+
       {/* ─── Metrics ───────────────────────────────────────────────────────── */}
       <DashboardMetricsSection
         state={state}
@@ -233,5 +272,24 @@ const styles = StyleSheet.create({
   quickActions: {
     marginTop: 12,
     gap: 10,
+  },
+  cariRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: mobileTheme.colors.dark.border,
+    gap: 12,
+    marginTop: 4,
+  },
+  cariRowPressed: { opacity: 0.6 },
+  cariInfo: { flex: 1, gap: 2 },
+  cariName: { color: mobileTheme.colors.dark.text, fontSize: 14, fontWeight: "600" },
+  cariReceipt: { color: mobileTheme.colors.dark.text2, fontSize: 12 },
+  cariAmount: {
+    color: mobileTheme.colors.brand.primary,
+    fontSize: 14,
+    fontWeight: "700",
   },
 });

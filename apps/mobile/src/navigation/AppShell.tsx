@@ -63,6 +63,7 @@ function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNav
           onOpenSaleDetail={openSaleDetail}
           onOpenSalesComposer={openSalesComposer}
           onOpenStockFocus={openStockFocus}
+          onOpenPendingCollections={() => nav.setTab("sales")}
         />
       );
     case "sales":
@@ -167,10 +168,11 @@ export function AppShell() {
           <View style={styles.brandCopy}>
             <Text style={styles.brandLabel}>StockPulse Mobile</Text>
             <Text style={styles.brandTitle}>Saha operator shell</Text>
-            <View style={styles.scopeButton}>
+            <Pressable style={styles.scopeButton} onPress={() => setTab("more")} hitSlop={8}>
               <MaterialCommunityIcons name="storefront-outline" size={13} color={mobileTheme.colors.dark.text2} />
               <Text style={styles.scopeLabel}>{scopeLabel}</Text>
-            </View>
+              <MaterialCommunityIcons name="chevron-down" size={11} color={mobileTheme.colors.dark.text2} />
+            </Pressable>
           </View>
         </View>
       </SafeAreaView>

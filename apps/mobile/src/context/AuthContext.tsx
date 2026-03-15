@@ -44,6 +44,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   can: (permission: PermissionName) => boolean;
+  setStoreScope: (ids: string[]) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,11 +54,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthStatus>("booting");
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<LoginUserResponse | null>(null);
+  const [storeScope, setStoreScope] = useState<string[]>([]);
 
   const clearSession = useCallback(async () => {
     await clearPersistedSession();
     setToken(null);
     setUser(null);
+    setStoreScope([]);
     setStatus("unauthenticated");
   }, []);
 
@@ -92,7 +95,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     configureApiClient({
-      baseUrl: apiBaseUrl ?? "http://192.168.1.100:8080",
+      baseUrl: apiBaseUrl ?? "http://192.168.1.104:8080",
       getToken: readAccessToken,
       onUnauthorized: clearSession,
     });
@@ -151,14 +154,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     status,
     token,
     user,
-    storeIds: getSessionUserStoreIds(user as never),
+    storeIds: storeScope.length ? storeScope : getSessionUserStoreIds(user as never),
     permissions: user?.permissions ?? [],
     signIn,
     signUp,
     signOut,
     refreshSession,
     can: (permission) => hasPermissionFromSession(user, permission),
-  }), [configurationError, refreshSession, signIn, signOut, signUp, status, token, user]);
+    setStoreScope,
+  }), [configurationError, refreshSession, signIn, signOut, signUp, status, storeScope, token, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

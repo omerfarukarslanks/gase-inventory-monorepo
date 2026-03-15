@@ -53,7 +53,7 @@ export default function MoreScreen({
   canViewReports,
   onNavigate,
 }: MoreScreenProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, storeIds: activeStoreIds, setStoreScope } = useAuth();
   const [storePickerOpen, setStorePickerOpen] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
 
@@ -173,8 +173,11 @@ export default function MoreScreen({
       <ModalSheet visible={storePickerOpen} onClose={() => setStorePickerOpen(false)} title="Magaza sec">
         <SelectionList
           items={[{ value: "", label: "Tum magazalar" }, ...stores.map((s) => ({ value: s.id, label: s.name }))]}
-          selectedValue=""
-          onSelect={() => setStorePickerOpen(false)}
+          selectedValue={activeStoreIds.length === 1 ? activeStoreIds[0] : ""}
+          onSelect={(val) => {
+            setStoreScope(val ? [val] : []);
+            setStorePickerOpen(false);
+          }}
         />
       </ModalSheet>
     </View>
