@@ -2,6 +2,7 @@ export type MobileAnalyticsEvent =
   | "login_success"
   | "sale_started"
   | "sale_completed"
+  | "sale_draft_resumed"
   | "inventory_adjusted"
   | "validation_error"
   | "empty_state_action_clicked";

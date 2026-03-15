@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   AppScreen,
@@ -12,6 +13,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { trackEvent } from "@/src/lib/analytics";
 import type { SalesDraftSeed, StockFocusSeed } from "@/src/lib/workflows";
 import { formatCount, formatCurrency } from "@/src/lib/format";
+import { hasSavedDraft } from "@/src/lib/draftStorage";
 import { mobileTheme } from "@/src/theme";
 import { useDashboardData } from "./hooks/useDashboardData";
 import { DashboardMetricsSection } from "./views/DashboardMetricsSection";
@@ -37,6 +39,13 @@ export default function DashboardScreen({
   onOpenPendingCollections,
 }: DashboardScreenProps = {}) {
   const { user } = useAuth();
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+
+  // Check for a persisted draft on mount
+  useEffect(() => {
+    if (!isActive) return;
+    void hasSavedDraft().then(setShowDraftBanner);
+  }, [isActive]);
 
   const {
     state,
@@ -210,6 +219,26 @@ export default function DashboardScreen({
         {quickActionButtons}
       </Card>
 
+      {/* ─── Devam Eden Satış ──────────────────────────────────────────────── */}
+      {showDraftBanner && (
+        <Pressable
+          style={styles.draftBanner}
+          onPress={() => {
+            trackEvent("sale_draft_resumed", { source: "dashboard" });
+            onOpenSalesComposer?.();
+          }}
+        >
+          <View style={styles.draftBannerIcon}>
+            <MaterialCommunityIcons name="file-edit-outline" size={18} color={mobileTheme.colors.brand.primary} />
+          </View>
+          <View style={styles.draftBannerBody}>
+            <Text style={styles.draftBannerTitle}>Devam eden satis taslagin var</Text>
+            <Text style={styles.draftBannerSub}>Kaldigi yerden devam etmek icin tikla</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={mobileTheme.colors.dark.text2} />
+        </Pressable>
+      )}
+
       {/* ─── Cari Özet ─────────────────────────────────────────────────────── */}
       {state.pendingCollections.length > 0 && (
         <Card>
@@ -292,4 +321,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  draftBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: mobileTheme.colors.dark.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.brand.primary + "44",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  draftBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: mobileTheme.colors.brand.primary + "22",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  draftBannerBody: { flex: 1, gap: 2 },
+  draftBannerTitle: { color: mobileTheme.colors.dark.text, fontSize: 13, fontWeight: "600" },
+  draftBannerSub: { color: mobileTheme.colors.dark.text2, fontSize: 11 },
 });

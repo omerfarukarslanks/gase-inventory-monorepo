@@ -1,9 +1,10 @@
 import { createSale, type Customer, type InventoryVariantStockItem } from "@gase/core";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toNumber } from "@/src/lib/format";
 import { trackEvent } from "@/src/lib/analytics";
 import type { SalesRecentCustomer, SalesRecentVariant } from "@/src/lib/salesRecents";
 import type { SalesDraftSeed } from "@/src/lib/workflows";
+import { clearDraft, loadDraft, saveDraft } from "@/src/lib/draftStorage";
 import type { ComposerStep, SalesComposerDraft, SalesView, VariantQuickPick } from "./types";
 import {
   applySeedToDraft,
@@ -33,6 +34,31 @@ export function useSalesComposer({ storeIds, recents, fetchList, setView }: UseS
   const [attempted, setAttempted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // ─── Draft persistence ──────────────────────────────────────────────────
+  // Restore persisted draft on mount (runs once)
+  useEffect(() => {
+    void loadDraft().then((saved) => {
+      if (saved) {
+        setDraft(saved);
+      }
+      setDraftRestored(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save draft to disk on every change (debounced 500 ms to avoid write storms)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!draftRestored) return; // don't overwrite on the initial load tick
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void saveDraft(draft);
+    }, 500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [draft, draftRestored]);
 
   const scopedStoreIds = useMemo(() => (storeIds.length ? storeIds : undefined), [storeIds]);
 
@@ -135,6 +161,7 @@ export function useSalesComposer({ storeIds, recents, fetchList, setView }: UseS
     setStep("customer");
     setAttempted(false);
     setError("");
+    void clearDraft();
   }, [storeIds]);
 
   const open = useCallback(
@@ -304,6 +331,7 @@ export function useSalesComposer({ storeIds, recents, fetchList, setView }: UseS
         },
       });
       trackEvent("sale_completed", { lines: linesToSubmit.length, storeId: draft.storeId || "default" });
+      await clearDraft();
       reset();
       setView("list");
       await fetchList();
@@ -322,6 +350,7 @@ export function useSalesComposer({ storeIds, recents, fetchList, setView }: UseS
     loading,
     error,
     setError,
+    draftRestored,
     scopedStoreIds,
     lineValidation,
     validLines,

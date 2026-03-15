@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoginScreen from "@/src/screens/LoginScreen";
@@ -20,9 +21,10 @@ import TasksScreen from "@/src/screens/TasksScreen";
 import { useAuth } from "@/src/context/AuthContext";
 import { mobileTheme } from "@/src/theme";
 import { useShellNavigation } from "./useShellNavigation";
-import { TabBar } from "./TabBar";
 import type { ShellScreenKey } from "./useShellNavigation";
+import { TabBar } from "./TabBar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNotificationHandler } from "@/src/hooks/useNotificationHandler";
 
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: mobileTheme.colors.dark.bg },
@@ -51,97 +53,193 @@ const styles = StyleSheet.create({
   loadingText: { color: mobileTheme.colors.dark.text, fontSize: 14 },
 });
 
-function renderScreen(tabKey: ShellScreenKey, nav: ReturnType<typeof useShellNavigation>) {
-  const { tab, goBack, can, salesRequest, stockRequest, customersRequest, openSalesComposer, openSaleDetail, openStockFocus, openCustomerComposer } = nav;
-  switch (tabKey) {
-    case "dashboard":
-      return (
-        <DashboardScreen
-          isActive={tab === "dashboard"}
-          onOpenCustomers={openCustomerComposer}
-          onOpenProducts={() => nav.setTab("products")}
-          onOpenSaleDetail={openSaleDetail}
-          onOpenSalesComposer={openSalesComposer}
-          onOpenStockFocus={openStockFocus}
-          onOpenPendingCollections={() => nav.setTab("sales")}
-        />
-      );
-    case "sales":
-      return <SalesScreen isActive={tab === "sales"} request={salesRequest} />;
-    case "stock":
-      return <StockScreen isActive={tab === "stock"} request={stockRequest} />;
-    case "tasks":
-      return (
-        <TasksScreen
-          isActive={tab === "tasks"}
-          canViewWarehouse={nav.canViewWarehouse}
-          canViewSupply={nav.canViewSupply}
-          onNavigateToWarehouse={() => nav.setTab("warehouse")}
-        />
-      );
-    case "more":
-      return (
-        <MoreScreen
-          isActive={tab === "more"}
-          canViewProducts={nav.canViewProducts}
-          canViewCustomers={nav.canViewCustomers}
-          canViewWarehouse={nav.canViewWarehouse}
-          canViewSuppliers={nav.canViewSuppliers}
-          canViewStores={nav.canViewStores}
-          canViewPackages={nav.canViewPackages}
-          canViewCategories={nav.canViewCategories}
-          canViewAttributes={nav.canViewAttributes}
-          canViewUsers={nav.canViewUsers}
-          canViewPermissions={nav.canViewPermissions}
-          canViewReports={nav.canViewReports}
-          onNavigate={(screen: ShellScreenKey) => nav.setTab(screen)}
-        />
-      );
-    case "products":
-      return (
-        <ProductsScreen
-          isActive={tab === "products"}
-          onOpenSalesDraft={openSalesComposer}
-          onOpenStockFocus={openStockFocus}
-          onBack={goBack}
-        />
-      );
-    case "customers":
-      return (
-        <CustomersScreen
-          isActive={tab === "customers"}
-          request={customersRequest}
-          onStartSale={openSalesComposer}
-          onBack={goBack}
-        />
-      );
-    case "suppliers":
-      return <SuppliersScreen isActive={tab === "suppliers"} canCreate={can("SUPPLIER_CREATE")} canUpdate={can("SUPPLIER_UPDATE")} onBack={goBack} />;
-    case "warehouse":
-      return <WarehouseScreen isActive={tab === "warehouse"} onBack={goBack} />;
-    case "stores":
-      return <StoresScreen isActive={tab === "stores"} canCreate={can("STORE_CREATE")} canUpdate={can("STORE_UPDATE")} onBack={goBack} />;
-    case "product-packages":
-      return <ProductPackagesScreen isActive={tab === "product-packages"} canCreate={can("PRODUCT_PACKAGE_CREATE")} canUpdate={can("PRODUCT_PACKAGE_UPDATE")} onBack={goBack} />;
-    case "product-categories":
-      return <ProductCategoriesScreen isActive={tab === "product-categories"} canCreate={can("PRODUCT_CATEGORY_CREATE")} canUpdate={can("PRODUCT_CATEGORY_UPDATE")} onBack={goBack} />;
-    case "reports":
-      return <ReportsScreen isActive={tab === "reports"} onBack={goBack} />;
-    case "attributes":
-      return <AttributesScreen isActive={tab === "attributes"} canCreate={can("PRODUCT_ATTRIBUTE_CREATE")} canUpdate={can("PRODUCT_ATTRIBUTE_UPDATE")} onBack={goBack} />;
-    case "users":
-      return <UsersScreen isActive={tab === "users"} canCreate={can("USER_CREATE")} canUpdate={can("USER_UPDATE")} onBack={goBack} />;
-    case "permissions":
-      return <PermissionsScreen isActive={tab === "permissions"} onBack={goBack} />;
-    default:
-      return null;
-  }
-}
+// ─── Screen Registry ────────────────────────────────────────────────────────
+// Each entry receives the full `nav` object and returns a JSX element.
+// Adding a new screen only requires one line here — no switch editing needed.
+
+type NavType = ReturnType<typeof useShellNavigation>;
+
+type ScreenEntry = {
+  render: (nav: NavType) => ReactElement | null;
+};
+
+const SCREEN_REGISTRY: Record<ShellScreenKey, ScreenEntry> = {
+  dashboard: {
+    render: (nav) => (
+      <DashboardScreen
+        isActive={nav.tab === "dashboard"}
+        onOpenCustomers={nav.openCustomerComposer}
+        onOpenProducts={() => nav.setTab("products")}
+        onOpenSaleDetail={nav.openSaleDetail}
+        onOpenSalesComposer={nav.openSalesComposer}
+        onOpenStockFocus={nav.openStockFocus}
+        onOpenPendingCollections={() => nav.setTab("sales")}
+      />
+    ),
+  },
+  sales: {
+    render: (nav) => (
+      <SalesScreen isActive={nav.tab === "sales"} request={nav.salesRequest} />
+    ),
+  },
+  stock: {
+    render: (nav) => (
+      <StockScreen isActive={nav.tab === "stock"} request={nav.stockRequest} />
+    ),
+  },
+  tasks: {
+    render: (nav) => (
+      <TasksScreen
+        isActive={nav.tab === "tasks"}
+        canViewWarehouse={nav.canViewWarehouse}
+        canViewSupply={nav.canViewSupply}
+        onNavigateToWarehouse={() => nav.setTab("warehouse")}
+      />
+    ),
+  },
+  more: {
+    render: (nav) => (
+      <MoreScreen
+        isActive={nav.tab === "more"}
+        canViewProducts={nav.canViewProducts}
+        canViewCustomers={nav.canViewCustomers}
+        canViewWarehouse={nav.canViewWarehouse}
+        canViewSuppliers={nav.canViewSuppliers}
+        canViewStores={nav.canViewStores}
+        canViewPackages={nav.canViewPackages}
+        canViewCategories={nav.canViewCategories}
+        canViewAttributes={nav.canViewAttributes}
+        canViewUsers={nav.canViewUsers}
+        canViewPermissions={nav.canViewPermissions}
+        canViewReports={nav.canViewReports}
+        onNavigate={(screen: ShellScreenKey) => nav.setTab(screen)}
+      />
+    ),
+  },
+  products: {
+    render: (nav) => (
+      <ProductsScreen
+        isActive={nav.tab === "products"}
+        onOpenSalesDraft={nav.openSalesComposer}
+        onOpenStockFocus={nav.openStockFocus}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  customers: {
+    render: (nav) => (
+      <CustomersScreen
+        isActive={nav.tab === "customers"}
+        request={nav.customersRequest}
+        onStartSale={nav.openSalesComposer}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  suppliers: {
+    render: (nav) => (
+      <SuppliersScreen
+        isActive={nav.tab === "suppliers"}
+        canCreate={nav.can("SUPPLIER_CREATE")}
+        canUpdate={nav.can("SUPPLIER_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  warehouse: {
+    render: (nav) => (
+      <WarehouseScreen isActive={nav.tab === "warehouse"} onBack={nav.goBack} />
+    ),
+  },
+  stores: {
+    render: (nav) => (
+      <StoresScreen
+        isActive={nav.tab === "stores"}
+        canCreate={nav.can("STORE_CREATE")}
+        canUpdate={nav.can("STORE_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  "product-packages": {
+    render: (nav) => (
+      <ProductPackagesScreen
+        isActive={nav.tab === "product-packages"}
+        canCreate={nav.can("PRODUCT_PACKAGE_CREATE")}
+        canUpdate={nav.can("PRODUCT_PACKAGE_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  "product-categories": {
+    render: (nav) => (
+      <ProductCategoriesScreen
+        isActive={nav.tab === "product-categories"}
+        canCreate={nav.can("PRODUCT_CATEGORY_CREATE")}
+        canUpdate={nav.can("PRODUCT_CATEGORY_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  reports: {
+    render: (nav) => (
+      <ReportsScreen isActive={nav.tab === "reports"} onBack={nav.goBack} />
+    ),
+  },
+  attributes: {
+    render: (nav) => (
+      <AttributesScreen
+        isActive={nav.tab === "attributes"}
+        canCreate={nav.can("PRODUCT_ATTRIBUTE_CREATE")}
+        canUpdate={nav.can("PRODUCT_ATTRIBUTE_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  users: {
+    render: (nav) => (
+      <UsersScreen
+        isActive={nav.tab === "users"}
+        canCreate={nav.can("USER_CREATE")}
+        canUpdate={nav.can("USER_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  permissions: {
+    render: (nav) => (
+      <PermissionsScreen isActive={nav.tab === "permissions"} onBack={nav.goBack} />
+    ),
+  },
+};
+
+// ─── Shell ──────────────────────────────────────────────────────────────────
 
 export function AppShell() {
   const { status, user } = useAuth();
   const nav = useShellNavigation();
   const { tab, setTab, mountedTabs, visibleTabs } = nav;
+
+  // ─── Push / Deep-link handler ──────────────────────────────────────────
+  useNotificationHandler(status === "authenticated", {
+    openSaleDetail: nav.openSaleDetail,
+    openApproval: (approvalId) => {
+      nav.setTab("tasks");
+      // tasksRequest currently handles "approval" kind — future: wire to detail
+    },
+    openStockFocus: (opts) => {
+      nav.openStockFocus({
+        productVariantId: opts.productVariantId,
+        variantName: opts.variantName,
+        productName: opts.productName,
+        operation: "receive",
+      });
+    },
+    openReplenishment: (_suggestionId) => {
+      nav.setTab("tasks");
+    },
+    openTasksTab: () => nav.setTab("tasks"),
+  });
 
   if (status === "booting") {
     return (
@@ -186,7 +284,7 @@ export function AppShell() {
             importantForAccessibility={tab === item ? "auto" : "no-hide-descendants"}
             style={[styles.screenPane, tab === item ? styles.screenPaneVisible : styles.screenPaneHidden]}
           >
-            {renderScreen(item, nav)}
+            {SCREEN_REGISTRY[item]?.render(nav) ?? null}
           </View>
         ))}
       </View>
