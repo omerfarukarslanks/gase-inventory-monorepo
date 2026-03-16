@@ -1,4 +1,6 @@
-export type StatusVariant = "success" | "error" | "neutral";
+// StatusVariant is now canonical in @gase/core. Re-exported here for backward compatibility.
+import type { StatusVariant } from "@gase/core";
+export type { StatusVariant };
 
 const VARIANT_CLASSES: Record<StatusVariant, string> = {
   success: "inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary",

@@ -3,6 +3,15 @@ import { appendIfDefined } from "./query-builder";
 
 export type Currency = "TRY" | "USD" | "EUR";
 
+export function isSupportedCurrency(value: string): value is Currency {
+  return value === "TRY" || value === "USD" || value === "EUR";
+}
+
+export function toCurrency(value: unknown): Currency {
+  if (typeof value === "string" && isSupportedCurrency(value)) return value;
+  return "TRY";
+}
+
 export type ProductAttributeInput = {
   id: string;
   values: string[];

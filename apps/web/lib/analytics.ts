@@ -298,11 +298,8 @@ export function exportRowsToCsv(filename: string, rows: Array<Record<string, unk
   URL.revokeObjectURL(url);
 }
 
-export function getDateRange(days: number) {
-  const endDate = new Date().toISOString().slice(0, 10);
-  const startDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
-  return { startDate, endDate };
-}
+// getDateRange is now canonical in @gase/core.
+export { getDateRange } from "@gase/core";
 
 export const reportInputClassName =
   "h-10 rounded-xl border border-border bg-surface2 px-3 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary";

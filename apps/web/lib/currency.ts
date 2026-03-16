@@ -1,5 +1,9 @@
 import { apiFetch } from "@/lib/api";
-import type { Currency } from "@/lib/products";
+import { toCurrency, isSupportedCurrency } from "@gase/core";
+import type { Currency } from "@gase/core";
+
+// toCurrency and isSupportedCurrency are now canonical in @gase/core.
+export { toCurrency };
 
 type ExchangeRateRow = {
   currency?: string;
@@ -13,15 +17,6 @@ type ExchangeRatesCache = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 let ratesCache: ExchangeRatesCache | null = null;
-
-function isSupportedCurrency(value: string): value is Currency {
-  return value === "TRY" || value === "USD" || value === "EUR";
-}
-
-export function toCurrency(value: unknown): Currency {
-  if (typeof value === "string" && isSupportedCurrency(value)) return value;
-  return "TRY";
-}
 
 function parseExchangeRates(payload: unknown): Partial<Record<Currency, number>> {
   const items = Array.isArray(payload)

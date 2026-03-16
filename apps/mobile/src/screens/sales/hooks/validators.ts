@@ -1,22 +1,12 @@
 import type { Customer, InventoryVariantStockItem, PaymentMethod } from "@gase/core";
-import { normalizeTurkishLookup } from "@gase/core";
+import { normalizeTurkishLookup, SALE_STATUS_OPTIONS, PAYMENT_METHOD_OPTIONS } from "@gase/core";
 import { formatCount, toNullableNumber, toNumber } from "@/src/lib/format";
 import type { SalesRecentCustomer, SalesRecentVariant } from "@/src/lib/salesRecents";
 import type { SalesDraftSeed } from "@/src/lib/workflows";
 import type { SalesComposerDraft, SalesComposerLine, ReturnLineState, VariantQuickPick } from "./types";
 
-export const saleStatusOptions = [
-  { label: "Tum", value: "all" as const },
-  { label: "Onayli", value: "CONFIRMED" as const },
-  { label: "Iptal", value: "CANCELLED" as const },
-];
-
-export const paymentMethodOptions = [
-  { label: "Nakit", value: "CASH" as const },
-  { label: "Kart", value: "CARD" as const },
-  { label: "Transfer", value: "TRANSFER" as const },
-  { label: "Diger", value: "OTHER" as const },
-];
+// Status/payment option arrays are now canonical in @gase/core.
+export { SALE_STATUS_OPTIONS as saleStatusOptions, PAYMENT_METHOD_OPTIONS as paymentMethodOptions };
 
 export const composerStepOptions = [
   { label: "Musteri", value: "customer" as const },

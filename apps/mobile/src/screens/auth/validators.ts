@@ -1,7 +1,11 @@
 // ─── Auth form validation ──────────────────────────────────────────────────
 
-export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+import { EMAIL_PATTERN, PASSWORD_PATTERN } from "@gase/core";
+
+/** @deprecated Use EMAIL_PATTERN from @gase/core */
+export const EMAIL_REGEX = EMAIL_PATTERN;
+/** @deprecated Use PASSWORD_PATTERN from @gase/core */
+export const STRONG_PASSWORD_REGEX = PASSWORD_PATTERN;
 
 export type LoginFormState = { email: string; password: string };
 export type SignupFormState = {

@@ -1,19 +1,14 @@
-export function formatPrice(val: number | string | null | undefined): string {
-  if (val == null) return "-";
-  const numeric = Number(val);
-  if (Number.isNaN(numeric)) return "-";
-  return numeric.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-export function toNumberOrNull(value: string): number | null {
-  if (!value.trim()) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function formatDate(value?: string): string {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString("tr-TR");
-}
+// All format utilities are now canonical in @gase/core.
+// Re-exported here so existing imports (`@/lib/format`) keep working.
+export {
+  formatCurrency,
+  formatCount,
+  formatDate,
+  formatPrice,
+  formatPercent,
+  formatReportDateLabel,
+  toNumber,
+  toNumberOrNull,
+  getDateRange,
+} from "@gase/core";
+export type { Currency } from "@gase/core";

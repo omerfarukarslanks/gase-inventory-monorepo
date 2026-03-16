@@ -19,6 +19,8 @@ export * from "./stores";
 export * from "./suppliers";
 export * from "./users";
 export * from "./validation";
+export * from "./status-labels";
+export * from "./approvals";
 export * from "./warehouse";
 export * from "./replenishment";
 export * from "./procurement";
