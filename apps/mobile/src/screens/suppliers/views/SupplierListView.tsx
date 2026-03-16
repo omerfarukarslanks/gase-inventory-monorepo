@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { type Supplier } from "@gase/core";
 import { useMemo } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
   Button,
@@ -9,7 +9,6 @@ import {
   EmptyStateWithAction,
   FilterTabs,
   ListRow,
-  ScreenHeader,
   SearchBar,
   SectionTitle,
   SkeletonBlock,
@@ -71,7 +70,6 @@ export function SupplierListView({
   statusFilter,
   setStatusFilter,
   canCreate,
-  onBack,
   onSupplierPress,
   onFetchSuppliers,
   onResetFilters,
@@ -105,51 +103,24 @@ export function SupplierListView({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.screenContent}>
-        <ScreenHeader
-          title="Tedarikciler"
-          subtitle="Stok alimi icin iletisim ve durum yonetimi"
-          onBack={onBack}
-          action={
-            <Button
-              label="Yenile"
-              onPress={onFetchSuppliers}
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-            />
-          }
-        />
+      <FlatList
+        data={loading ? [] : suppliers}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onRefresh={onFetchSuppliers}
+        refreshing={loading}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            {error ? <Banner text={error} /> : null}
 
-        {error ? <Banner text={error} /> : null}
-
-        <Card>
-          <View style={styles.filterStack}>
             <SearchBar
               value={search}
               onChangeText={setSearch}
               placeholder="Isim, telefon veya e-posta ara"
             />
             <FilterTabs value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-          </View>
-        </Card>
-      </View>
 
-      {loading ? (
-        <View style={styles.listWrap}>
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-          </View>
-        </View>
-      ) : (
-        <FlatList
-          data={suppliers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
             <Card>
               <SectionTitle title="Liste baglami" />
               <View style={styles.summaryStats}>
@@ -169,25 +140,35 @@ export function SupplierListView({
                 </View>
               </View>
             </Card>
-          }
-          renderItem={({ item }) => (
-            <ListRow
-              title={[item.name, item.surname].filter(Boolean).join(" ").trim()}
-              subtitle={item.phoneNumber ?? item.email ?? "Iletisim bilgisi yok"}
-              caption={item.address ?? "Adres bilgisi yok"}
-              badgeLabel={item.isActive === false ? "pasif" : "aktif"}
-              badgeTone={item.isActive === false ? "neutral" : "positive"}
-              onPress={() => onSupplierPress(item.id)}
-              icon={
-                <MaterialCommunityIcons
-                  name="truck-delivery-outline"
-                  size={20}
-                  color={mobileTheme.colors.brand.primary}
-                />
-              }
-            />
-          )}
-          ListEmptyComponent={
+
+            {loading ? (
+              <View style={styles.skeletonGroup}>
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+              </View>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ListRow
+            title={[item.name, item.surname].filter(Boolean).join(" ").trim()}
+            subtitle={item.phoneNumber ?? item.email ?? "Iletisim bilgisi yok"}
+            caption={item.address ?? "Adres bilgisi yok"}
+            badgeLabel={item.isActive === false ? "pasif" : "aktif"}
+            badgeTone={item.isActive === false ? "neutral" : "positive"}
+            onPress={() => onSupplierPress(item.id)}
+            icon={
+              <MaterialCommunityIcons
+                name="truck-delivery-outline"
+                size={20}
+                color={mobileTheme.colors.brand.primary}
+              />
+            }
+          />
+        )}
+        ListEmptyComponent={
+          !loading ? (
             error ? (
               <EmptyStateWithAction
                 title="Tedarikci listesi yuklenemedi."
@@ -206,10 +187,7 @@ export function SupplierListView({
                 actionLabel={hasFilters ? "Filtreyi temizle" : canCreate ? "Yeni tedarikci" : "Listeyi yenile"}
                 onAction={() => {
                   if (hasFilters) {
-                    trackEvent("empty_state_action_clicked", {
-                      screen: "suppliers",
-                      target: "reset_filters",
-                    });
+                    trackEvent("empty_state_action_clicked", { screen: "suppliers", target: "reset_filters" });
                     onResetFilters();
                     return;
                   }
@@ -221,22 +199,22 @@ export function SupplierListView({
                 }}
               />
             )
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
-      <StickyActionBar>
-        <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
-        {canCreate ? (
-          <Button
-            label="Yeni tedarikci"
-            onPress={onOpenCreateModal}
-            icon={<MaterialCommunityIcons name="plus-circle-outline" size={16} color="#FFFFFF" />}
-          />
-        ) : (
-          <Button label="Listeyi yenile" onPress={onFetchSuppliers} variant="secondary" />
-        )}
-      </StickyActionBar>
+      {hasFilters ? (
+        <StickyActionBar>
+          <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
+        </StickyActionBar>
+      ) : null}
+
+      {/* FAB — Yeni Tedarikci (sadece yetkili kullanicilara) */}
+      {canCreate ? (
+        <Pressable style={styles.fab} onPress={onOpenCreateModal} hitSlop={8}>
+          <MaterialCommunityIcons name="plus-circle-outline" size={22} color="#fff" />
+        </Pressable>
+      ) : null}
 
       <SupplierFormSheet
         visible={editorOpen}
@@ -267,26 +245,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: mobileTheme.colors.dark.bg,
   },
-  screenContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 16,
-  },
-  filterStack: {
-    gap: 12,
-  },
-  listWrap: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 100,
     gap: 12,
   },
-  loadingList: {
+  listHeader: {
+    paddingTop: 16,
     gap: 12,
-    paddingBottom: 120,
+    marginBottom: 8,
+  },
+  skeletonGroup: {
+    gap: 12,
+    marginTop: 4,
   },
   summaryStats: {
     marginTop: 12,
@@ -305,5 +276,21 @@ const styles = StyleSheet.create({
     color: mobileTheme.colors.dark.text,
     fontSize: 15,
     fontWeight: "700",
+  },
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: mobileTheme.colors.brand.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: mobileTheme.colors.brand.primary,
+    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
   },
 });

@@ -9,14 +9,12 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
-  BarcodeScannerButton,
   Button,
   Card,
   EmptyStateWithAction,
   FilterTabs,
   ListRow,
   ModalSheet,
-  ScreenHeader,
   SearchBar,
   SectionTitle,
   SelectionList,
@@ -142,30 +140,31 @@ export function ProductListView({
   canSubmit,
   onSubmit,
 }: ProductListViewProps) {
+  const hasActiveFilters = !!search || priorityFilter !== "all" || !!selectedStoreId;
+
   return (
     <View style={styles.screen}>
-      <View style={styles.screenContent}>
-        {segmentControl}
-        <ScreenHeader
-          title="Stok"
-          subtitle="Urunu sec, varyanti ac, sonra operasyonu baslat"
-          action={<Button label="Yenile" onPress={onFetchStock} variant="secondary" size="sm" fullWidth={false} />}
-        />
+      {/* Segment control pinned at top — doesn't scroll */}
+      {segmentControl ? (
+        <View style={styles.segmentWrap}>{segmentControl}</View>
+      ) : null}
 
-        {error ? <Banner text={error} /> : null}
+      <FlatList
+        data={loading ? [] : filteredProducts}
+        keyExtractor={(item) => item.productId}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onRefresh={onFetchStock}
+        refreshing={loading}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            {error ? <Banner text={error} /> : null}
 
-        <Card>
-          <View style={styles.filterStack}>
-            <View style={styles.searchRow}>
-              <View style={styles.searchFlex}>
-                <SearchBar
-                  value={search}
-                  onChangeText={setSearch}
-                  placeholder="Urun, varyant veya barkod ara"
-                />
-              </View>
-              <BarcodeScannerButton onScanned={setSearch} />
-            </View>
+            <SearchBar
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Urun, varyant veya barkod ara"
+            />
             <FilterTabs value={priorityFilter} options={priorityOptions} onChange={setPriorityFilter} />
             <Button
               label={`Magaza: ${selectedStoreName}`}
@@ -173,127 +172,118 @@ export function ProductListView({
               variant="ghost"
               icon={<MaterialCommunityIcons name="storefront-outline" size={16} color={mobileTheme.colors.dark.text} />}
             />
-          </View>
-        </Card>
-      </View>
 
-      {loading ? (
-        <View style={styles.listWrap}>
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={84} />
-            <SkeletonBlock height={84} />
-            <SkeletonBlock height={84} />
-          </View>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredProducts}
-          keyExtractor={(item) => item.productId}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
+            {/* Context stats */}
+            <Card>
+              <SectionTitle title="Stok baglami" />
+              <View style={styles.contextStats}>
+                <View style={styles.contextStat}>
+                  <Text style={styles.detailLabel}>Magaza</Text>
+                  <Text style={styles.detailValue}>{selectedStoreName}</Text>
+                </View>
+                <View style={styles.contextStat}>
+                  <Text style={styles.detailLabel}>Urun</Text>
+                  <Text style={styles.detailValue}>{formatCount(filteredProducts.length)}</Text>
+                </View>
+                <View style={styles.contextStat}>
+                  <Text style={styles.detailLabel}>Varyant</Text>
+                  <Text style={styles.detailValue}>{formatCount(visibleVariantCount)}</Text>
+                </View>
+                <View style={styles.contextStat}>
+                  <Text style={styles.detailLabel}>Kritik</Text>
+                  <Text style={styles.detailValue}>{formatCount(criticalQueue.length)}</Text>
+                </View>
+              </View>
+            </Card>
+
+            {criticalQueuePreview.length ? (
               <Card>
-                <SectionTitle title="Stok baglami" />
-                <View style={styles.contextStats}>
-                  <View style={styles.contextStat}>
-                    <Text style={styles.detailLabel}>Magaza</Text>
-                    <Text style={styles.detailValue}>{selectedStoreName}</Text>
-                  </View>
-                  <View style={styles.contextStat}>
-                    <Text style={styles.detailLabel}>Urun</Text>
-                    <Text style={styles.detailValue}>{formatCount(filteredProducts.length)}</Text>
-                  </View>
-                  <View style={styles.contextStat}>
-                    <Text style={styles.detailLabel}>Varyant</Text>
-                    <Text style={styles.detailValue}>{formatCount(visibleVariantCount)}</Text>
-                  </View>
-                  <View style={styles.contextStat}>
-                    <Text style={styles.detailLabel}>Kritik</Text>
-                    <Text style={styles.detailValue}>{formatCount(criticalQueue.length)}</Text>
-                  </View>
+                <SectionTitle
+                  title="Kritik stok kuyrugu"
+                  action={
+                    <Button
+                      label={priorityFilter === "low" ? "Tumunu goster" : "Sadece kritik"}
+                      onPress={() =>
+                        setPriorityFilter(priorityFilter === "low" ? "all" : "low")
+                      }
+                      variant="secondary"
+                      size="sm"
+                      fullWidth={false}
+                    />
+                  }
+                />
+                <View style={styles.queueList}>
+                  {criticalQueuePreview.map((item) => (
+                    <Card
+                      key={`${item.product.productId}-${item.variant.productVariantId}`}
+                      style={styles.queueCard}
+                    >
+                      <Text style={styles.queueTitle}>{item.variant.variantName}</Text>
+                      <Text style={styles.queueSubtitle}>{item.product.productName}</Text>
+                      <Text style={styles.queueMeta}>
+                        {`${formatCount(item.variant.totalQuantity)} adet • Kod: ${
+                          item.variant.variantCode ?? "-"
+                        }`}
+                      </Text>
+                      <View style={styles.queueActions}>
+                        <Button
+                          label="Detay"
+                          onPress={() => onOpenVariantDetail(item.product, item.variant)}
+                          variant="ghost"
+                          size="sm"
+                          fullWidth={false}
+                        />
+                        <Button
+                          label="Alim"
+                          onPress={() =>
+                            onOpenOperation("receive", item.variant, item.product.productName)
+                          }
+                          variant="secondary"
+                          size="sm"
+                          fullWidth={false}
+                        />
+                        <Button
+                          label="Duzelt"
+                          onPress={() =>
+                            onOpenOperation("adjust", item.variant, item.product.productName)
+                          }
+                          size="sm"
+                          fullWidth={false}
+                        />
+                      </View>
+                    </Card>
+                  ))}
                 </View>
               </Card>
+            ) : null}
 
-              {criticalQueuePreview.length ? (
-                <Card>
-                  <SectionTitle
-                    title="Kritik stok kuyrugu"
-                    action={
-                      <Button
-                        label={priorityFilter === "low" ? "Tumunu goster" : "Sadece kritik"}
-                        onPress={() =>
-                          setPriorityFilter(priorityFilter === "low" ? "all" : "low")
-                        }
-                        variant="secondary"
-                        size="sm"
-                        fullWidth={false}
-                      />
-                    }
-                  />
-                  <View style={styles.queueList}>
-                    {criticalQueuePreview.map((item) => (
-                      <Card
-                        key={`${item.product.productId}-${item.variant.productVariantId}`}
-                        style={styles.queueCard}
-                      >
-                        <Text style={styles.queueTitle}>{item.variant.variantName}</Text>
-                        <Text style={styles.queueSubtitle}>{item.product.productName}</Text>
-                        <Text style={styles.queueMeta}>
-                          {`${formatCount(item.variant.totalQuantity)} adet • Kod: ${
-                            item.variant.variantCode ?? "-"
-                          }`}
-                        </Text>
-                        <View style={styles.queueActions}>
-                          <Button
-                            label="Detay"
-                            onPress={() => onOpenVariantDetail(item.product, item.variant)}
-                            variant="ghost"
-                            size="sm"
-                            fullWidth={false}
-                          />
-                          <Button
-                            label="Alim"
-                            onPress={() =>
-                              onOpenOperation("receive", item.variant, item.product.productName)
-                            }
-                            variant="secondary"
-                            size="sm"
-                            fullWidth={false}
-                          />
-                          <Button
-                            label="Duzelt"
-                            onPress={() =>
-                              onOpenOperation("adjust", item.variant, item.product.productName)
-                            }
-                            size="sm"
-                            fullWidth={false}
-                          />
-                        </View>
-                      </Card>
-                    ))}
-                  </View>
-                </Card>
-              ) : null}
-            </View>
-          }
-          renderItem={({ item }) => {
-            const lowVariantCount = (item.variants ?? []).filter(
-              (variant) => Number(variant.totalQuantity ?? 0) <= LOW_STOCK_THRESHOLD,
-            ).length;
-            return (
-              <ListRow
-                title={item.productName}
-                subtitle={`Toplam ${formatCount(item.totalQuantity)} adet`}
-                caption={`${formatCount(item.variants?.length ?? 0)} varyant • ${lowVariantCount ? `${lowVariantCount} kritik varyant` : "kritik varyant yok"}`}
-                badgeLabel={lowVariantCount ? "Oncelik" : "Normal"}
-                badgeTone={lowVariantCount ? "warning" : "positive"}
-                onPress={() => onProductPress(item)}
-                icon={<MaterialCommunityIcons name="warehouse" size={20} color={mobileTheme.colors.brand.primary} />}
-              />
-            );
-          }}
-          ListEmptyComponent={
+            {loading ? (
+              <View style={styles.skeletonGroup}>
+                <SkeletonBlock height={84} />
+                <SkeletonBlock height={84} />
+                <SkeletonBlock height={84} />
+              </View>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => {
+          const lowVariantCount = (item.variants ?? []).filter(
+            (variant) => Number(variant.totalQuantity ?? 0) <= LOW_STOCK_THRESHOLD,
+          ).length;
+          return (
+            <ListRow
+              title={item.productName}
+              subtitle={`Toplam ${formatCount(item.totalQuantity)} adet`}
+              caption={`${formatCount(item.variants?.length ?? 0)} varyant • ${lowVariantCount ? `${lowVariantCount} kritik varyant` : "kritik varyant yok"}`}
+              badgeLabel={lowVariantCount ? "Oncelik" : "Normal"}
+              badgeTone={lowVariantCount ? "warning" : "positive"}
+              onPress={() => onProductPress(item)}
+              icon={<MaterialCommunityIcons name="warehouse" size={20} color={mobileTheme.colors.brand.primary} />}
+            />
+          );
+        }}
+        ListEmptyComponent={
+          !loading ? (
             <EmptyStateWithAction
               title="Stok verisi bulunamadi."
               subtitle="Aramayi temizle veya magaza filtresini genislet."
@@ -303,14 +293,15 @@ export function ProductListView({
                 onResetFilters();
               }}
             />
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
-      <StickyActionBar>
-        <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
-        <Button label="Magaza sec" onPress={() => setStorePickerOpen(true)} variant="secondary" />
-      </StickyActionBar>
+      {hasActiveFilters ? (
+        <StickyActionBar>
+          <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
+        </StickyActionBar>
+      ) : null}
 
       <ModalSheet
         visible={storePickerOpen}
@@ -374,36 +365,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: mobileTheme.colors.dark.bg,
   },
-  screenContent: {
+  segmentWrap: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 16,
-  },
-  filterStack: {
-    gap: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  searchFlex: { flex: 1 },
-  listWrap: {
-    flex: 1,
-    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 100,
     gap: 12,
   },
   listHeader: {
+    paddingTop: 16,
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  loadingList: {
+  skeletonGroup: {
     gap: 12,
-    paddingBottom: 120,
+    marginTop: 4,
   },
   contextStats: {
     marginTop: 12,

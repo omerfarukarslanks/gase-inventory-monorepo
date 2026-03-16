@@ -52,8 +52,9 @@ export function useVariantPicker({ onSelect, scopedStoreIds }: UseVariantPickerO
     };
   }, [open, debouncedSearch, scopedStoreIds]);
 
-  const openForLine = (targetLineId: string) => {
+  const openForLine = (targetLineId: string, initialSearch?: string) => {
     setLineId(targetLineId);
+    setSearch(initialSearch ?? "");
     setOpen(true);
   };
 

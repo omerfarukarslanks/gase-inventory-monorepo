@@ -6,7 +6,7 @@ import {
 } from "@gase/core";
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { Banner, Button, SkeletonBlock, TextField } from "@/src/components/ui";
+import { Banner, SkeletonBlock, TextField } from "@/src/components/ui";
 import { mobileTheme } from "@/src/theme";
 import { formatDate } from "@/src/lib/format";
 import { useAuth } from "@/src/context/AuthContext";
@@ -144,85 +144,81 @@ export function StockMovementsView({ isActive = true }: StockMovementsViewProps)
     loadMore,
   } = useStockMovements(isActive, storeIds);
 
-  if (loading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <SkeletonBlock height={72} />
-        <SkeletonBlock height={72} />
-        <SkeletonBlock height={72} />
-        <SkeletonBlock height={72} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.loadingWrap}>
-        <Banner text={error} />
-        <Button label="Tekrar dene" onPress={reload} variant="secondary" size="sm" fullWidth={false} />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      {/* Search */}
-      <View style={styles.searchWrap}>
-        <TextField
-          label="Urun ara"
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Urun adi veya referans..."
-        />
-      </View>
+    <FlatList
+      data={loading ? [] : movements}
+      keyExtractor={(item) => item.id}
+      style={styles.list}
+      contentContainerStyle={styles.listContent}
+      onRefresh={reload}
+      refreshing={loading}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.3}
+      keyboardShouldPersistTaps="handled"
+      ListHeaderComponent={
+        <View style={styles.listHeader}>
+          {error ? (
+            <Banner text={error} />
+          ) : null}
 
-      {/* Type filter chips */}
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={TYPE_FILTERS}
-        keyExtractor={(item) => item.key}
-        style={styles.chipList}
-        contentContainerStyle={styles.chipContent}
-        renderItem={({ item }) => {
-          const active = typeFilter === item.key;
-          return (
-            <Pressable
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => setTypeFilter(item.key)}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        }}
-      />
+          {/* Search */}
+          <TextField
+            label="Urun ara"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Urun adi veya referans..."
+          />
 
-      {/* Movement list */}
-      <FlatList
-        data={movements}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
-        ListEmptyComponent={
+          {/* Type filter chips */}
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={TYPE_FILTERS}
+            keyExtractor={(item) => item.key}
+            style={styles.chipList}
+            contentContainerStyle={styles.chipContent}
+            renderItem={({ item }) => {
+              const active = typeFilter === item.key;
+              return (
+                <Pressable
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setTypeFilter(item.key)}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
+
+          {loading ? (
+            <View style={styles.skeletonGroup}>
+              <SkeletonBlock height={60} />
+              <SkeletonBlock height={60} />
+              <SkeletonBlock height={60} />
+              <SkeletonBlock height={60} />
+            </View>
+          ) : null}
+        </View>
+      }
+      ListEmptyComponent={
+        !loading ? (
           <View style={styles.empty}>
             <MaterialCommunityIcons name="swap-horizontal" size={40} color={colors.muted} />
             <Text style={styles.emptyText}>Hareket bulunamadi</Text>
           </View>
-        }
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={{ paddingVertical: 12 }}>
-              <SkeletonBlock height={60} />
-            </View>
-          ) : null
-        }
-        renderItem={({ item }) => <MovementRow movement={item} />}
-      />
-    </View>
+        ) : null
+      }
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={{ paddingVertical: 12 }}>
+            <SkeletonBlock height={60} />
+          </View>
+        ) : null
+      }
+      renderItem={({ item }) => <MovementRow movement={item} />}
+    />
   );
 }
 
@@ -273,11 +269,17 @@ function MovementRow({ movement }: { movement: InventoryMovement }) {
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loadingWrap: { gap: 12, paddingTop: 4 },
-  searchWrap: { paddingBottom: 8 },
+  list: { flex: 1 },
+  listContent: { paddingBottom: 40 },
+  listHeader: {
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 8,
+  },
+  skeletonGroup: { gap: 8 },
   chipList: { flexGrow: 0 },
-  chipContent: { gap: 8, paddingBottom: 12 },
+  chipContent: { gap: 8, paddingBottom: 4 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -296,8 +298,6 @@ const styles = StyleSheet.create({
     color: colors.text2,
   },
   chipTextActive: { color: brand.primary },
-  list: { flex: 1 },
-  listContent: { gap: 2, paddingBottom: 40 },
   empty: {
     alignItems: "center",
     paddingVertical: 60,
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },

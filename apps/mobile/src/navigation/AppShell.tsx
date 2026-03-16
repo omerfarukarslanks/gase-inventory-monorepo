@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoginScreen from "@/src/screens/LoginScreen";
@@ -25,6 +26,7 @@ import type { ShellScreenKey } from "./useShellNavigation";
 import { TabBar } from "./TabBar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNotificationHandler } from "@/src/hooks/useNotificationHandler";
+import { BarcodeScannerSheet, BarcodeActionSheet } from "@/src/components/ui";
 
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: mobileTheme.colors.dark.bg },
@@ -45,6 +47,16 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   scopeLabel: { color: mobileTheme.colors.dark.text2, fontSize: 13 },
+  scanBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: mobileTheme.colors.dark.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.dark.border,
+  },
   content: { flex: 1, position: "relative" },
   screenPane: { ...StyleSheet.absoluteFillObject },
   screenPaneVisible: { display: "flex" },
@@ -216,9 +228,20 @@ const SCREEN_REGISTRY: Record<ShellScreenKey, ScreenEntry> = {
 // ─── Shell ──────────────────────────────────────────────────────────────────
 
 export function AppShell() {
-  const { status, user } = useAuth();
+  const { status, user, can } = useAuth();
   const nav = useShellNavigation();
   const { tab, setTab, mountedTabs, visibleTabs } = nav;
+
+  // ─── Global barcode scanner state ──────────────────────────────────────
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedBarcode, setScannedBarcode] = useState("");
+  const [actionSheetOpen, setActionSheetOpen] = useState(false);
+
+  const handleScanned = (barcode: string) => {
+    setScannedBarcode(barcode);
+    setScannerOpen(false);
+    setActionSheetOpen(true);
+  };
 
   // ─── Push / Deep-link handler ──────────────────────────────────────────
   useNotificationHandler(status === "authenticated", {
@@ -272,8 +295,36 @@ export function AppShell() {
               <MaterialCommunityIcons name="chevron-down" size={11} color={mobileTheme.colors.dark.text2} />
             </Pressable>
           </View>
+
+          {/* Global barcode scan button */}
+          <Pressable style={styles.scanBtn} onPress={() => setScannerOpen(true)} hitSlop={8}>
+            <MaterialCommunityIcons name="barcode-scan" size={22} color={mobileTheme.colors.dark.text} />
+          </Pressable>
         </View>
       </SafeAreaView>
+
+      {/* Global barcode scanner (full-screen modal) */}
+      <BarcodeScannerSheet
+        visible={scannerOpen}
+        onScanned={handleScanned}
+        onClose={() => setScannerOpen(false)}
+      />
+
+      {/* Context action sheet shown after scan */}
+      <BarcodeActionSheet
+        visible={actionSheetOpen}
+        barcode={scannedBarcode}
+        canSell={can("SALE_CREATE")}
+        canReceive={can("PO_READ")}
+        onClose={() => setActionSheetOpen(false)}
+        onStockSearch={(barcode) => nav.openStockBarcode(barcode)}
+        onAddToSale={(barcode) => {
+          nav.openSalesComposer({ variantBarcode: barcode });
+        }}
+        onGoodsReceipt={() => {
+          nav.setTab("tasks");
+        }}
+      />
 
       <View style={styles.content}>
         {mountedTabs.map((item) => (

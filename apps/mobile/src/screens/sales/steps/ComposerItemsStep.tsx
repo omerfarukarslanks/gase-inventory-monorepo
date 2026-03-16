@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button, Card, InlineFieldError, ListRow, SectionTitle, TextField } from "@/src/components/ui";
 import { mobileTheme } from "@/src/theme";
+import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { formatCount, formatCurrency } from "@/src/lib/format";
 import type { SalesRecentVariant } from "@/src/lib/salesRecents";
@@ -10,7 +11,7 @@ import { createLine, createQuickPickFromRecent } from "../hooks/validators";
 type ComposerItemsStepProps = {
   composer: ReturnType<typeof useSalesComposer>;
   recentVariants: SalesRecentVariant[];
-  onOpenVariantPicker: (lineId: string) => void;
+  onOpenVariantPicker: (lineId: string, initialSearch?: string) => void;
 };
 
 const styles = StyleSheet.create({
@@ -26,6 +27,15 @@ export function ComposerItemsStep({
   onOpenVariantPicker,
 }: ComposerItemsStepProps) {
   const { draft, setDraft, attempted, lineValidation, stepErrors, applyVariantQuickPick } = composer;
+
+  // Barkod taramasından gelen sorgu: mount'ta picker'ı otomatik aç ve sorguyu temizle
+  const firstLineId = draft.lines[0]?.id;
+  useEffect(() => {
+    if (!draft.variantBarcodeQuery || !firstLineId) return;
+    const query = draft.variantBarcodeQuery;
+    setDraft((current) => ({ ...current, variantBarcodeQuery: undefined }));
+    onOpenVariantPicker(firstLineId, query);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

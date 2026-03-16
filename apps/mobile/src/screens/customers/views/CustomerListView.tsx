@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { Customer } from "@gase/core";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Banner,
   Button,
@@ -8,7 +8,6 @@ import {
   EmptyStateWithAction,
   FilterTabs,
   ListRow,
-  ScreenHeader,
   SearchBar,
   SectionTitle,
   SkeletonBlock,
@@ -59,42 +58,24 @@ export function CustomerListView({
 }: CustomerListViewProps) {
   return (
     <View style={styles.screen}>
-      <View style={styles.screenContent}>
-        <ScreenHeader
-          title="Musteriler"
-          subtitle="Arama, hizli olusturma ve satisa gecis"
-          action={<Button label="Yenile" onPress={() => void fetchCustomers()} variant="secondary" size="sm" fullWidth={false} />}
-        />
+      <FlatList
+        data={loading ? [] : customers}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onRefresh={() => void fetchCustomers()}
+        refreshing={loading}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            {error ? <Banner text={error} /> : null}
 
-        {error ? <Banner text={error} /> : null}
-
-        <Card>
-          <View style={styles.filterStack}>
             <SearchBar
               value={search}
               onChangeText={setSearch}
               placeholder="Ad, soyad veya telefon ara"
             />
             <FilterTabs value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-          </View>
-        </Card>
-      </View>
 
-      {loading ? (
-        <View style={styles.listWrap}>
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-          </View>
-        </View>
-      ) : (
-        <FlatList
-          data={customers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
             <Card>
               <SectionTitle title="Liste baglami" />
               <View style={styles.summaryStats}>
@@ -114,19 +95,29 @@ export function CustomerListView({
                 </View>
               </View>
             </Card>
-          }
-          renderItem={({ item }) => (
-            <ListRow
-              title={`${item.name} ${item.surname}`.trim()}
-              subtitle={item.phoneNumber ?? item.email ?? "Iletisim bilgisi yok"}
-              caption={item.isActive === false ? "Pasif kayit" : "Aktif musteri"}
-              badgeLabel="Detay"
-              badgeTone="info"
-              onPress={() => void openCustomer(item)}
-              icon={<MaterialCommunityIcons name="account-outline" size={20} color={mobileTheme.colors.brand.primary} />}
-            />
-          )}
-          ListEmptyComponent={
+
+            {loading ? (
+              <View style={styles.skeletonGroup}>
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+              </View>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ListRow
+            title={`${item.name} ${item.surname}`.trim()}
+            subtitle={item.phoneNumber ?? item.email ?? "Iletisim bilgisi yok"}
+            caption={item.isActive === false ? "Pasif kayit" : "Aktif musteri"}
+            badgeLabel="Detay"
+            badgeTone="info"
+            onPress={() => void openCustomer(item)}
+            icon={<MaterialCommunityIcons name="account-outline" size={20} color={mobileTheme.colors.brand.primary} />}
+          />
+        )}
+        ListEmptyComponent={
+          !loading ? (
             error ? (
               <EmptyStateWithAction
                 title="Musteri listesi yuklenemedi."
@@ -145,33 +136,29 @@ export function CustomerListView({
                 actionLabel={hasCustomerFilters ? "Filtreyi temizle" : "Yeni musteri"}
                 onAction={() => {
                   if (hasCustomerFilters) {
-                    trackEvent("empty_state_action_clicked", {
-                      screen: "customers",
-                      target: "reset_filters",
-                    });
+                    trackEvent("empty_state_action_clicked", { screen: "customers", target: "reset_filters" });
                     resetFilters();
                     return;
                   }
-                  trackEvent("empty_state_action_clicked", {
-                    screen: "customers",
-                    target: "create_customer",
-                  });
+                  trackEvent("empty_state_action_clicked", { screen: "customers", target: "create_customer" });
                   openComposerModal();
                 }}
               />
             )
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
-      <StickyActionBar>
-        <Button label="Filtreyi temizle" onPress={resetFilters} variant="ghost" />
-        <Button
-          label="Yeni musteri"
-          onPress={openComposerModal}
-          icon={<MaterialCommunityIcons name="account-plus-outline" size={16} color="#FFFFFF" />}
-        />
-      </StickyActionBar>
+      {hasCustomerFilters ? (
+        <StickyActionBar>
+          <Button label="Filtreyi temizle" onPress={resetFilters} variant="ghost" />
+        </StickyActionBar>
+      ) : null}
+
+      {/* FAB — Yeni Musteri */}
+      <Pressable style={styles.fab} onPress={openComposerModal} hitSlop={8}>
+        <MaterialCommunityIcons name="account-plus-outline" size={22} color="#fff" />
+      </Pressable>
     </View>
   );
 }
@@ -181,26 +168,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: mobileTheme.colors.dark.bg,
   },
-  screenContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 16,
-  },
-  filterStack: {
-    gap: 12,
-  },
-  listWrap: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 100,
     gap: 12,
   },
-  loadingList: {
+  listHeader: {
+    paddingTop: 16,
     gap: 12,
-    paddingBottom: 120,
+    marginBottom: 8,
+  },
+  skeletonGroup: {
+    gap: 12,
+    marginTop: 4,
+  },
+  summaryStats: {
+    marginTop: 12,
+    gap: 12,
+  },
+  summaryStat: {
+    gap: 4,
   },
   detailLabel: {
     color: mobileTheme.colors.dark.text2,
@@ -213,11 +200,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  summaryStats: {
-    marginTop: 12,
-    gap: 12,
-  },
-  summaryStat: {
-    gap: 4,
+  fab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: mobileTheme.colors.brand.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: mobileTheme.colors.brand.primary,
+    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
   },
 });

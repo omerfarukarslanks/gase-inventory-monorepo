@@ -22,6 +22,8 @@ export type SalesComposerDraft = {
   paymentAmount: string;
   paymentMethod: PaymentMethod;
   lines: SalesComposerLine[];
+  /** Transient: barkod taramasından gelen varyant arama sorgusu. ItemsStep mount'unda picker'ı açar ve silinir. */
+  variantBarcodeQuery?: string;
 };
 
 export type PaymentEditorState = {

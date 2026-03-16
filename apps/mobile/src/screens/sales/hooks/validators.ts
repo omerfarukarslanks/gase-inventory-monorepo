@@ -79,6 +79,10 @@ export function applySeedToDraft(
     ];
   }
 
+  if (seed.variantBarcode) {
+    nextDraft.variantBarcodeQuery = seed.variantBarcode;
+  }
+
   return nextDraft;
 }
 

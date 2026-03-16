@@ -40,6 +40,16 @@ export default function StockScreen({
     return items;
   }, [canViewMovements]);
 
+  // Barcode seed: global scanner'dan gelen barkodu arama kutusuna uygula
+  useEffect(() => {
+    if (!request) return;
+    const seed = request.payload.kind === "focus" ? request.payload.seed : null;
+    if (seed?.barcode) {
+      setSearch(seed.barcode);
+      setSegment("summary");
+    }
+  }, [request]);
+
   // Sync priority filter with segment
   useEffect(() => {
     if (segment === "critical") setPriorityFilter("low");

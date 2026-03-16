@@ -210,6 +210,12 @@ export function useShellNavigation() {
     setCustomersRequest(makeRequest({ kind: "compose" }));
   };
 
+  /** Global barkod tarama: stok sekmesinde barkod araması başlatır */
+  const openStockBarcode = (barcode: string) => {
+    setTab("stock");
+    setStockRequest(makeRequest({ kind: "focus", seed: { barcode } }));
+  };
+
   const goBack = () => {
     setTab(previousPrimaryTab.current);
   };
@@ -241,6 +247,7 @@ export function useShellNavigation() {
     openSalesComposer,
     openSaleDetail,
     openStockFocus,
+    openStockBarcode,
     openCustomerComposer,
     goBack,
   };

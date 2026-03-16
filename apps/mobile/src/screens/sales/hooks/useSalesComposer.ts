@@ -166,7 +166,8 @@ export function useSalesComposer({ storeIds, recents, fetchList, setView }: UseS
 
   const open = useCallback(
     (seed?: SalesDraftSeed, options?: { reset?: boolean; startStep?: ComposerStep }) => {
-      const startStep = options?.startStep ?? "customer";
+      // Barkod seed'i varsa "items" adımından başla — kullanıcı doğrudan ürün seçimine geçer
+      const startStep = options?.startStep ?? (seed?.variantBarcode ? "items" : "customer");
       setStep(startStep);
       setAttempted(false);
       setError("");

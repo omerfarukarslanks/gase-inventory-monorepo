@@ -16,6 +16,8 @@ export type SalesDraftSeed = {
   unitPrice?: string;
   currency?: Currency;
   note?: string;
+  /** Barcode taranınca ürün araması için — composer açılınca variant picker'a uygulanır */
+  variantBarcode?: string;
 };
 
 export type SalesRequest =
@@ -34,6 +36,8 @@ export type StockFocusSeed = {
   productVariantId?: string;
   variantName?: string;
   operation?: StockOperationKind;
+  /** Barcode taranınca arama kutusuna uygulanır */
+  barcode?: string;
 };
 
 export type StockRequest = {

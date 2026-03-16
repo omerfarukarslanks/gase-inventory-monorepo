@@ -8,7 +8,6 @@ import {
   EmptyStateWithAction,
   FilterTabs,
   ListRow,
-  ScreenHeader,
   SearchBar,
   SectionTitle,
   SkeletonBlock,
@@ -52,25 +51,17 @@ export function ProductListView({
 }: ProductListViewProps) {
   return (
     <View style={styles.screen}>
-      <View style={styles.screenContent}>
-        <ScreenHeader
-          title="Urunler"
-          subtitle="Barkod, SKU veya urun adina gore ara"
-          action={
-            <Button
-              label="Yenile"
-              onPress={onFetchProducts}
-              variant="secondary"
-              size="sm"
-              fullWidth={false}
-            />
-          }
-        />
+      <FlatList
+        data={loading ? [] : products}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onRefresh={onFetchProducts}
+        refreshing={loading}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            {error ? <Banner text={error} /> : null}
 
-        {error ? <Banner text={error} /> : null}
-
-        <Card>
-          <View style={styles.filterStack}>
             <SearchBar
               value={search}
               onChangeText={onChangeSearch}
@@ -82,25 +73,7 @@ export function ProductListView({
               options={statusOptions}
               onChange={onChangeStatusFilter}
             />
-          </View>
-        </Card>
-      </View>
 
-      {loading ? (
-        <View style={styles.listWrap}>
-          <View style={styles.loadingList}>
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-            <SkeletonBlock height={82} />
-          </View>
-        </View>
-      ) : (
-        <FlatList
-          data={products}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
             <Card>
               <SectionTitle title="Liste baglami" />
               <View style={styles.summaryStats}>
@@ -120,25 +93,35 @@ export function ProductListView({
                 </View>
               </View>
             </Card>
-          }
-          renderItem={({ item }) => (
-            <ListRow
-              title={item.name}
-              subtitle={`SKU: ${item.sku}`}
-              caption={`${formatCurrency(item.unitPrice, item.currency)} • ${item.category?.name ?? "Kategori yok"}`}
-              badgeLabel={`${item.variantCount ?? item.variants?.length ?? 0} varyant`}
-              badgeTone={item.isActive === false ? "neutral" : "positive"}
-              onPress={() => onOpenProduct(item.id)}
-              icon={
-                <MaterialCommunityIcons
-                  name="package-variant"
-                  size={20}
-                  color={mobileTheme.colors.brand.primary}
-                />
-              }
-            />
-          )}
-          ListEmptyComponent={
+
+            {loading ? (
+              <View style={styles.skeletonGroup}>
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+                <SkeletonBlock height={82} />
+              </View>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ListRow
+            title={item.name}
+            subtitle={`SKU: ${item.sku}`}
+            caption={`${formatCurrency(item.unitPrice, item.currency)} • ${item.category?.name ?? "Kategori yok"}`}
+            badgeLabel={`${item.variantCount ?? item.variants?.length ?? 0} varyant`}
+            badgeTone={item.isActive === false ? "neutral" : "positive"}
+            onPress={() => onOpenProduct(item.id)}
+            icon={
+              <MaterialCommunityIcons
+                name="package-variant"
+                size={20}
+                color={mobileTheme.colors.brand.primary}
+              />
+            }
+          />
+        )}
+        ListEmptyComponent={
+          !loading ? (
             error ? (
               <EmptyStateWithAction
                 title="Urun listesi yuklenemedi."
@@ -157,10 +140,7 @@ export function ProductListView({
                 actionLabel={hasFilters ? "Filtreyi temizle" : "Listeyi yenile"}
                 onAction={() => {
                   if (hasFilters) {
-                    trackEvent("empty_state_action_clicked", {
-                      screen: "products",
-                      target: "reset_filters",
-                    });
+                    trackEvent("empty_state_action_clicked", { screen: "products", target: "reset_filters" });
                     onResetFilters();
                     return;
                   }
@@ -168,14 +148,15 @@ export function ProductListView({
                 }}
               />
             )
-          }
-        />
-      )}
+          ) : null
+        }
+      />
 
-      <StickyActionBar>
-        <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
-        <Button label="Listeyi yenile" onPress={onFetchProducts} variant="secondary" />
-      </StickyActionBar>
+      {hasFilters ? (
+        <StickyActionBar>
+          <Button label="Filtreyi temizle" onPress={onResetFilters} variant="ghost" />
+        </StickyActionBar>
+      ) : null}
     </View>
   );
 }
@@ -185,22 +166,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: mobileTheme.colors.dark.bg,
   },
-  screenContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 16,
-  },
-  filterStack: {
-    gap: 12,
-  },
-  listWrap: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 40,
     gap: 12,
+  },
+  listHeader: {
+    paddingTop: 16,
+    gap: 12,
+    marginBottom: 8,
+  },
+  skeletonGroup: {
+    gap: 12,
+    marginTop: 4,
   },
   summaryStats: {
     marginTop: 12,
@@ -219,9 +197,5 @@ const styles = StyleSheet.create({
     color: mobileTheme.colors.dark.text,
     fontSize: 15,
     fontWeight: "700",
-  },
-  loadingList: {
-    gap: 12,
-    paddingBottom: 120,
   },
 });
