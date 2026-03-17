@@ -45,6 +45,9 @@ export default function LoginScreen() {
     tenantName: "",
     name: "",
     surname: "",
+    address: "",
+    taxIdType: "tckn",
+    taxIdValue: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -110,7 +113,8 @@ export default function LoginScreen() {
         signupErrors.surname ||
         signupErrors.email ||
         signupErrors.password ||
-        signupErrors.confirmPassword
+        signupErrors.confirmPassword ||
+        signupErrors.taxIdValue
       ) {
         return;
       }
@@ -122,6 +126,12 @@ export default function LoginScreen() {
           surname: signupForm.surname.trim(),
           email: normalizedSignupEmail,
           password: signupForm.password,
+          ...(signupForm.address.trim() ? { address: signupForm.address.trim() } : {}),
+          ...(signupForm.taxIdValue.trim()
+            ? signupForm.taxIdType === "tckn"
+              ? { tckn: signupForm.taxIdValue.trim() }
+              : { taxNumber: signupForm.taxIdValue.trim() }
+            : {}),
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Kayit basarisiz.");

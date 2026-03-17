@@ -6,6 +6,8 @@ export type SupplierForm = {
   address: string;
   phoneNumber: string;
   email: string;
+  taxIdType: "tckn" | "taxNumber";
+  taxIdValue: string;
 };
 
 export const EMPTY_FORM: SupplierForm = {
@@ -14,4 +16,6 @@ export const EMPTY_FORM: SupplierForm = {
   address: "",
   phoneNumber: "",
   email: "",
+  taxIdType: "tckn",
+  taxIdValue: "",
 };

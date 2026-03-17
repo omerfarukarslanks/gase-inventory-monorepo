@@ -1,4 +1,4 @@
-import { createSupplier, updateSupplier, type Supplier } from "@gase/core";
+import { createSupplier, updateSupplier, isValidTckn, isValidTaxNumber, type Supplier } from "@gase/core";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { TextInput } from "react-native";
 import { trackEvent } from "@/src/lib/analytics";
@@ -9,6 +9,8 @@ export type SupplierForm = {
   address: string;
   phoneNumber: string;
   email: string;
+  taxIdType: string;
+  taxIdValue: string;
 };
 
 const emptyForm: SupplierForm = {
@@ -17,6 +19,8 @@ const emptyForm: SupplierForm = {
   address: "",
   phoneNumber: "",
   email: "",
+  taxIdType: "tckn",
+  taxIdValue: "",
 };
 
 type UseSupplierFormParams = {
@@ -93,6 +97,8 @@ export function useSupplierForm({
       address: supplier.address ?? "",
       phoneNumber: supplier.phoneNumber ?? "",
       email: supplier.email ?? "",
+      taxIdType: supplier.tckn ? "tckn" : "taxNumber",
+      taxIdValue: supplier.tckn ?? supplier.taxNumber ?? "",
     });
     setFormAttempted(false);
     setFormError("");
@@ -116,6 +122,23 @@ export function useSupplierForm({
       return;
     }
 
+    if (form.taxIdValue.trim()) {
+      const valid =
+        form.taxIdType === "tckn"
+          ? isValidTckn(form.taxIdValue.trim())
+          : isValidTaxNumber(form.taxIdValue.trim());
+      if (!valid) {
+        setFormError(form.taxIdType === "tckn" ? "TCKN 11 haneli olmali." : "Vergi No 10 haneli olmali.");
+        return;
+      }
+    }
+
+    const taxIdPayload = form.taxIdValue.trim()
+      ? form.taxIdType === "tckn"
+        ? { tckn: form.taxIdValue.trim(), taxNumber: undefined }
+        : { taxNumber: form.taxIdValue.trim(), tckn: undefined }
+      : {};
+
     setSubmitting(true);
     setFormError("");
     try {
@@ -127,6 +150,7 @@ export function useSupplierForm({
           phoneNumber: form.phoneNumber.trim() || undefined,
           email: emailValue || undefined,
           isActive: editingSupplierIsActive,
+          ...taxIdPayload,
         });
         setSelectedSupplier(updated);
       } else {
@@ -136,6 +160,7 @@ export function useSupplierForm({
           address: form.address.trim() || undefined,
           phoneNumber: form.phoneNumber.trim() || undefined,
           email: emailValue || undefined,
+          ...taxIdPayload,
         });
       }
 

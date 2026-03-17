@@ -9,6 +9,7 @@ import {
   updateStore,
   type StoreType,
 } from "@/lib/stores";
+import { isValidTckn, isValidTaxNumber } from "@gase/core";
 
 type Options = {
   t: (key: string) => string;
@@ -24,6 +25,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
   const [loadingStoreDetail, setLoadingStoreDetail] = useState(false);
   const [formError, setFormError] = useState("");
   const [nameError, setNameError] = useState("");
+  const [taxIdError, setTaxIdError] = useState("");
   const [form, setForm] = useState<StoreForm>(EMPTY_FORM);
 
   /* ── Normalizers ── */
@@ -39,6 +41,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
   const onOpenDrawer = () => {
     setFormError("");
     setNameError("");
+    setTaxIdError("");
     setForm(EMPTY_FORM);
     setEditingStoreId(null);
     setEditingStoreIsActive(true);
@@ -48,6 +51,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
   const onCloseDrawer = () => {
     if (submitting || loadingStoreDetail) return;
     setNameError("");
+    setTaxIdError("");
     setDrawerOpen(false);
   };
 
@@ -56,6 +60,9 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
   const onFormChange = <K extends keyof StoreForm>(field: K, value: StoreForm[K]) => {
     if (field === "name" && nameError) {
       setNameError("");
+    }
+    if (field === "taxIdValue" && taxIdError) {
+      setTaxIdError("");
     }
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -75,6 +82,8 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
       }
 
       const detail = await getStoreById(id, token);
+      const taxIdType = detail.tckn ? "tckn" : "taxNumber";
+      const taxIdValue = detail.tckn ?? detail.taxNumber ?? "";
       setForm({
         name: detail.name ?? "",
         storeType: normalizeStoreType(String(detail.storeType ?? "RETAIL")),
@@ -84,6 +93,8 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
         slug: detail.slug ?? "",
         logo: detail.logo ?? "",
         description: detail.description ?? "",
+        taxIdType,
+        taxIdValue,
       });
       setEditingStoreId(detail.id);
       setEditingStoreIsActive(detail.isActive);
@@ -101,6 +112,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
     event.preventDefault();
     setFormError("");
     setNameError("");
+    setTaxIdError("");
 
     if (!form.name.trim()) {
       setNameError(t("stores.nameRequired"));
@@ -112,11 +124,29 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
       return;
     }
 
+    if (form.taxIdValue.trim()) {
+      const valid =
+        form.taxIdType === "tckn"
+          ? isValidTckn(form.taxIdValue.trim())
+          : isValidTaxNumber(form.taxIdValue.trim());
+      if (!valid) {
+        setTaxIdError(form.taxIdType === "tckn" ? "TCKN 11 haneli olmalıdır." : "Vergi No 10 haneli olmalıdır.");
+        return;
+      }
+    }
+
     const token = localStorage.getItem("token");
     if (!token) {
       setFormError(t("common.sessionNotFound"));
       return;
     }
+
+    const taxIdPayload =
+      form.taxIdValue.trim()
+        ? form.taxIdType === "tckn"
+          ? { tckn: form.taxIdValue.trim(), taxNumber: null }
+          : { taxNumber: form.taxIdValue.trim(), tckn: null }
+        : { tckn: null, taxNumber: null };
 
     setSubmitting(true);
 
@@ -132,6 +162,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
             logo: form.logo.trim() || undefined,
             description: form.description.trim() || undefined,
             isActive: editingStoreIsActive,
+            ...taxIdPayload,
           },
           token,
         );
@@ -146,6 +177,11 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
             slug: form.slug.trim() || undefined,
             logo: form.logo.trim() || undefined,
             description: form.description.trim() || undefined,
+            ...(form.taxIdValue.trim()
+              ? form.taxIdType === "tckn"
+                ? { tckn: form.taxIdValue.trim() }
+                : { taxNumber: form.taxIdValue.trim() }
+              : {}),
           },
           token,
         );
@@ -154,6 +190,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
       setDrawerOpen(false);
       setForm(EMPTY_FORM);
       setNameError("");
+      setTaxIdError("");
       setEditingStoreId(null);
       setEditingStoreIsActive(true);
       await onSuccess();
@@ -173,6 +210,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
     loadingStoreDetail,
     formError,
     nameError,
+    taxIdError,
     form,
     /* normalizers */
     normalizeCurrency,

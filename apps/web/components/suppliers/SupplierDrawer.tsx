@@ -16,6 +16,7 @@ type SupplierDrawerProps = {
   formError: string;
   nameError: string;
   emailError: string;
+  taxIdError: string;
   editingSupplierIsActive: boolean;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -32,6 +33,7 @@ export default function SupplierDrawer({
   formError,
   nameError,
   emailError,
+  taxIdError,
   editingSupplierIsActive,
   onClose,
   onSubmit,
@@ -109,6 +111,52 @@ export default function SupplierDrawer({
               placeholder={t("suppliers.emailPlaceholder")}
               error={emailError}
             />
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-muted">Kimlik No</label>
+                <div className="flex overflow-hidden rounded-lg border border-border text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onFormChange("taxIdType", "tckn");
+                      onFormChange("taxIdValue", "");
+                    }}
+                    className={[
+                      "px-2.5 py-1 transition",
+                      form.taxIdType === "tckn" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                    ].join(" ")}
+                  >
+                    TCKN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onFormChange("taxIdType", "taxNumber");
+                      onFormChange("taxIdValue", "");
+                    }}
+                    className={[
+                      "px-2.5 py-1 transition",
+                      form.taxIdType === "taxNumber" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                    ].join(" ")}
+                  >
+                    Vergi No
+                  </button>
+                </div>
+              </div>
+              <InputField
+                label=""
+                type="text"
+                value={form.taxIdValue}
+                onChange={(v) => {
+                  const digits = v.replace(/\D/g, "");
+                  const max = form.taxIdType === "tckn" ? 11 : 10;
+                  onFormChange("taxIdValue", digits.slice(0, max));
+                }}
+                placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN" : "10 haneli Vergi No"}
+                error={taxIdError}
+              />
+            </div>
 
             {editingSupplierId && (
               <div className="flex items-center justify-between rounded-xl border border-border bg-surface2/40 px-3 py-2.5">

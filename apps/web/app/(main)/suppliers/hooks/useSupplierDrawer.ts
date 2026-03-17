@@ -7,7 +7,7 @@ import {
   getSupplierById,
   updateSupplier,
 } from "@/lib/suppliers";
-import { isValidEmail } from "@gase/core";
+import { isValidEmail, isValidTckn, isValidTaxNumber } from "@gase/core";
 
 type Options = {
   t: (key: string) => string;
@@ -23,12 +23,14 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
   const [formError, setFormError] = useState("");
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [taxIdError, setTaxIdError] = useState("");
   const [form, setForm] = useState<SupplierForm>(EMPTY_FORM);
 
   const onOpenDrawer = () => {
     setFormError("");
     setNameError("");
     setEmailError("");
+    setTaxIdError("");
     setForm(EMPTY_FORM);
     setEditingSupplierId(null);
     setEditingSupplierIsActive(true);
@@ -39,6 +41,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
     if (submitting || loadingSupplierDetail) return;
     setNameError("");
     setEmailError("");
+    setTaxIdError("");
     setDrawerOpen(false);
   };
 
@@ -48,6 +51,9 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
     }
     if (field === "email" && emailError) {
       setEmailError("");
+    }
+    if (field === "taxIdValue" && taxIdError) {
+      setTaxIdError("");
     }
 
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -61,12 +67,16 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
 
     try {
       const detail = await getSupplierById(id);
+      const taxIdType = detail.tckn ? "tckn" : "taxNumber";
+      const taxIdValue = detail.tckn ?? detail.taxNumber ?? "";
       setForm({
         name: detail.name ?? "",
         surname: detail.surname ?? "",
         address: detail.address ?? "",
         phoneNumber: detail.phoneNumber ?? "",
         email: detail.email ?? "",
+        taxIdType,
+        taxIdValue,
       });
       setEditingSupplierId(detail.id);
       setEditingSupplierIsActive(detail.isActive ?? true);
@@ -83,6 +93,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
     setFormError("");
     setNameError("");
     setEmailError("");
+    setTaxIdError("");
 
     if (!form.name.trim()) {
       setNameError("Isim alani zorunludur.");
@@ -99,6 +110,24 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
       return;
     }
 
+    if (form.taxIdValue.trim()) {
+      const valid =
+        form.taxIdType === "tckn"
+          ? isValidTckn(form.taxIdValue.trim())
+          : isValidTaxNumber(form.taxIdValue.trim());
+      if (!valid) {
+        setTaxIdError(form.taxIdType === "tckn" ? "TCKN 11 haneli olmalıdır." : "Vergi No 10 haneli olmalıdır.");
+        return;
+      }
+    }
+
+    const taxIdPayload =
+      form.taxIdValue.trim()
+        ? form.taxIdType === "tckn"
+          ? { tckn: form.taxIdValue.trim(), taxNumber: undefined }
+          : { taxNumber: form.taxIdValue.trim(), tckn: undefined }
+        : {};
+
     setSubmitting(true);
 
     try {
@@ -110,6 +139,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
           phoneNumber: form.phoneNumber.trim() || undefined,
           email: form.email.trim() || undefined,
           isActive: editingSupplierIsActive,
+          ...taxIdPayload,
         });
       } else {
         await createSupplier({
@@ -118,6 +148,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
           address: form.address.trim() || undefined,
           phoneNumber: form.phoneNumber.trim() || undefined,
           email: form.email.trim() || undefined,
+          ...taxIdPayload,
         });
       }
 
@@ -125,6 +156,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
       setForm(EMPTY_FORM);
       setNameError("");
       setEmailError("");
+      setTaxIdError("");
       setEditingSupplierId(null);
       setEditingSupplierIsActive(true);
       await onSuccess();
@@ -146,6 +178,7 @@ export function useSupplierDrawer({ t, onSuccess }: Options) {
     formError,
     nameError,
     emailError,
+    taxIdError,
     form,
     /* handlers */
     onOpenDrawer,

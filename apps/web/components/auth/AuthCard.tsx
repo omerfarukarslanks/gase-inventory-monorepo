@@ -10,6 +10,7 @@ import SocialButton from "../ui/SocialButton";
 import Logo from "../ui/Logo";
 import { login, signup, getMe, getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/app/auth/auth";
 import { ApiError } from "@/lib/api";
+import { isValidTckn, isValidTaxNumber } from "@gase/core";
 import { clearAuthCookie, setAuthCookie } from "@/lib/cookie";
 import { clearSessionStorage, setSessionToken, setSessionUser } from "@/lib/session";
 import Button from "../ui/Button";
@@ -39,6 +40,9 @@ export default function AuthCard({ initialMode }: Props) {
     tenantName: "",
     name: "",
     surname: "",
+    address: "",
+    taxIdType: "tckn",
+    taxIdValue: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -59,7 +63,7 @@ export default function AuthCard({ initialMode }: Props) {
     setErrorMsg("");
     setAgreed(false);
     setRemember(false);
-    setForm({ tenantName: "", name: "", surname: "", email: "", password: "", confirmPassword: "" });
+    setForm({ tenantName: "", name: "", surname: "", address: "", taxIdType: "tckn", taxIdValue: "", email: "", password: "", confirmPassword: "" });
   }, [mode]);
 
   const set = (k: keyof typeof form, v: string) => {
@@ -74,6 +78,15 @@ export default function AuthCard({ initialMode }: Props) {
       if (!form.tenantName.trim()) e.tenantName = t("auth.companyNameRequired");
       if (!form.name.trim()) e.name = t("auth.nameRequired");
       if (!form.surname.trim()) e.surname = t("auth.surnameRequired");
+      if (form.taxIdValue.trim()) {
+        const valid =
+          form.taxIdType === "tckn"
+            ? isValidTckn(form.taxIdValue.trim())
+            : isValidTaxNumber(form.taxIdValue.trim());
+        if (!valid) {
+          e.taxIdValue = form.taxIdType === "tckn" ? "TCKN 11 haneli olmalıdır." : "Vergi No 10 haneli olmalıdır.";
+        }
+      }
     }
 
     if (mode === "login" || (mode === "signup" && step === 2)) {
@@ -122,6 +135,12 @@ export default function AuthCard({ initialMode }: Props) {
           surname: form.surname,
           email: form.email,
           password: form.password,
+          ...(form.address.trim() ? { address: form.address.trim() } : {}),
+          ...(form.taxIdValue.trim()
+            ? form.taxIdType === "tckn"
+              ? { tckn: form.taxIdValue.trim() }
+              : { taxNumber: form.taxIdValue.trim() }
+            : {}),
         };
         const response = await signup(body);
         clearSessionStorage();
@@ -244,6 +263,54 @@ export default function AuthCard({ initialMode }: Props) {
             onChange={(v) => set("surname", v)}
             error={errors.surname}
           />
+
+          <InputField
+            label="Adres"
+            type="text"
+            placeholder="Şirket adresi (opsiyonel)"
+            value={form.address}
+            onChange={(v) => set("address", v)}
+          />
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted">Kimlik No</span>
+              <div className="flex overflow-hidden rounded-lg border border-border text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => { set("taxIdType", "tckn"); set("taxIdValue", ""); }}
+                  className={[
+                    "px-2.5 py-1 transition",
+                    form.taxIdType === "tckn" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                  ].join(" ")}
+                >
+                  TCKN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { set("taxIdType", "taxNumber"); set("taxIdValue", ""); }}
+                  className={[
+                    "px-2.5 py-1 transition",
+                    form.taxIdType === "taxNumber" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                  ].join(" ")}
+                >
+                  Vergi No
+                </button>
+              </div>
+            </div>
+            <InputField
+              label=""
+              type="text"
+              value={form.taxIdValue}
+              onChange={(v) => {
+                const digits = v.replace(/\D/g, "");
+                const max = form.taxIdType === "tckn" ? 11 : 10;
+                set("taxIdValue", digits.slice(0, max));
+              }}
+              placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN (opsiyonel)" : "10 haneli Vergi No (opsiyonel)"}
+              error={errors.taxIdValue}
+            />
+          </div>
         </div>
       )}
 

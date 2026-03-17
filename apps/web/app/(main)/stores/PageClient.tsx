@@ -103,6 +103,7 @@ export default function StoresPage() {
         form={drawer.form}
         formError={drawer.formError}
         nameError={drawer.nameError}
+        taxIdError={drawer.taxIdError}
         storeTypeOptions={storeTypeOptions}
         onClose={drawer.onCloseDrawer}
         onSubmit={drawer.onSubmitStore}

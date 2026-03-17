@@ -22,3 +22,17 @@ export function isValidPhone(value: string, minDigits = 10): boolean {
 export function normalizeTurkishLookup(value: string): string {
   return value.trim().toLocaleLowerCase("tr-TR");
 }
+
+/** Exactly 11 digits — Turkish national ID (TCKN). */
+export const TCKN_PATTERN = /^\d{11}$/;
+
+/** Exactly 10 digits — Turkish tax number (Vergi No / VKN). */
+export const TAX_NUMBER_PATTERN = /^\d{10}$/;
+
+export function isValidTckn(value: string): boolean {
+  return TCKN_PATTERN.test(value.trim());
+}
+
+export function isValidTaxNumber(value: string): boolean {
+  return TAX_NUMBER_PATTERN.test(value.trim());
+}

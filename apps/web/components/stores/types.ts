@@ -12,6 +12,8 @@ export type StoreForm = {
   slug: string;
   logo: string;
   description: string;
+  taxIdType: "tckn" | "taxNumber";
+  taxIdValue: string;
 };
 
 export const EMPTY_FORM: StoreForm = {
@@ -23,4 +25,6 @@ export const EMPTY_FORM: StoreForm = {
   slug: "",
   logo: "",
   description: "",
+  taxIdType: "tckn",
+  taxIdValue: "",
 };

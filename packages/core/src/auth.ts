@@ -36,6 +36,9 @@ export interface SignupRequest {
   surname: string;
   email: string;
   password: string;
+  address?: string;
+  tckn?: string;
+  taxNumber?: string;
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {

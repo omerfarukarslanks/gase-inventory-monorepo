@@ -1,4 +1,4 @@
-import { createStore, updateStore, type Currency, type Store, type StoreType } from "@gase/core";
+import { createStore, updateStore, isValidTckn, isValidTaxNumber, type Currency, type Store, type StoreType } from "@gase/core";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { TextInput } from "react-native";
 import { trackEvent } from "@/src/lib/analytics";
@@ -12,6 +12,8 @@ export type StoreForm = {
   slug: string;
   logo: string;
   description: string;
+  taxIdType: string;
+  taxIdValue: string;
 };
 
 const emptyForm: StoreForm = {
@@ -23,6 +25,8 @@ const emptyForm: StoreForm = {
   slug: "",
   logo: "",
   description: "",
+  taxIdType: "tckn",
+  taxIdValue: "",
 };
 
 type UseStoreFormParams = {
@@ -75,6 +79,8 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
       slug: store.slug ?? "",
       logo: store.logo ?? "",
       description: store.description ?? "",
+      taxIdType: store.tckn ? "tckn" : "taxNumber",
+      taxIdValue: store.tckn ?? store.taxNumber ?? "",
     });
     setFormAttempted(false);
     setFormError("");
@@ -98,6 +104,23 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
       return;
     }
 
+    if (form.taxIdValue.trim()) {
+      const valid =
+        form.taxIdType === "tckn"
+          ? isValidTckn(form.taxIdValue.trim())
+          : isValidTaxNumber(form.taxIdValue.trim());
+      if (!valid) {
+        setFormError(form.taxIdType === "tckn" ? "TCKN 11 haneli olmali." : "Vergi No 10 haneli olmali.");
+        return;
+      }
+    }
+
+    const taxIdPayload = form.taxIdValue.trim()
+      ? form.taxIdType === "tckn"
+        ? { tckn: form.taxIdValue.trim(), taxNumber: null }
+        : { taxNumber: form.taxIdValue.trim(), tckn: null }
+      : { tckn: null, taxNumber: null };
+
     setSubmitting(true);
     setFormError("");
     try {
@@ -110,6 +133,7 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
           logo: form.logo.trim() || undefined,
           description: form.description.trim() || undefined,
           isActive: editingStoreIsActive,
+          ...taxIdPayload,
         });
         setSelectedStore(updated);
       } else {
@@ -122,6 +146,11 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
           slug: form.slug.trim() || undefined,
           logo: form.logo.trim() || undefined,
           description: form.description.trim() || undefined,
+          ...(form.taxIdValue.trim()
+            ? form.taxIdType === "tckn"
+              ? { tckn: form.taxIdValue.trim() }
+              : { taxNumber: form.taxIdValue.trim() }
+            : {}),
         });
       }
 

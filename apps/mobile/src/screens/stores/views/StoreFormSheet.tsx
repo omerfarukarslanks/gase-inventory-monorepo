@@ -1,5 +1,5 @@
 import { type Currency, type StoreType } from "@gase/core";
-import { TextInput } from "react-native";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import {
   Banner,
   Button,
@@ -10,7 +10,6 @@ import {
   TextField,
 } from "@/src/components/ui";
 import { mobileTheme } from "@/src/theme";
-import { StyleSheet, Text } from "react-native";
 import type { StoreForm } from "../hooks/useStoreForm";
 
 const storeTypeOptions = [
@@ -36,6 +35,7 @@ type StoreFormSheetProps = {
   codeRef: { current: TextInput | null };
   slugRef: { current: TextInput | null };
   addressRef: { current: TextInput | null };
+  taxIdRef?: { current: TextInput | null };
   logoRef: { current: TextInput | null };
   descriptionRef: { current: TextInput | null };
   onClose: () => void;
@@ -56,6 +56,7 @@ export function StoreFormSheet({
   codeRef,
   slugRef,
   addressRef,
+  taxIdRef,
   logoRef,
   descriptionRef,
   onClose,
@@ -130,9 +131,56 @@ export function StoreFormSheet({
         inputRef={addressRef}
         multiline
         returnKeyType="next"
-        onSubmitEditing={() => logoRef.current?.focus()}
+        onSubmitEditing={() => taxIdRef?.current?.focus()}
         blurOnSubmit={false}
       />
+
+      {/* TaxId toggle field */}
+      <View style={styles.taxIdContainer}>
+        <View style={styles.taxIdHeader}>
+          <Text style={styles.taxIdLabel}>Kimlik No</Text>
+          <View style={styles.taxIdToggle}>
+            <TouchableOpacity
+              onPress={() => {
+                onChange("taxIdType", "tckn");
+                onChange("taxIdValue", "");
+              }}
+              style={[styles.taxIdBtn, form.taxIdType === "tckn" && styles.taxIdBtnActive]}
+            >
+              <Text style={[styles.taxIdBtnText, form.taxIdType === "tckn" && styles.taxIdBtnTextActive]}>
+                TCKN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                onChange("taxIdType", "taxNumber");
+                onChange("taxIdValue", "");
+              }}
+              style={[styles.taxIdBtn, form.taxIdType === "taxNumber" && styles.taxIdBtnActive]}
+            >
+              <Text style={[styles.taxIdBtnText, form.taxIdType === "taxNumber" && styles.taxIdBtnTextActive]}>
+                Vergi No
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <TextField
+          label=""
+          value={form.taxIdValue as string}
+          onChangeText={(value) => {
+            const digits = value.replace(/\D/g, "");
+            const max = form.taxIdType === "tckn" ? 11 : 10;
+            onChange("taxIdValue", digits.slice(0, max));
+          }}
+          inputRef={taxIdRef}
+          keyboardType="numeric"
+          placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN (opsiyonel)" : "10 haneli Vergi No (opsiyonel)"}
+          returnKeyType="next"
+          onSubmitEditing={() => logoRef.current?.focus()}
+          blurOnSubmit={false}
+        />
+      </View>
+
       <TextField
         label="Logo URL"
         value={form.logo}
@@ -177,5 +225,41 @@ const styles = StyleSheet.create({
     color: mobileTheme.colors.dark.text2,
     fontSize: 13,
     lineHeight: 19,
+  },
+  taxIdContainer: {
+    marginBottom: 4,
+  },
+  taxIdHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  taxIdLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: mobileTheme.colors.dark.text2,
+  },
+  taxIdToggle: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: mobileTheme.colors.dark.border,
+    overflow: "hidden",
+  },
+  taxIdBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  taxIdBtnActive: {
+    backgroundColor: mobileTheme.colors.brand.primary,
+  },
+  taxIdBtnText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: mobileTheme.colors.dark.text2,
+  },
+  taxIdBtnTextActive: {
+    color: "#FFFFFF",
   },
 });

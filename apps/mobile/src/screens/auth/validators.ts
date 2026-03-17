@@ -1,6 +1,6 @@
 // ─── Auth form validation ──────────────────────────────────────────────────
 
-import { EMAIL_PATTERN, PASSWORD_PATTERN } from "@gase/core";
+import { EMAIL_PATTERN, PASSWORD_PATTERN, TCKN_PATTERN, TAX_NUMBER_PATTERN } from "@gase/core";
 
 /** @deprecated Use EMAIL_PATTERN from @gase/core */
 export const EMAIL_REGEX = EMAIL_PATTERN;
@@ -12,10 +12,19 @@ export type SignupFormState = {
   tenantName: string;
   name: string;
   surname: string;
+  address: string;
+  taxIdType: string;
+  taxIdValue: string;
   email: string;
   password: string;
   confirmPassword: string;
 };
+
+export function validateTaxId(taxIdType: string, value: string): string {
+  if (!value.trim()) return "";
+  if (taxIdType === "tckn") return TCKN_PATTERN.test(value.trim()) ? "" : "TCKN 11 haneli olmali.";
+  return TAX_NUMBER_PATTERN.test(value.trim()) ? "" : "Vergi No 10 haneli olmali.";
+}
 export type RecoveryFormState = {
   email: string;
   token: string;
@@ -90,6 +99,7 @@ export function validateSignupForm(
         : form.password === form.confirmPassword
           ? ""
           : "Sifreler eslesmiyor.",
+    taxIdValue: validateTaxId(form.taxIdType, form.taxIdValue),
   };
 }
 

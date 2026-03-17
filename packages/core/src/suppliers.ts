@@ -12,6 +12,8 @@ export type Supplier = {
   phoneNumber?: string | null;
   email?: string | null;
   isActive?: boolean;
+  tckn?: string | null;
+  taxNumber?: string | null;
 };
 
 export type SuppliersListMeta = {
@@ -42,6 +44,8 @@ export type CreateSupplierRequest = {
   address?: string;
   phoneNumber?: string;
   email?: string;
+  tckn?: string;
+  taxNumber?: string;
 };
 
 export type UpdateSupplierRequest = Partial<CreateSupplierRequest> & {

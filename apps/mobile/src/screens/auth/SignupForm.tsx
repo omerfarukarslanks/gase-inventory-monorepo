@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { TextInput } from "react-native";
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { TextField } from "@/src/components/ui";
 import type { SignupFormState } from "./validators";
 
@@ -10,6 +10,7 @@ type SignupFormErrors = {
   email: string;
   password: string;
   confirmPassword: string;
+  taxIdValue: string;
 };
 
 type SignupFormProps = {
@@ -23,6 +24,8 @@ type SignupFormProps = {
 export function SignupForm({ form, errors, onChange, onSubmit, onClearError }: SignupFormProps) {
   const nameRef = useRef<TextInput>(null);
   const surnameRef = useRef<TextInput>(null);
+  const addressRef = useRef<TextInput>(null);
+  const taxIdRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
@@ -64,9 +67,71 @@ export function SignupForm({ form, errors, onChange, onSubmit, onClearError }: S
         inputRef={surnameRef}
         errorText={errors.surname || undefined}
         returnKeyType="next"
-        onSubmitEditing={() => emailRef.current?.focus()}
+        onSubmitEditing={() => addressRef.current?.focus()}
         blurOnSubmit={false}
       />
+      <TextField
+        label="Adres"
+        value={form.address}
+        onChangeText={(value) => {
+          onChange("address", value);
+          onClearError();
+        }}
+        inputRef={addressRef}
+        placeholder="Sirket adresi (opsiyonel)"
+        returnKeyType="next"
+        onSubmitEditing={() => taxIdRef.current?.focus()}
+        blurOnSubmit={false}
+      />
+
+      {/* TaxId toggle field */}
+      <View style={styles.taxIdContainer}>
+        <View style={styles.taxIdHeader}>
+          <Text style={styles.taxIdLabel}>Kimlik No</Text>
+          <View style={styles.taxIdToggle}>
+            <TouchableOpacity
+              onPress={() => {
+                onChange("taxIdType", "tckn");
+                onChange("taxIdValue", "");
+              }}
+              style={[styles.taxIdBtn, form.taxIdType === "tckn" && styles.taxIdBtnActive]}
+            >
+              <Text style={[styles.taxIdBtnText, form.taxIdType === "tckn" && styles.taxIdBtnTextActive]}>
+                TCKN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                onChange("taxIdType", "taxNumber");
+                onChange("taxIdValue", "");
+              }}
+              style={[styles.taxIdBtn, form.taxIdType === "taxNumber" && styles.taxIdBtnActive]}
+            >
+              <Text style={[styles.taxIdBtnText, form.taxIdType === "taxNumber" && styles.taxIdBtnTextActive]}>
+                Vergi No
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <TextField
+          label=""
+          value={form.taxIdValue}
+          onChangeText={(value) => {
+            const digits = value.replace(/\D/g, "");
+            const max = form.taxIdType === "tckn" ? 11 : 10;
+            onChange("taxIdValue", digits.slice(0, max));
+            onClearError();
+          }}
+          inputRef={taxIdRef}
+          keyboardType="numeric"
+          placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN (opsiyonel)" : "10 haneli Vergi No (opsiyonel)"}
+          errorText={errors.taxIdValue || undefined}
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          blurOnSubmit={false}
+        />
+      </View>
+
       <TextField
         label="E-posta"
         value={form.email}
@@ -117,3 +182,42 @@ export function SignupForm({ form, errors, onChange, onSubmit, onClearError }: S
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  taxIdContainer: {
+    marginBottom: 4,
+  },
+  taxIdHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  taxIdLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  taxIdToggle: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+  },
+  taxIdBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  taxIdBtnActive: {
+    backgroundColor: "#6366F1",
+  },
+  taxIdBtnText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  taxIdBtnTextActive: {
+    color: "#FFFFFF",
+  },
+});

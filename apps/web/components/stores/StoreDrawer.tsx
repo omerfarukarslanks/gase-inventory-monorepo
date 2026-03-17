@@ -18,6 +18,7 @@ type StoreDrawerProps = {
   form: StoreForm;
   formError: string;
   nameError: string;
+  taxIdError: string;
   storeTypeOptions: ReadonlyArray<{ value: StoreType; label: string }>;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -34,6 +35,7 @@ export default function StoreDrawer({
   form,
   formError,
   nameError,
+  taxIdError,
   storeTypeOptions,
   onClose,
   onSubmit,
@@ -123,6 +125,52 @@ export default function StoreDrawer({
               onChange={(value) => onFormChange("address", value)}
               placeholder={t("stores.addressPlaceholder")}
             />
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-muted">Kimlik No</label>
+                <div className="flex overflow-hidden rounded-lg border border-border text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onFormChange("taxIdType", "tckn");
+                      onFormChange("taxIdValue", "");
+                    }}
+                    className={[
+                      "px-2.5 py-1 transition",
+                      form.taxIdType === "tckn" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                    ].join(" ")}
+                  >
+                    TCKN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onFormChange("taxIdType", "taxNumber");
+                      onFormChange("taxIdValue", "");
+                    }}
+                    className={[
+                      "px-2.5 py-1 transition",
+                      form.taxIdType === "taxNumber" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
+                    ].join(" ")}
+                  >
+                    Vergi No
+                  </button>
+                </div>
+              </div>
+              <InputField
+                label=""
+                type="text"
+                value={form.taxIdValue}
+                onChange={(v) => {
+                  const digits = v.replace(/\D/g, "");
+                  const max = form.taxIdType === "tckn" ? 11 : 10;
+                  onFormChange("taxIdValue", digits.slice(0, max));
+                }}
+                placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN" : "10 haneli Vergi No"}
+                error={taxIdError}
+              />
+            </div>
 
             <InputField
               label={t("stores.slug")}

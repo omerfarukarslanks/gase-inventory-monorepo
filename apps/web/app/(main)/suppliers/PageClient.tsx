@@ -100,6 +100,7 @@ export default function SuppliersPage() {
         formError={drawer.formError}
         nameError={drawer.nameError}
         emailError={drawer.emailError}
+        taxIdError={drawer.taxIdError}
         editingSupplierIsActive={drawer.editingSupplierIsActive}
         onClose={drawer.onCloseDrawer}
         onSubmit={drawer.onSubmitSupplier}
