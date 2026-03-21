@@ -44,6 +44,10 @@ export type PermissionName =
   | "PRODUCT_ATTRIBUTE_READ"
   | "PRODUCT_ATTRIBUTE_UPDATE"
   | "PRODUCT_ATTRIBUTE_CREATE"
+  // Birim
+  | "UNIT_READ"
+  | "UNIT_CREATE"
+  | "UNIT_UPDATE"
   // Fiyat
   | "PRICE_READ"
   | "PRICE_MANAGE"

@@ -20,6 +20,7 @@ type MoreScreenProps = {
   canViewPackages: boolean;
   canViewCategories: boolean;
   canViewAttributes: boolean;
+  canViewUnits: boolean;
   canViewUsers: boolean;
   canViewPermissions: boolean;
   canViewReports: boolean;
@@ -48,6 +49,7 @@ export default function MoreScreen({
   canViewPackages,
   canViewCategories,
   canViewAttributes,
+  canViewUnits,
   canViewUsers,
   canViewPermissions,
   canViewReports,
@@ -87,6 +89,7 @@ export default function MoreScreen({
         { key: "product-packages", label: "Paketler", icon: "package-variant", visible: canViewPackages },
         { key: "product-categories", label: "Kategoriler", icon: "tag-outline", visible: canViewCategories },
         { key: "attributes", label: "Ozellikler", icon: "format-list-bulleted", visible: canViewAttributes },
+        { key: "units", label: "Birimler", icon: "ruler-square", visible: canViewUnits },
       ],
     },
     {

@@ -18,6 +18,7 @@ type ProductDrawerStep1Props = {
   calculatedLineTotal: number | null;
   storeOptions: { value: string; label: string }[];
   categoryOptions: { value: string; label: string }[];
+  unitOptions: { value: string; label: string }[];
   productInfoOpen: boolean;
   onToggleProductInfo: () => void;
   storeScopeOpen: boolean;
@@ -35,6 +36,7 @@ export default function ProductDrawerStep1({
   calculatedLineTotal,
   storeOptions,
   categoryOptions,
+  unitOptions,
   productInfoOpen,
   onToggleProductInfo,
   storeScopeOpen,
@@ -136,6 +138,17 @@ export default function ProductDrawerStep1({
               value={form.supplierId}
               onChange={(v) => onFormChange("supplierId", v)}
               placeholder="Tedarikci secin"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Birim</label>
+            <SearchableDropdown
+              options={unitOptions}
+              value={form.unitId}
+              onChange={(v) => onFormChange("unitId", v)}
+              placeholder="Birim secin"
+              emptyOptionLabel="Birim Yok"
             />
           </div>
 

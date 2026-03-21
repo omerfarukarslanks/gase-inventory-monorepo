@@ -26,6 +26,7 @@ export type ProductForm = {
   applyToAllStores: boolean;
   categoryId: string;
   supplierId: string;
+  unitId: string;
 };
 
 export type VariantForm = {
@@ -66,6 +67,7 @@ export const EMPTY_PRODUCT_FORM: ProductForm = {
   applyToAllStores: false,
   categoryId: "",
   supplierId: "",
+  unitId: "",
 };
 
 export const CURRENCY_OPTIONS = [

@@ -10,9 +10,11 @@ import { useProductScope } from "./hooks/useProductScope";
 import { useProductList } from "./hooks/useProductList";
 import { useProductDrawer } from "./hooks/useProductDrawer";
 import { usePriceDrawer } from "./hooks/usePriceDrawer";
+import { useVariantDetailDrawer } from "./hooks/useVariantDetailDrawer";
 
 import ProductFilters from "@/components/products/ProductFilters";
 import ProductTable from "@/components/products/ProductTable";
+import VariantDetailDrawer from "@/components/products/VariantDetailDrawer";
 import ProductPagination from "@/components/products/ProductPagination";
 import ProductDrawerStep1 from "@/components/products/ProductDrawerStep1";
 import ProductDrawerStep2 from "@/components/products/ProductDrawerStep2";
@@ -44,6 +46,8 @@ export default function ProductsPage() {
   });
 
   const price = usePriceDrawer({ onSuccess: list.fetchProducts });
+  const canUpdate = can("PRODUCT_UPDATE");
+  const variantDetail = useVariantDetailDrawer({ onSuccess: list.fetchProducts });
 
   const storeOptions = useMemo(
     () => stores.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
@@ -109,7 +113,7 @@ export default function ProductsPage() {
           onToggleActive={list.onToggleProductActive}
           onToggleVariantActive={list.onToggleVariantActive}
           onProductPrice={price.openProductPriceDrawer}
-          canUpdate={can("PRODUCT_UPDATE")}
+          canUpdate={canUpdate}
           canPriceUpdate={can("PRICE_MANAGE")}
           footer={footer}
         />
@@ -128,8 +132,9 @@ export default function ProductsPage() {
           onEdit={drawer.onEditProduct}
           onToggleActive={list.onToggleProductActive}
           onToggleVariantActive={list.onToggleVariantActive}
+          onEditVariant={canUpdate ? variantDetail.openDrawer : undefined}
           onProductPrice={price.openProductPriceDrawer}
-          canUpdate={can("PRODUCT_UPDATE")}
+          canUpdate={canUpdate}
           canPriceUpdate={can("PRICE_MANAGE")}
           footer={footer}
         />
@@ -147,6 +152,7 @@ export default function ProductsPage() {
           calculatedLineTotal={drawer.calculatedLineTotal}
           storeOptions={storeOptions}
           categoryOptions={drawer.categoryOptions}
+          unitOptions={drawer.unitOptions}
           productInfoOpen={drawer.step1ProductInfoOpen}
           onToggleProductInfo={() => drawer.setStep1ProductInfoOpen((prev) => !prev)}
           storeScopeOpen={drawer.step1StoreScopeOpen}
@@ -241,6 +247,7 @@ export default function ProductsPage() {
                 calculatedLineTotal={drawer.calculatedLineTotal}
                 storeOptions={storeOptions}
                 categoryOptions={drawer.categoryOptions}
+                unitOptions={drawer.unitOptions}
                 productInfoOpen={drawer.step1ProductInfoOpen}
                 onToggleProductInfo={() => drawer.setStep1ProductInfoOpen((prev) => !prev)}
                 storeScopeOpen={drawer.step1StoreScopeOpen}
@@ -268,6 +275,18 @@ export default function ProductsPage() {
           </form>
         </Drawer>
       )}
+
+      <VariantDetailDrawer
+        open={variantDetail.open}
+        editingVariant={variantDetail.editingVariant}
+        form={variantDetail.form}
+        submitting={variantDetail.submitting}
+        formError={variantDetail.formError}
+        unitOptions={drawer.unitOptions}
+        onClose={variantDetail.closeDrawer}
+        onSave={variantDetail.handleSave}
+        onFormChange={variantDetail.onFormChange}
+      />
 
       <PriceDrawer
         open={price.priceOpen}

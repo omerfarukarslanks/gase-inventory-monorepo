@@ -13,6 +13,7 @@ import StoresScreen from "@/src/screens/StoresScreen";
 import ProductPackagesScreen from "@/src/screens/ProductPackagesScreen";
 import ProductCategoriesScreen from "@/src/screens/ProductCategoriesScreen";
 import AttributesScreen from "@/src/screens/AttributesScreen";
+import UnitsScreen from "@/src/screens/UnitsScreen";
 import UsersScreen from "@/src/screens/UsersScreen";
 import PermissionsScreen from "@/src/screens/PermissionsScreen";
 import ReportsScreen from "@/src/screens/ReportsScreen";
@@ -121,6 +122,7 @@ const SCREEN_REGISTRY: Record<ShellScreenKey, ScreenEntry> = {
         canViewPackages={nav.canViewPackages}
         canViewCategories={nav.canViewCategories}
         canViewAttributes={nav.canViewAttributes}
+        canViewUnits={nav.canViewUnits}
         canViewUsers={nav.canViewUsers}
         canViewPermissions={nav.canViewPermissions}
         canViewReports={nav.canViewReports}
@@ -204,6 +206,16 @@ const SCREEN_REGISTRY: Record<ShellScreenKey, ScreenEntry> = {
         isActive={nav.tab === "attributes"}
         canCreate={nav.can("PRODUCT_ATTRIBUTE_CREATE")}
         canUpdate={nav.can("PRODUCT_ATTRIBUTE_UPDATE")}
+        onBack={nav.goBack}
+      />
+    ),
+  },
+  units: {
+    render: (nav) => (
+      <UnitsScreen
+        isActive={nav.tab === "units"}
+        canCreate={nav.can("UNIT_CREATE")}
+        canUpdate={nav.can("UNIT_UPDATE")}
         onBack={nav.goBack}
       />
     ),

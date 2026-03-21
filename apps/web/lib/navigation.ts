@@ -228,6 +228,12 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         permission: "PRODUCT_ATTRIBUTE_READ",
         matchesRoute: ["/attributes"],
       },
+      {
+        key: "units",
+        href: "/catalog/units",
+        labelKey: "nav.units",
+        permission: "UNIT_READ",
+      },
     ],
   },
   {

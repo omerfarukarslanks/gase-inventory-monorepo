@@ -13,6 +13,7 @@ import {
 } from "@/lib/products";
 import { getAttributes, type Attribute as AttributeDefinition } from "@/lib/attributes";
 import { getAllProductCategories } from "@/lib/product-categories";
+import { getUnits } from "@gase/core";
 import {
   EMPTY_PRODUCT_FORM,
   type ProductForm,
@@ -63,6 +64,7 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
   /* Attribute definitions & category options */
   const [attributeDefinitions, setAttributeDefinitions] = useState<AttributeDefinition[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [unitOptions, setUnitOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   /* Step 1 panel open state */
   const [step1ProductInfoOpen, setStep1ProductInfoOpen] = useState(false);
@@ -86,6 +88,18 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
         setCategoryOptions(options);
       })
       .catch(() => setCategoryOptions([]));
+  }, []);
+
+  useEffect(() => {
+    getUnits()
+      .then((units) => {
+        const options = units.map((unit) => ({
+          value: unit.id,
+          label: `${unit.name} (${unit.abbreviation})`,
+        }));
+        setUnitOptions(options);
+      })
+      .catch(() => setUnitOptions([]));
   }, []);
 
   /* ── Calculated line total ── */
@@ -192,6 +206,7 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
         applyToAllStores: Boolean(detail.applyToAllStores),
         categoryId: detail.categoryId ?? detail.category?.id ?? "",
         supplierId: detail.supplierId ?? detail.supplier?.id ?? "",
+        unitId: detail.unitId ?? "",
       };
       setForm(formData);
       setOriginalForm(formData);
@@ -315,6 +330,7 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
         image: form.image.trim() || undefined,
         categoryId: form.categoryId || undefined,
         supplierId: form.supplierId || undefined,
+        unitId: form.unitId || undefined,
         ...buildPricingPayload(),
         ...buildScopePayload(),
       };
@@ -462,6 +478,7 @@ export function useProductDrawer({ scopedStoreId: _scopedStoreId, canTenantOnly,
     createdProductId,
     attributeDefinitions,
     categoryOptions,
+    unitOptions,
     step1ProductInfoOpen,
     setStep1ProductInfoOpen,
     step1StoreScopeOpen,

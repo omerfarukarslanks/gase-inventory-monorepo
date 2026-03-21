@@ -38,6 +38,7 @@ export type ShellScreenKey =
   | "product-packages"
   | "product-categories"
   | "attributes"
+  | "units"
   | "users"
   | "permissions"
   | "reports"
@@ -51,6 +52,7 @@ const SECONDARY_SCREENS: ShellScreenKey[] = [
   "product-packages",
   "product-categories",
   "attributes",
+  "units",
   "users",
   "permissions",
   "reports",
@@ -82,6 +84,7 @@ export function useShellNavigation() {
   const canViewPackages = getSessionUserStoreType(user) === "WHOLESALE" && can("PRODUCT_PACKAGE_READ");
   const canViewCategories = can("PRODUCT_CATEGORY_READ");
   const canViewAttributes = can("PRODUCT_ATTRIBUTE_READ");
+  const canViewUnits = can("UNIT_READ");
   const canViewUsers = can("USER_READ");
   const canViewPermissions = can("PERMISSION_MANAGE");
   const canViewReports = permissions.some((permission) => permission.startsWith("REPORT_"));
@@ -166,6 +169,7 @@ export function useShellNavigation() {
     if (tab === "product-packages" && !canViewPackages) setTab(previousPrimaryTab.current);
     if (tab === "product-categories" && !canViewCategories) setTab(previousPrimaryTab.current);
     if (tab === "attributes" && !canViewAttributes) setTab(previousPrimaryTab.current);
+    if (tab === "units" && !canViewUnits) setTab(previousPrimaryTab.current);
     if (tab === "users" && !canViewUsers) setTab(previousPrimaryTab.current);
     if (tab === "permissions" && !canViewPermissions) setTab(previousPrimaryTab.current);
     if (tab === "reports" && !canViewReports) setTab(previousPrimaryTab.current);
@@ -236,6 +240,7 @@ export function useShellNavigation() {
     canViewPackages,
     canViewCategories,
     canViewAttributes,
+    canViewUnits,
     canViewUsers,
     canViewPermissions,
     canViewReports,

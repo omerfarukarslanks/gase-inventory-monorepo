@@ -20,6 +20,7 @@ type ProductsTaskFlowProps = {
   calculatedLineTotal: number | null;
   storeOptions: Array<{ value: string; label: string }>;
   categoryOptions: Array<{ value: string; label: string }>;
+  unitOptions: Array<{ value: string; label: string }>;
   productInfoOpen: boolean;
   onToggleProductInfo: () => void;
   storeScopeOpen: boolean;
@@ -59,6 +60,7 @@ export default function ProductsTaskFlow({
   calculatedLineTotal,
   storeOptions,
   categoryOptions,
+  unitOptions,
   productInfoOpen,
   onToggleProductInfo,
   storeScopeOpen,
@@ -147,6 +149,7 @@ export default function ProductsTaskFlow({
             calculatedLineTotal={calculatedLineTotal}
             storeOptions={storeOptions}
             categoryOptions={categoryOptions}
+            unitOptions={unitOptions}
             productInfoOpen={productInfoOpen}
             onToggleProductInfo={onToggleProductInfo}
             storeScopeOpen={storeScopeOpen}

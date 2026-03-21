@@ -21,6 +21,7 @@ function VirtualVariantList({
   fallbackCurrency,
   togglingVariantIds,
   onToggleVariantActive,
+  onEditVariant,
   canUpdate,
   t,
 }: {
@@ -28,6 +29,7 @@ function VirtualVariantList({
   fallbackCurrency: string;
   togglingVariantIds: string[];
   onToggleVariantActive: (variant: ProductVariant, next: boolean) => void;
+  onEditVariant?: (variant: ProductVariant) => void;
   canUpdate: boolean;
   t: (key: string) => string;
 }) {
@@ -93,11 +95,26 @@ function VirtualVariantList({
                 </div>
                 <div className="flex items-center justify-end gap-1 text-right">
                   {canUpdate && (
-                    <ToggleSwitch
-                      checked={Boolean(variant.isActive)}
-                      onChange={(next) => onToggleVariantActive(variant, next)}
-                      disabled={togglingVariantIds.includes(variant.id)}
-                    />
+                    <>
+                      <ToggleSwitch
+                        checked={Boolean(variant.isActive)}
+                        onChange={(next) => onToggleVariantActive(variant, next)}
+                        disabled={togglingVariantIds.includes(variant.id)}
+                      />
+                      {onEditVariant && (
+                        <button
+                          type="button"
+                          onClick={() => onEditVariant(variant)}
+                          className="ml-1 rounded-lg p-1.5 text-muted transition-colors hover:bg-surface2 hover:text-text"
+                          aria-label={`${variant.name ?? "Varyant"} düzenle`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -125,6 +142,7 @@ type ProductTableProps = {
   onEdit: (productId: string) => void;
   onToggleActive: (product: Product, next: boolean) => void;
   onToggleVariantActive: (productId: string, variant: ProductVariant, next: boolean) => void;
+  onEditVariant?: (productId: string, variant: ProductVariant) => void;
   onProductPrice: (product: Product) => void;
   canUpdate?: boolean;
   canPriceUpdate?: boolean;
@@ -145,6 +163,7 @@ export default function ProductTable({
   onEdit,
   onToggleActive,
   onToggleVariantActive,
+  onEditVariant,
   onProductPrice,
   canUpdate = true,
   canPriceUpdate = true,
@@ -317,6 +336,7 @@ export default function ProductTable({
                               onToggleVariantActive={(variant, next) =>
                                 onToggleVariantActive(product.id, variant, next)
                               }
+                              onEditVariant={onEditVariant ? (variant) => onEditVariant(product.id, variant) : undefined}
                               canUpdate={canUpdate}
                               t={t}
                             />
