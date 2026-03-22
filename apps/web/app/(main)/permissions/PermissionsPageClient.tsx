@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createPermission,
+  createRole,
   getPermissions,
   getRole,
   getRoles,
-  replaceRolePermissions,
   updatePermission,
+  updateRole,
   type Permission,
   type PermissionListMeta,
   type RoleEntry,
@@ -93,6 +94,11 @@ export default function PermissionsPage() {
   const [roleSubmitting, setRoleSubmitting] = useState(false);
   const [roleFormError, setRoleFormError] = useState("");
   const [roleLoading, setRoleLoading] = useState(false);
+
+  // Rol oluştur
+  const [roleName, setRoleName] = useState("");
+  const [roleNameError, setRoleNameError] = useState("");
+  const [togglingRoleIds, setTogglingRoleIds] = useState<string[]>([]);
 
   // ── Yetkiler fetch ───────────────────────────────────────────────────────────
   const fetchPermissions = useCallback(async () => {
@@ -253,8 +259,25 @@ export default function PermissionsPage() {
   };
 
   // ── Rol Drawer ───────────────────────────────────────────────────────────────
+  const openCreateRoleDrawer = () => {
+    setEditingRole(null);
+    setRoleName("");
+    setRoleNameError("");
+    setRoleFormError("");
+    setSelectedPermNames(new Set());
+    setAllPermsForRole([]);
+    setRoleDrawerOpen(true);
+    setRoleLoading(true);
+    getPermissions({})
+      .then((res) => setAllPermsForRole(res.data))
+      .catch(() => setRoleFormError("Yetkiler yuklenemedi."))
+      .finally(() => setRoleLoading(false));
+  };
+
   const openRoleDrawer = async (role: RoleEntry) => {
     setEditingRole(role);
+    setRoleName(role.role);
+    setRoleNameError("");
     setRoleFormError("");
     setSelectedPermNames(new Set());
     setAllPermsForRole([]);
@@ -262,7 +285,6 @@ export default function PermissionsPage() {
     setRoleLoading(true);
 
     try {
-      // İkisini paralel çek: rolün mevcut yetkileri + tüm yetki listesi
       const [rolePerms, allPermsRes] = await Promise.all([
         getRole(role.role),
         getPermissions({}),
@@ -270,7 +292,7 @@ export default function PermissionsPage() {
       setSelectedPermNames(new Set(rolePerms.map((p) => p.name)));
       setAllPermsForRole(allPermsRes.data);
     } catch {
-      setRoleFormError("Yetki bilgileri yüklenemedi. Lütfen tekrar deneyin.");
+      setRoleFormError("Yetki bilgileri yuklenemedi. Lutfen tekrar deneyin.");
     } finally {
       setRoleLoading(false);
     }
@@ -291,13 +313,38 @@ export default function PermissionsPage() {
   };
 
   const onSaveRolePerms = async () => {
-    if (!editingRole) return;
     setRoleFormError("");
+
+    if (!editingRole) {
+      // Oluşturma modu
+      const trimmedName = roleName.trim();
+      if (!trimmedName) {
+        setRoleNameError("Rol adı zorunludur.");
+        return;
+      }
+      setRoleSubmitting(true);
+      try {
+        await createRole({
+          name: trimmedName,
+          permissionNames: [...selectedPermNames],
+        });
+        setRoleDrawerOpen(false);
+        await fetchRoles();
+      } catch {
+        setRoleFormError("Rol oluşturulamadı. Lütfen tekrar deneyin.");
+      } finally {
+        setRoleSubmitting(false);
+      }
+      return;
+    }
+
+    // Düzenleme modu
     setRoleSubmitting(true);
     try {
-      await replaceRolePermissions(editingRole.role, {
+      await updateRole(editingRole.role, {
+        name: editingRole.role,
         permissionNames: [...selectedPermNames],
-        isActive: true,
+        isActive: editingRole.isActive,
       });
       setRoleDrawerOpen(false);
       await fetchRoles();
@@ -305,6 +352,22 @@ export default function PermissionsPage() {
       setRoleFormError("Rol yetkileri güncellenemedi. Lütfen tekrar deneyin.");
     } finally {
       setRoleSubmitting(false);
+    }
+  };
+
+  const onToggleRoleActive = async (role: RoleEntry, next: boolean) => {
+    setTogglingRoleIds((prev) => [...prev, role.role]);
+    try {
+      await updateRole(role.role, {
+        name: role.role,
+        permissionNames: role.permissions.map((p) => p.name),
+        isActive: next,
+      });
+      await fetchRoles();
+    } catch {
+      setRolesError("Rol durumu güncellenemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setTogglingRoleIds((prev) => prev.filter((id) => id !== role.role));
     }
   };
 
@@ -524,83 +587,105 @@ export default function PermissionsPage() {
 
       {/* ── ROLLER SEKMESİ ───────────────────────────────────────────────────── */}
       {activeTab === "roles" && (
-        isMobile ? (
-          <RolesMobileList
-            loading={rolesLoading}
-            error={rolesError}
-            roles={roles}
-            canManage={canManage}
-            onEditRole={openRoleDrawer}
-          />
-        ) : (
-          <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
-            {rolesLoading ? (
-              <div className="p-6 text-sm text-muted">Roller yukleniyor...</div>
-            ) : rolesError ? (
-              <div className="p-6">
-                <p className="text-sm text-error">{rolesError}</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
-                  <thead className="border-b border-border bg-surface2/70">
-                    <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                      <th className="px-4 py-3">Rol</th>
-                      <th className="px-4 py-3">Durum</th>
-                      <th className="px-4 py-3">Yetki Sayisi</th>
-                      <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roles.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted">
-                          Kayit bulunamadi.
-                        </td>
+        <>
+          {canManage && (
+            <div className="flex justify-end">
+              <Button
+                label="Yeni Rol"
+                type="button"
+                onClick={openCreateRoleDrawer}
+                variant="primarySolid"
+              />
+            </div>
+          )}
+          {isMobile ? (
+            <RolesMobileList
+              loading={rolesLoading}
+              error={rolesError}
+              roles={roles}
+              canManage={canManage}
+              onEditRole={openRoleDrawer}
+              togglingRoleIds={togglingRoleIds}
+              onToggleRoleActive={(role, next) => void onToggleRoleActive(role, next)}
+            />
+          ) : (
+            <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
+              {rolesLoading ? (
+                <div className="p-6 text-sm text-muted">Roller yukleniyor...</div>
+              ) : rolesError ? (
+                <div className="p-6">
+                  <p className="text-sm text-error">{rolesError}</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="border-b border-border bg-surface2/70">
+                      <tr className="text-left text-xs uppercase tracking-wide text-muted">
+                        <th className="px-4 py-3">Rol</th>
+                        <th className="px-4 py-3">Durum</th>
+                        <th className="px-4 py-3">Yetki Sayisi</th>
+                        <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
                       </tr>
-                    ) : (
-                      roles.map((role) => (
-                        <tr
-                          key={role.role}
-                          className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
-                        >
-                          <td className="px-4 py-3 font-mono text-sm font-medium text-text">
-                            {role.role}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                                role.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
-                              }`}
-                            >
-                              {role.isActive ? "Aktif" : "Pasif"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-text2">
-                            {role.permissions.length} yetki
-                          </td>
-                          <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
-                            <div className="inline-flex items-center gap-1">
-                              {canManage ? (
-                                <IconButton
-                                  onClick={() => void openRoleDrawer(role)}
-                                  aria-label="Rol yetkilerini duzenle"
-                                  title="Yetkileri Duzenle"
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              ) : null}
-                            </div>
+                    </thead>
+                    <tbody>
+                      {roles.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted">
+                            Kayit bulunamadi.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        )
+                      ) : (
+                        roles.map((role) => (
+                          <tr
+                            key={role.role}
+                            className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
+                          >
+                            <td className="px-4 py-3 font-mono text-sm font-medium text-text">
+                              {role.role}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                                  role.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
+                                }`}
+                              >
+                                {role.isActive ? "Aktif" : "Pasif"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-text2">
+                              {role.permissions.length} yetki
+                            </td>
+                            <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
+                              <div className="inline-flex items-center gap-1">
+                                {canManage ? (
+                                  <IconButton
+                                    onClick={() => void openRoleDrawer(role)}
+                                    disabled={togglingRoleIds.includes(role.role)}
+                                    aria-label="Rol yetkilerini duzenle"
+                                    title="Yetkileri Duzenle"
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                ) : null}
+                                {canManage ? (
+                                  <ToggleSwitch
+                                    checked={role.isActive}
+                                    onChange={(next) => void onToggleRoleActive(role, next)}
+                                    disabled={togglingRoleIds.includes(role.role)}
+                                  />
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
 
       {/* ── YETKİ DRAWER ─────────────────────────────────────────────────────── */}
@@ -673,8 +758,12 @@ export default function PermissionsPage() {
         open={roleDrawerOpen}
         onClose={onCloseRoleDrawer}
         side="right"
-        title={`${editingRole?.role ?? ""} — Yetkiler`}
-        description="Rol için aktif yetkileri seçin. Kaydet ile mevcut atama tamamen değiştirilir."
+        title={editingRole ? `${editingRole.role} — Yetkiler` : "Yeni Rol"}
+        description={
+          editingRole
+            ? "Rol için aktif yetkileri seçin. Kaydet ile mevcut atama tamamen değiştirilir."
+            : "Rol adını girin ve atanacak yetkileri seçin."
+        }
         closeDisabled={roleSubmitting || roleLoading}
         mobileFullscreen
         footer={
@@ -697,6 +786,21 @@ export default function PermissionsPage() {
         }
       >
         <div className="space-y-5 p-5">
+          {!editingRole && (
+            <InputField
+              label="Rol Adı *"
+              type="text"
+              value={roleName}
+              onChange={(v) => {
+                setRoleNameError("");
+                setRoleName(v);
+              }}
+              placeholder="KASIYER"
+              error={roleNameError}
+              disabled={roleSubmitting}
+            />
+          )}
+
           {roleLoading ? (
             <p className="text-sm text-muted">Yükleniyor...</p>
           ) : groupedPerms.size === 0 && !roleFormError ? (

@@ -1,7 +1,7 @@
 import { usePermissionList } from "./hooks/usePermissionList";
 import { usePermissionForm } from "./hooks/usePermissionForm";
 import { PermissionListView } from "./views/PermissionListView";
-import { PermissionFormSheet } from "./views/PermissionFormSheet";
+import { PermissionFormSheet, RoleCreateSheet } from "./views/PermissionFormSheet";
 import { RoleFormSheet } from "./views/PermissionFormSheet";
 
 type PermissionsScreenProps = {
@@ -27,6 +27,7 @@ export default function PermissionsScreen({
     permissionsError,
     rolesError,
     togglingPermissionId,
+    togglingRoleId,
     activeFilterLabel,
     hasFilters,
     roleEditorOpen,
@@ -38,6 +39,12 @@ export default function PermissionsScreen({
     roleFormError,
     roleLoading,
     roleSubmitting,
+    roleCreateOpen,
+    roleCreateName,
+    setRoleCreateName,
+    roleCreateNameError,
+    roleCreateSubmitting,
+    roleCreateFormError,
     fetchPermissionsList,
     fetchRolesList,
     togglePermissionActive,
@@ -46,6 +53,10 @@ export default function PermissionsScreen({
     saveRolePermissions,
     toggleSelectedPermission,
     resetFilters,
+    toggleRoleActive,
+    openCreateRole,
+    resetCreateRole,
+    submitCreateRole,
   } = usePermissionList({ isActive });
 
   const {
@@ -82,6 +93,7 @@ export default function PermissionsScreen({
         activeFilterLabel={activeFilterLabel}
         hasFilters={hasFilters}
         togglingPermissionId={togglingPermissionId}
+        togglingRoleId={togglingRoleId}
         onBack={onBack}
         onPermissionPress={openEditPermission}
         onTogglePermissionActive={(permission, next) => void togglePermissionActive(permission, next)}
@@ -90,6 +102,8 @@ export default function PermissionsScreen({
         onRefreshPermissions={() => void fetchPermissionsList()}
         onRefreshRoles={() => void fetchRolesList()}
         onRolePress={(role) => void openRoleEditor(role)}
+        onCreateRole={openCreateRole}
+        onToggleRoleActive={(role, next) => void toggleRoleActive(role, next)}
       />
 
       <PermissionFormSheet
@@ -119,6 +133,17 @@ export default function PermissionsScreen({
         onSave={() => void saveRolePermissions()}
         onSearchChange={setRoleSearch}
         onTogglePermission={toggleSelectedPermission}
+      />
+
+      <RoleCreateSheet
+        visible={roleCreateOpen}
+        roleName={roleCreateName}
+        nameError={roleCreateNameError}
+        formError={roleCreateFormError}
+        submitting={roleCreateSubmitting}
+        onClose={resetCreateRole}
+        onSubmit={() => void submitCreateRole()}
+        onNameChange={setRoleCreateName}
       />
     </>
   );

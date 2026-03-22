@@ -53,6 +53,9 @@ type PermissionListViewProps = {
   onRefreshPermissions: () => void;
   onRefreshRoles: () => void;
   onRolePress: (role: RoleEntry) => void;
+  togglingRoleId: string | null;
+  onCreateRole: () => void;
+  onToggleRoleActive: (role: RoleEntry, next: boolean) => void;
 };
 
 export function PermissionListView({
@@ -79,6 +82,9 @@ export function PermissionListView({
   onRefreshPermissions,
   onRefreshRoles,
   onRolePress,
+  togglingRoleId,
+  onCreateRole,
+  onToggleRoleActive,
 }: PermissionListViewProps) {
   return (
     <View style={styles.screen}>
@@ -245,6 +251,16 @@ export function PermissionListView({
               badgeLabel={item.isActive ? "aktif" : "pasif"}
               badgeTone={item.isActive ? "info" : "neutral"}
               onPress={() => onRolePress(item)}
+              right={
+                <Button
+                  label={item.isActive ? "Pasif" : "Aktif"}
+                  onPress={() => onToggleRoleActive(item, !item.isActive)}
+                  variant={item.isActive ? "ghost" : "secondary"}
+                  size="sm"
+                  fullWidth={false}
+                  loading={togglingRoleId === item.role}
+                />
+              }
               icon={
                 <MaterialCommunityIcons
                   name="shield-account-outline"
@@ -285,7 +301,14 @@ export function PermissionListView({
             />
           </>
         ) : (
-          <Button label="Rolleri yenile" onPress={onRefreshRoles} variant="secondary" />
+          <>
+            <Button label="Rolleri yenile" onPress={onRefreshRoles} variant="secondary" />
+            <Button
+              label="Yeni Rol"
+              onPress={onCreateRole}
+              icon={<MaterialCommunityIcons name="plus-circle-outline" size={16} color="#FFFFFF" />}
+            />
+          </>
         )}
       </StickyActionBar>
     </View>

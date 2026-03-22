@@ -198,6 +198,55 @@ export function RoleFormSheet({
   );
 }
 
+// ─── Role Create ──────────────────────────────────────────────────────────────
+
+type RoleCreateSheetProps = {
+  visible: boolean;
+  roleName: string;
+  nameError: string;
+  formError: string;
+  submitting: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  onNameChange: (value: string) => void;
+};
+
+export function RoleCreateSheet({
+  visible,
+  roleName,
+  nameError,
+  formError,
+  submitting,
+  onClose,
+  onSubmit,
+  onNameChange,
+}: RoleCreateSheetProps) {
+  return (
+    <ModalSheet
+      visible={visible}
+      title="Yeni rol"
+      subtitle="Rol adini girerek sisteme yeni bir rol ekle"
+      onClose={onClose}
+    >
+      {formError ? <Banner text={formError} /> : null}
+      <TextField
+        label="Rol adi"
+        value={roleName}
+        onChangeText={onNameChange}
+        errorText={nameError || undefined}
+        autoCapitalize="characters"
+        placeholder="KASIYER"
+      />
+      <Button
+        label="Rolu kaydet"
+        onPress={onSubmit}
+        loading={submitting}
+        disabled={!roleName.trim() || roleName.trim().length < 2}
+      />
+    </ModalSheet>
+  );
+}
+
 const styles = StyleSheet.create({
   fixedName: {
     marginTop: 12,

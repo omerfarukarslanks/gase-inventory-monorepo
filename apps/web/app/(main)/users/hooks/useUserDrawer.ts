@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EMPTY_USER_FORM,
   EMPTY_USER_FORM_ERRORS,
@@ -8,6 +8,7 @@ import {
   type UserFormErrors,
 } from "@/components/users/types";
 import { createUser, updateUser, type User } from "@/lib/users";
+import { getRoles } from "@/lib/permissions";
 import { isValidEmail } from "@gase/core";
 
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
@@ -25,14 +26,17 @@ export function useUserDrawer({ onSaved }: Options) {
   const [formErrors, setFormErrors] = useState<UserFormErrors>(EMPTY_USER_FORM_ERRORS);
   const [saving, setSaving] = useState(false);
 
-  const roleOptions = useMemo(
-    () => [
-      { value: "STAFF", label: "STAFF" },
-      { value: "MANAGER", label: "MANAGER" },
-      { value: "ADMIN", label: "ADMIN" },
-    ],
-    [],
-  );
+  const [roleOptions, setRoleOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    getRoles({ limit: 100 })
+      .then((res) => {
+        setRoleOptions(res.data.map((r) => ({ value: r.role, label: r.role })));
+      })
+      .catch(() => {
+        setRoleOptions([]);
+      });
+  }, []);
 
   const resetForm = () => {
     setForm(EMPTY_USER_FORM);

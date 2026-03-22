@@ -12,13 +12,14 @@ import {
 } from "@/src/components/ui";
 import { mobileTheme } from "@/src/theme";
 import type { UserForm, UserFormErrors, UserRole } from "../hooks/useUserForm";
-import { noStoreValue, roleOptions } from "../hooks/useUserForm";
+import { noStoreValue } from "../hooks/useUserForm";
 
 type UserFormSheetProps = {
   visible: boolean;
   form: UserForm;
   formErrors: UserFormErrors;
   formError: string;
+  roleOptions: { label: string; value: string }[];
   storeSelectionItems: { label: string; value: string; description?: string }[];
   selectedStoreLabel: string;
   editingUserId: string | null;
@@ -39,6 +40,7 @@ export function UserFormSheet({
   form,
   formErrors,
   formError,
+  roleOptions,
   storeSelectionItems,
   selectedStoreLabel,
   editingUserId,

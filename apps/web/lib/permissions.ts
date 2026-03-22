@@ -120,3 +120,28 @@ export async function replaceRolePermissions(
     body: JSON.stringify(dto),
   });
 }
+
+export type CreateRoleDto = {
+  name: string;
+  permissionNames: string[];
+};
+
+export type UpdateRoleDto = {
+  name: string;
+  permissionNames: string[];
+  isActive: boolean;
+};
+
+export async function createRole(dto: CreateRoleDto): Promise<RoleEntry> {
+  return apiFetch<RoleEntry>("/permissions/roles", {
+    method: "POST",
+    body: JSON.stringify(dto),
+  });
+}
+
+export async function updateRole(roleName: string, dto: UpdateRoleDto): Promise<RoleEntry> {
+  return apiFetch<RoleEntry>(`/permissions/roles/${roleName}`, {
+    method: "PUT",
+    body: JSON.stringify(dto),
+  });
+}

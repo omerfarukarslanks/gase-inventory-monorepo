@@ -1,9 +1,10 @@
 import {
+  createRole,
   getPermissions,
   getRoles,
   getRole,
   updatePermission,
-  replaceRolePermissions,
+  updateRole,
   type Permission,
   type RoleEntry,
 } from "@gase/core";
@@ -38,6 +39,17 @@ export function usePermissionList({ isActive }: UsePermissionListParams) {
   const [roleFormError, setRoleFormError] = useState("");
   const [roleLoading, setRoleLoading] = useState(false);
   const [roleSubmitting, setRoleSubmitting] = useState(false);
+
+  // Role isActive toggling
+  const [togglingRoleId, setTogglingRoleId] = useState<string | null>(null);
+  const [togglingRoleError, setTogglingRoleError] = useState("");
+
+  // Role create state
+  const [roleCreateOpen, setRoleCreateOpen] = useState(false);
+  const [roleCreateName, setRoleCreateName] = useState("");
+  const [roleCreateNameError, setRoleCreateNameError] = useState("");
+  const [roleCreateSubmitting, setRoleCreateSubmitting] = useState(false);
+  const [roleCreateFormError, setRoleCreateFormError] = useState("");
 
   const debouncedSearch = useDebouncedValue(search, 350);
   const debouncedRoleSearch = useDebouncedValue(roleSearch, 150);
@@ -169,9 +181,10 @@ export function usePermissionList({ isActive }: UsePermissionListParams) {
     setRoleSubmitting(true);
     setRoleFormError("");
     try {
-      await replaceRolePermissions(editingRole.role, {
+      await updateRole(editingRole.role, {
+        name: editingRole.role,
         permissionNames: [...selectedPermissionNames],
-        isActive: true,
+        isActive: editingRole.isActive,
       });
       resetRoleEditor();
       await fetchRolesList();
@@ -181,6 +194,64 @@ export function usePermissionList({ isActive }: UsePermissionListParams) {
       );
     } finally {
       setRoleSubmitting(false);
+    }
+  };
+
+  const toggleRoleActive = async (role: RoleEntry, next: boolean) => {
+    setTogglingRoleId(role.role);
+    setTogglingRoleError("");
+    try {
+      await updateRole(role.role, {
+        name: role.role,
+        permissionNames: role.permissions.map((p) => p.name),
+        isActive: next,
+      });
+      await fetchRolesList();
+    } catch (nextError) {
+      setTogglingRoleError(
+        nextError instanceof Error ? nextError.message : "Rol durumu guncellenemedi.",
+      );
+    } finally {
+      setTogglingRoleId(null);
+    }
+  };
+
+  const openCreateRole = useCallback(() => {
+    setRoleCreateOpen(true);
+    setRoleCreateName("");
+    setRoleCreateNameError("");
+    setRoleCreateFormError("");
+  }, []);
+
+  const resetCreateRole = useCallback(() => {
+    setRoleCreateOpen(false);
+    setRoleCreateName("");
+    setRoleCreateNameError("");
+    setRoleCreateFormError("");
+  }, []);
+
+  const submitCreateRole = async () => {
+    const trimmed = roleCreateName.trim();
+    if (!trimmed) {
+      setRoleCreateNameError("Rol adi zorunlu.");
+      return;
+    }
+    if (trimmed.length < 2) {
+      setRoleCreateNameError("Rol adi en az 2 karakter olmali.");
+      return;
+    }
+    setRoleCreateSubmitting(true);
+    setRoleCreateFormError("");
+    try {
+      await createRole({ name: trimmed, permissionNames: [] });
+      resetCreateRole();
+      await fetchRolesList();
+    } catch (nextError) {
+      setRoleCreateFormError(
+        nextError instanceof Error ? nextError.message : "Rol olusturulamadi.",
+      );
+    } finally {
+      setRoleCreateSubmitting(false);
     }
   };
 
@@ -236,5 +307,17 @@ export function usePermissionList({ isActive }: UsePermissionListParams) {
     saveRolePermissions,
     toggleSelectedPermission,
     resetFilters,
+    togglingRoleId,
+    togglingRoleError,
+    roleCreateOpen,
+    roleCreateName,
+    setRoleCreateName,
+    roleCreateNameError,
+    roleCreateSubmitting,
+    roleCreateFormError,
+    openCreateRole,
+    resetCreateRole,
+    submitCreateRole,
+    toggleRoleActive,
   };
 }

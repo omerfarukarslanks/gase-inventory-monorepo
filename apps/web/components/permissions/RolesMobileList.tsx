@@ -1,6 +1,7 @@
 "use client";
 
 import IconButton from "@/components/ui/IconButton";
+import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
 import type { RoleEntry } from "@/lib/permissions";
 
@@ -9,7 +10,9 @@ type RolesMobileListProps = {
   error: string;
   roles: RoleEntry[];
   canManage: boolean;
+  togglingRoleIds: string[];
   onEditRole: (role: RoleEntry) => void | Promise<void>;
+  onToggleRoleActive: (role: RoleEntry, next: boolean) => void;
 };
 
 function LoadingCard() {
@@ -27,7 +30,9 @@ export default function RolesMobileList({
   error,
   roles,
   canManage,
+  togglingRoleIds,
   onEditRole,
+  onToggleRoleActive,
 }: RolesMobileListProps) {
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
@@ -60,10 +65,18 @@ export default function RolesMobileList({
                   </span>
                 </div>
 
-                <div className="flex justify-end border-t border-border pt-3">
+                <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+                  {canManage ? (
+                    <ToggleSwitch
+                      checked={role.isActive}
+                      onChange={(next) => onToggleRoleActive(role, next)}
+                      disabled={togglingRoleIds.includes(role.role)}
+                    />
+                  ) : null}
                   {canManage ? (
                     <IconButton
                       onClick={() => void onEditRole(role)}
+                      disabled={togglingRoleIds.includes(role.role)}
                       aria-label="Rol yetkilerini duzenle"
                       title="Yetkileri Duzenle"
                       className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"

@@ -38,6 +38,7 @@ export default function UsersScreen({
     setStatusFilter,
     users,
     stores,
+    roleOptions,
     loading,
     error,
     setError,
@@ -225,6 +226,7 @@ export default function UsersScreen({
           form={form}
           formErrors={formErrors}
           formError={formError}
+          roleOptions={roleOptions}
           storeSelectionItems={storeSelectionItems}
           selectedStoreLabel={selectedStoreLabel}
           editingUserId={editingUserId}

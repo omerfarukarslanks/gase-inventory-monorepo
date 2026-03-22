@@ -28,7 +28,7 @@ export function useUserList(_options: Options = {}) {
   const debouncedSearch = useDebounceStr(searchTerm, 500);
 
   const storeFilterOptions = useMemo(
-    () => stores.map((store) => ({ value: store.id, label: store.name })),
+    () => stores.filter((store) => store.isActive).map((store) => ({ value: store.id, label: store.name })),
     [stores],
   );
 
