@@ -7,20 +7,24 @@ import UsersTable from "@/components/users/UsersTable";
 import TablePagination from "@/components/ui/TablePagination";
 import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useViewportMode } from "@/hooks/useViewportMode";
 import { useUserList } from "./hooks/useUserList";
 import { useUserDrawer } from "./hooks/useUserDrawer";
 
 export default function UsersPage() {
   const { can } = usePermissions();
+  const session = useSessionProfile();
   const isMobile = useViewportMode() === "mobile";
 
   const canCreate = can("USER_CREATE");
   const canUpdate = can("USER_UPDATE");
+  const isTenantOnly = can("TENANT_ONLY");
+  const tenantStoreId = !isTenantOnly ? session.activeStoreId : undefined;
 
-  const list = useUserList({});
+  const list = useUserList({ tenantStoreId });
 
-  const drawer = useUserDrawer({ onSaved: list.fetchUsers });
+  const drawer = useUserDrawer({ onSaved: list.fetchUsers, tenantStoreId });
 
   return (
     <PageShell
@@ -35,6 +39,7 @@ export default function UsersPage() {
           storeFilter={list.storeFilter}
           onStoreFilterChange={list.setStoreFilter}
           storeFilterOptions={list.storeFilterOptions}
+          showStoreFilter={isTenantOnly}
           statusFilter={list.statusFilter}
           onStatusFilterChange={list.setStatusFilter}
           sortBy={list.sortBy ?? ""}
@@ -105,6 +110,7 @@ export default function UsersPage() {
         errors={drawer.formErrors}
         roleOptions={drawer.roleOptions}
         storeOptions={list.storeFilterOptions}
+        showStoreField={isTenantOnly}
         onClose={drawer.closeDrawer}
         onSave={drawer.handleSave}
         onFormChange={drawer.onFormChange}

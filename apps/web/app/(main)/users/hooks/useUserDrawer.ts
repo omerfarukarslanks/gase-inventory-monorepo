@@ -16,9 +16,10 @@ const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 type Options = {
   t?: (key: string) => string;
   onSaved: () => Promise<void>;
+  tenantStoreId?: string;
 };
 
-export function useUserDrawer({ onSaved }: Options) {
+export function useUserDrawer({ onSaved, tenantStoreId }: Options) {
   const [mode, setMode] = useState<"edit" | "create">("create");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -47,6 +48,9 @@ export function useUserDrawer({ onSaved }: Options) {
     setMode("create");
     setSelectedUser(null);
     resetForm();
+    if (tenantStoreId) {
+      setForm((prev) => ({ ...prev, storeId: tenantStoreId }));
+    }
     setIsDrawerOpen(true);
   };
 
@@ -56,10 +60,10 @@ export function useUserDrawer({ onSaved }: Options) {
     setForm({
       name: user.name,
       surname: user.surname,
-      role: user.role,
+      role: user.roleName,
       email: user.email,
       password: "",
-      storeId: user.userStores?.[0]?.store.id ?? "",
+      storeId: tenantStoreId ?? user.store?.id ?? "",
     });
     setFormErrors(EMPTY_USER_FORM_ERRORS);
     setIsDrawerOpen(true);
@@ -74,8 +78,6 @@ export function useUserDrawer({ onSaved }: Options) {
   const onFormChange = <K extends keyof UserForm>(field: K, value: UserForm[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
-    if (mode !== "create") return;
-
     if (field === "name" && formErrors.name) {
       setFormErrors((prev) => ({ ...prev, name: "" }));
     }
@@ -88,14 +90,22 @@ export function useUserDrawer({ onSaved }: Options) {
     if (field === "password" && formErrors.password) {
       setFormErrors((prev) => ({ ...prev, password: "" }));
     }
+    if (field === "role" && formErrors.role) {
+      setFormErrors((prev) => ({ ...prev, role: "" }));
+    }
+    if (field === "storeId" && formErrors.storeId) {
+      setFormErrors((prev) => ({ ...prev, storeId: "" }));
+    }
   };
 
-  const validateCreateForm = () => {
+  const validateForm = () => {
     const nextErrors: UserFormErrors = {
       name: "",
       surname: "",
       email: "",
       password: "",
+      role: "",
+      storeId: "",
     };
 
     if (!form.name.trim()) {
@@ -110,16 +120,26 @@ export function useUserDrawer({ onSaved }: Options) {
       nextErrors.surname = "Soyad en az 2 karakter olmalıdır.";
     }
 
-    if (!form.email.trim()) {
-      nextErrors.email = "E-posta zorunludur.";
-    } else if (!isValidEmail(form.email)) {
-      nextErrors.email = "Geçerli bir e-posta giriniz.";
+    if (!form.role) {
+      nextErrors.role = "Rol seçimi zorunludur.";
     }
 
-    if (!form.password) {
-      nextErrors.password = "Şifre zorunludur.";
-    } else if (!passwordPattern.test(form.password)) {
-      nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
+    if (!tenantStoreId && !form.storeId) {
+      nextErrors.storeId = "Mağaza seçimi zorunludur.";
+    }
+
+    if (mode === "create") {
+      if (!form.email.trim()) {
+        nextErrors.email = "E-posta zorunludur.";
+      } else if (!isValidEmail(form.email)) {
+        nextErrors.email = "Geçerli bir e-posta giriniz.";
+      }
+
+      if (!form.password) {
+        nextErrors.password = "Şifre zorunludur.";
+      } else if (!passwordPattern.test(form.password)) {
+        nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
+      }
     }
 
     setFormErrors(nextErrors);
@@ -127,7 +147,7 @@ export function useUserDrawer({ onSaved }: Options) {
   };
 
   const handleSave = async () => {
-    if (mode === "create" && !validateCreateForm()) return;
+    if (!validateForm()) return;
 
     setSaving(true);
     try {

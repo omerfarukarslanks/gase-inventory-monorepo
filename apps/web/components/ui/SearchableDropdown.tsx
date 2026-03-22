@@ -28,6 +28,7 @@ type SearchableDropdownProps = {
   menuPlacement?: "bottom" | "top";
   className?: string;
   disabled?: boolean;
+  error?: string;
 };
 
 const ChevronIcon = () => (
@@ -84,6 +85,7 @@ export default function SearchableDropdown({
   menuPlacement = "bottom",
   className = "",
   disabled = false,
+  error = "",
 }: SearchableDropdownProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -165,9 +167,11 @@ export default function SearchableDropdown({
             if (e.key === "Escape") closeMenu();
             if (e.key === "ArrowDown") setOpen(true);
           }}
-          className={`h-10 w-full rounded-xl border border-border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary ${
-            disabled ? "cursor-not-allowed opacity-60" : ""
-          }`}
+          className={`h-10 w-full rounded-xl border bg-surface pl-3 pr-16 text-left text-sm text-text outline-none transition-colors ${
+            error
+              ? "border-error focus:border-error focus:ring-1 focus:ring-error/20"
+              : "border-border focus:border-primary focus:ring-1 focus:ring-primary"
+          } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
           aria-label={inputAriaLabel}
           aria-expanded={open}
           aria-haspopup="listbox"

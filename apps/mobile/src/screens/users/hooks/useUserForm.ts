@@ -19,6 +19,8 @@ export type UserFormErrors = {
   surname: string;
   email: string;
   password: string;
+  role: string;
+  storeId: string;
 };
 
 const noStoreValue = "__no_store__";
@@ -37,6 +39,8 @@ const emptyFormErrors: UserFormErrors = {
   surname: "",
   email: "",
   password: "",
+  role: "",
+  storeId: "",
 };
 
 export const roleOptions = [
@@ -106,6 +110,16 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
       : "Gecerli bir e-posta girin.";
   }, [editingUserId, form.email]);
 
+  const roleError = useMemo(() => {
+    if (!form.role) return "Rol secimi zorunlu.";
+    return "";
+  }, [form.role]);
+
+  const storeError = useMemo(() => {
+    if (!form.storeId) return "Magaza secimi zorunlu.";
+    return "";
+  }, [form.storeId]);
+
   const passwordError = useMemo(() => {
     if (editingUserId) return "";
     if (!form.password) return "Sifre zorunlu.";
@@ -139,10 +153,10 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
     setForm({
       name: user.name ?? "",
       surname: user.surname ?? "",
-      role: (user.role as UserRole) ?? "STAFF",
+      role: (user.roleName as UserRole) ?? "STAFF",
       email: user.email ?? "",
       password: "",
-      storeId: user.userStores?.[0]?.store.id ?? "",
+      storeId: user.store?.id ?? "",
     });
     setFormErrors(emptyFormErrors);
     setFormError("");
@@ -157,6 +171,8 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
         ...(field === "surname" ? { surname: "" } : {}),
         ...(field === "email" ? { email: "" } : {}),
         ...(field === "password" ? { password: "" } : {}),
+        ...(field === "role" ? { role: "" } : {}),
+        ...(field === "storeId" ? { storeId: "" } : {}),
       }));
       setFormError((current) => (current ? "" : current));
     },
@@ -169,6 +185,8 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
       surname: surnameError,
       email: emailError,
       password: passwordError,
+      role: roleError,
+      storeId: storeError,
     };
     setFormErrors(nextErrors);
 
@@ -219,8 +237,8 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
       const updated = await updateUser(selectedUser.id, {
         name: selectedUser.name,
         surname: selectedUser.surname,
-        role: selectedUser.role,
-        storeIds: selectedUser.userStores?.map((item) => item.store.id) ?? [],
+        role: selectedUser.roleName,
+        storeIds: selectedUser.store ? [selectedUser.store.id] : [],
         isActive: !(selectedUser.isActive ?? true),
       });
       const refreshed = await getUser(updated.id);
@@ -251,6 +269,8 @@ export function useUserForm({ stores, onAfterSubmit, fetchUsersList }: UseUserFo
     nameError,
     surnameError,
     emailError,
+    roleError,
+    storeError,
     passwordError,
     resetEditor,
     openCreateModal,

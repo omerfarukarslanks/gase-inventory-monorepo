@@ -15,6 +15,7 @@ type UserDrawerProps = {
   errors: UserFormErrors;
   roleOptions: Array<{ value: string; label: string }>;
   storeOptions: Array<{ value: string; label: string }>;
+  showStoreField: boolean;
   onClose: () => void;
   onSave: () => void;
   onFormChange: <K extends keyof UserForm>(field: K, value: UserForm[K]) => void;
@@ -29,6 +30,7 @@ export default function UserDrawer({
   errors,
   roleOptions,
   storeOptions,
+  showStoreField,
   onClose,
   onSave,
   onFormChange,
@@ -60,7 +62,7 @@ export default function UserDrawer({
           type="text"
           value={form.name}
           onChange={(value) => onFormChange("name", value)}
-          error={mode === "create" ? errors.name : undefined}
+          error={errors.name}
         />
 
         <InputField
@@ -68,11 +70,11 @@ export default function UserDrawer({
           type="text"
           value={form.surname}
           onChange={(value) => onFormChange("surname", value)}
-          error={mode === "create" ? errors.surname : undefined}
+          error={errors.surname}
         />
 
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted">Rol</label>
+          <label className="text-xs font-semibold text-muted">Rol *</label>
           <SearchableDropdown
             options={roleOptions}
             value={form.role}
@@ -82,7 +84,9 @@ export default function UserDrawer({
             toggleAriaLabel="Rol listesini aç"
             allowClear={false}
             showEmptyOption={false}
+            error={errors.role}
           />
+          {errors.role && <p className="px-1 text-xs text-error">{errors.role}</p>}
         </div>
 
         {mode === "create" ? (
@@ -111,20 +115,24 @@ export default function UserDrawer({
           </div>
         )}
 
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted">Mağaza Yetkisi</label>
-          <SearchableDropdown
-            options={storeOptions}
-            value={form.storeId}
-            onChange={(storeId) => onFormChange("storeId", storeId)}
-            placeholder="Mağaza seçin"
-            emptyOptionLabel="Mağaza seçin"
-            inputAriaLabel="Mağaza seçimi"
-            clearAriaLabel="Mağaza seçimini temizle"
-            toggleAriaLabel="Mağaza listesini aç"
-          />
-          {storeOptions.length === 0 && <div className="px-1 text-xs text-muted">Mağaza bulunamadı.</div>}
-        </div>
+        {showStoreField && (
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-muted">Mağaza *</label>
+            <SearchableDropdown
+              options={storeOptions}
+              value={form.storeId}
+              onChange={(storeId) => onFormChange("storeId", storeId)}
+              placeholder="Mağaza seçin"
+              emptyOptionLabel="Mağaza seçin"
+              inputAriaLabel="Mağaza seçimi"
+              clearAriaLabel="Mağaza seçimini temizle"
+              toggleAriaLabel="Mağaza listesini aç"
+              error={errors.storeId}
+            />
+            {errors.storeId && <p className="px-1 text-xs text-error">{errors.storeId}</p>}
+            {storeOptions.length === 0 && <div className="px-1 text-xs text-muted">Mağaza bulunamadı.</div>}
+          </div>
+        )}
       </div>
     </Drawer>
   );

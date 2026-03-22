@@ -105,13 +105,11 @@ export default function UsersTable({
                   <td className="px-6 py-3 text-text2">{user.email}</td>
                   <td className="px-6 py-3">
                     <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {user.role}
+                      {user.roleName}
                     </span>
                   </td>
                   <td className="px-6 py-3 text-text2">
-                    {user.userStores && user.userStores.length > 0
-                      ? user.userStores.map((userStore) => userStore.store.name).join(", ")
-                      : "-"}
+                    {user.store?.name ?? "-"}
                   </td>
                   <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
                     <div className="inline-flex items-center gap-2">

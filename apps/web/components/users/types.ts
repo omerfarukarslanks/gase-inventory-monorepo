@@ -14,6 +14,8 @@ export type UserFormErrors = {
   surname: string;
   email: string;
   password: string;
+  role: string;
+  storeId: string;
 };
 
 export const EMPTY_USER_FORM: UserForm = {
@@ -30,4 +32,6 @@ export const EMPTY_USER_FORM_ERRORS: UserFormErrors = {
   surname: "",
   email: "",
   password: "",
+  role: "",
+  storeId: "",
 };

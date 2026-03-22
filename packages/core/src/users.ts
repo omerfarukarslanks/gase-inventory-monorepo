@@ -16,23 +16,14 @@ export interface User {
   phone?: string | null;
   address?: string | null;
   avatar?: string | null;
-  role: string;
+  roleId: string;
+  roleName: string;
   isActive?: boolean;
   tenantId?: string;
-  userStores?: {
+  store?: {
     id: string;
-    role?: string;
-    store: {
-      id: string;
-      name: string;
-      code?: string;
-      address?: string | null;
-      isActive?: boolean;
-      slug?: string;
-      logo?: string | null;
-      description?: string | null;
-    };
-  }[];
+    name: string;
+  } | null;
 }
 
 export interface Meta {

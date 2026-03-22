@@ -7,9 +7,10 @@ import { getUsers, updateUser, type Meta, type User } from "@/lib/users";
 
 type Options = {
   t?: (key: string) => string;
+  tenantStoreId?: string;
 };
 
-export function useUserList(_options: Options = {}) {
+export function useUserList({ tenantStoreId }: Options = {}) {
   const stores = useStores();
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +40,7 @@ export function useUserList(_options: Options = {}) {
         page: currentPage,
         limit,
         search: debouncedSearch,
-        storeId: storeFilter || undefined,
+        storeId: tenantStoreId || storeFilter || undefined,
         isActive: statusFilter,
         sortBy,
         sortOrder,
@@ -52,7 +53,7 @@ export function useUserList(_options: Options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, limit, sortBy, sortOrder, statusFilter, storeFilter]);
+  }, [currentPage, debouncedSearch, limit, sortBy, sortOrder, statusFilter, storeFilter, tenantStoreId]);
 
   useEffect(() => {
     void fetchUsers();
@@ -74,8 +75,8 @@ export function useUserList(_options: Options = {}) {
       await updateUser(user.id, {
         name: user.name,
         surname: user.surname,
-        role: user.role,
-        storeIds: user.userStores?.map((userStore) => userStore.store.id) || [],
+        role: user.roleName,
+        storeIds: user.store ? [user.store.id] : [],
         isActive: next,
       });
       await fetchUsers();

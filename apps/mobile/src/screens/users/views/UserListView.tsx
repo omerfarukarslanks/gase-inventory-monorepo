@@ -131,11 +131,9 @@ export function UserListView({
               title={`${item.name} ${item.surname}`.trim()}
               subtitle={item.email}
               caption={
-                item.userStores?.length
-                  ? item.userStores.map((entry) => entry.store.name).join(", ")
-                  : "Magaza atamasi yok"
+                item.store?.name ?? "Magaza atamasi yok"
               }
-              badgeLabel={item.isActive === false ? "pasif" : item.role.toLowerCase()}
+              badgeLabel={item.isActive === false ? "pasif" : item.roleName.toLowerCase()}
               badgeTone={item.isActive === false ? "neutral" : "info"}
               onPress={() => onUserPress(item.id)}
               icon={

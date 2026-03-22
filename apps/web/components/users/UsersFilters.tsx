@@ -15,6 +15,7 @@ type UsersFiltersProps = {
   storeFilter: string;
   onStoreFilterChange: (value: string) => void;
   storeFilterOptions: Array<{ value: string; label: string }>;
+  showStoreFilter: boolean;
   statusFilter: boolean | "all";
   onStatusFilterChange: (value: boolean | "all") => void;
   sortBy: string;
@@ -34,6 +35,7 @@ export default function UsersFilters({
   storeFilter,
   onStoreFilterChange,
   storeFilterOptions,
+  showStoreFilter,
   statusFilter,
   onStatusFilterChange,
   sortBy,
@@ -70,19 +72,21 @@ export default function UsersFilters({
       mobileAdvancedFiltersTitle={t("common.filter")}
       advancedFilters={(
         <>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Mağaza</label>
-            <SearchableDropdown
-              options={storeFilterOptions}
-              value={storeFilter}
-              onChange={onStoreFilterChange}
-              placeholder="Tüm Mağazalar"
-              emptyOptionLabel="Tüm Mağazalar"
-              inputAriaLabel="Mağaza filtresi"
-              clearAriaLabel="Mağaza filtresini temizle"
-              toggleAriaLabel="Mağaza listesini aç"
-            />
-          </div>
+          {showStoreFilter && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted">Mağaza</label>
+              <SearchableDropdown
+                options={storeFilterOptions}
+                value={storeFilter}
+                onChange={onStoreFilterChange}
+                placeholder="Tüm Mağazalar"
+                emptyOptionLabel="Tüm Mağazalar"
+                inputAriaLabel="Mağaza filtresi"
+                clearAriaLabel="Mağaza filtresini temizle"
+                toggleAriaLabel="Mağaza listesini aç"
+              />
+            </div>
+          )}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-muted">Durum</label>
             <SearchableDropdown
@@ -94,33 +98,6 @@ export default function UsersFilters({
               allowClear={false}
               inputAriaLabel="Kullanıcı durum filtresi"
               toggleAriaLabel="Kullanıcı durum listesini aç"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Sıralama Alanı</label>
-            <SearchableDropdown
-              options={sortFieldOptions}
-              value={sortBy}
-              onChange={onSortByChange}
-              placeholder="Varsayılan sıralama"
-              emptyOptionLabel="Varsayılan sıralama"
-              inputAriaLabel="Sıralama alanı"
-              clearAriaLabel="Sıralama alanını temizle"
-              toggleAriaLabel="Sıralama alanı listesini aç"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Sıralama Yönü</label>
-            <SearchableDropdown
-              options={sortOrderOptions}
-              value={sortOrder}
-              onChange={onSortOrderChange}
-              placeholder="Sıralama yönü"
-              emptyOptionLabel="Sıralama yönü"
-              inputAriaLabel="Sıralama yönü"
-              clearAriaLabel="Sıralama yönünü temizle"
-              toggleAriaLabel="Sıralama yönü listesini aç"
-              disabled={!sortBy}
             />
           </div>
           <div className="md:col-span-2 lg:col-span-3">

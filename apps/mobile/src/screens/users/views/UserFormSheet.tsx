@@ -94,6 +94,7 @@ export function UserFormSheet({
         options={roleOptions}
         onChange={(value) => onChange("role", value as UserRole)}
       />
+      {formErrors.role ? <Text style={styles.errorText}>{formErrors.role}</Text> : null}
       {!editingUserId ? (
         <>
           <TextField
@@ -140,6 +141,7 @@ export function UserFormSheet({
           onSelect={(value) => onChange("storeId", value === noStoreValue ? "" : value)}
           emptyText="Magaza bulunamadi."
         />
+        {formErrors.storeId ? <Text style={styles.errorText}>{formErrors.storeId}</Text> : null}
       </Card>
       {editingUserId && canUpdate ? (
         <Button
@@ -157,6 +159,8 @@ export function UserFormSheet({
             formErrors.surname ||
             formErrors.email ||
             formErrors.password ||
+            formErrors.role ||
+            formErrors.storeId ||
             !form.name.trim() ||
             !form.surname.trim() ||
             (!editingUserId && (!form.email.trim() || !form.password)),
@@ -179,5 +183,10 @@ const styles = StyleSheet.create({
     color: mobileTheme.colors.dark.text,
     fontSize: 15,
     fontWeight: "700",
+  },
+  errorText: {
+    marginTop: 4,
+    color: mobileTheme.colors.status.error,
+    fontSize: 12,
   },
 });
