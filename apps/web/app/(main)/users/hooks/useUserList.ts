@@ -11,7 +11,8 @@ type Options = {
 };
 
 export function useUserList({ isTenantOnly }: Options = {}) {
-  const stores = isTenantOnly ? useStores() : [];
+  const allStores = useStores();
+  const stores = isTenantOnly ? allStores : [];
 
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);

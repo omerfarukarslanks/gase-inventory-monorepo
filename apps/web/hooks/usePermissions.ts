@@ -9,9 +9,10 @@ import { getSessionProfileSnapshot, subscribeToSessionChange } from "@/lib/sessi
  * Returns helper functions to check permissions reactively.
  */
 export function usePermissions() {
-  const [permissions, setPermissions] = useState<string[]>(() => getSessionProfileSnapshot().permissions);
+  const [permissions, setPermissions] = useState<string[]>([]);
 
   useEffect(() => {
+    setPermissions(getSessionProfileSnapshot().permissions);
     return subscribeToSessionChange(() => setPermissions(getSessionProfileSnapshot().permissions));
   }, []);
 
