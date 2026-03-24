@@ -349,14 +349,14 @@ const APP_NAV_ITEMS: AppNavigationItem[] = [
         key: "users",
         href: "/settings/users",
         labelKey: "nav.users",
-        permission: "USER_READ",
+        permission: "USER_VIEW",
         matchesRoute: ["/users"],
       },
       {
         key: "permissions",
         href: "/settings/permissions",
         labelKey: "nav.permissions",
-        permission: "PERMISSION_MANAGE",
+        anyPermission: ["PERMISSION_READ", "PERMISSION_CREATE", "PERMISSION_UPDATE", "ROLE_VIEW", "ROLE_CREATE", "ROLE_UPDATE"],
         matchesRoute: ["/permissions"],
       },
     ],
@@ -423,7 +423,7 @@ export function canAccessNavigationItem(
 ): boolean {
   const ownAccess = canAccessRule(item, permissions, canSeePackages);
   if (!item.children?.length) return ownAccess;
-  return item.children.some((child) => canAccessRule(child, permissions, canSeePackages)) || ownAccess;
+  return item.children.some((child) => canAccessRule(child, permissions, canSeePackages)) && ownAccess;
 }
 
 export function getVisibleNavigationChildren(

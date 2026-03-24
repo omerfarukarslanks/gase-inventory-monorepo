@@ -22,9 +22,9 @@ export default function UsersPage() {
   const isTenantOnly = can("TENANT_ONLY");
   const tenantStoreId = !isTenantOnly ? session.activeStoreId : undefined;
 
-  const list = useUserList({ tenantStoreId });
+  const list = useUserList({ isTenantOnly });
 
-  const drawer = useUserDrawer({ onSaved: list.fetchUsers, tenantStoreId });
+  const drawer = useUserDrawer({ onSaved: list.fetchUsers, tenantStoreId, canManage: canCreate || canUpdate });
 
   return (
     <PageShell

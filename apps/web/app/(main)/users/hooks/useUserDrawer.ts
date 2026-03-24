@@ -17,9 +17,10 @@ type Options = {
   t?: (key: string) => string;
   onSaved: () => Promise<void>;
   tenantStoreId?: string;
+  canManage?: boolean;
 };
 
-export function useUserDrawer({ onSaved, tenantStoreId }: Options) {
+export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Options) {
   const [mode, setMode] = useState<"edit" | "create">("create");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -30,6 +31,7 @@ export function useUserDrawer({ onSaved, tenantStoreId }: Options) {
   const [roleOptions, setRoleOptions] = useState<{ value: string; label: string }[]>([]);
 
   useEffect(() => {
+    if (!canManage) return;
     getRoles({ limit: 100 })
       .then((res) => {
         setRoleOptions(res.data.map((r) => ({ value: r.role, label: r.role })));
@@ -37,7 +39,7 @@ export function useUserDrawer({ onSaved, tenantStoreId }: Options) {
       .catch(() => {
         setRoleOptions([]);
       });
-  }, []);
+  }, [canManage]);
 
   const resetForm = () => {
     setForm(EMPTY_USER_FORM);
@@ -122,10 +124,6 @@ export function useUserDrawer({ onSaved, tenantStoreId }: Options) {
 
     if (!form.role) {
       nextErrors.role = "Rol seçimi zorunludur.";
-    }
-
-    if (!tenantStoreId && !form.storeId) {
-      nextErrors.storeId = "Mağaza seçimi zorunludur.";
     }
 
     if (mode === "create") {

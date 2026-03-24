@@ -83,7 +83,9 @@ export default function UsersTable({
                 </div>
               </th>
               <th className="px-6 py-4 font-semibold text-muted">Mağaza</th>
-              <th className="sticky right-0 z-20 bg-surface2/70 px-6 py-4 text-right font-semibold">İşlemler</th>
+              {canUpdate && (
+                <th className="sticky right-0 z-20 bg-surface2/70 px-6 py-4 text-right font-semibold">İşlemler</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -111,9 +113,10 @@ export default function UsersTable({
                   <td className="px-6 py-3 text-text2">
                     {user.store?.name ?? "-"}
                   </td>
+                  {canUpdate && (
                   <td className="sticky right-0 z-10 bg-surface px-6 py-3 text-right group-hover:bg-surface2/50">
                     <div className="inline-flex items-center gap-2">
-                      {canUpdate && (
+                      
                         <IconButton
                           onClick={() => onEdit(user)}
                           disabled={togglingUserIds.includes(user.id)}
@@ -122,16 +125,15 @@ export default function UsersTable({
                         >
                           <EditIcon />
                         </IconButton>
-                      )}
-                      {canUpdate && (
+                      
                         <ToggleSwitch
                           checked={Boolean(user.isActive)}
                           onChange={(next) => onToggleUserActive(user, next)}
                           disabled={togglingUserIds.includes(user.id)}
                         />
-                      )}
                     </div>
                   </td>
+                  )}
                 </tr>
               ))
             )}

@@ -15,7 +15,23 @@ export type SessionProfileSnapshot = {
   storeType: SessionStoreType | null;
   storeIds: string[];
   activeStoreId: string;
+  activeStoreName: string;
   canSeePackages: boolean;
+};
+
+export const EMPTY_PROFILE_SNAPSHOT: SessionProfileSnapshot = {
+  user: null,
+  userId: "",
+  token: null,
+  permissions: [],
+  displayName: "User",
+  displayRole: "User",
+  initials: "U",
+  storeType: null,
+  storeIds: [],
+  activeStoreId: "",
+  activeStoreName: "",
+  canSeePackages: false,
 };
 
 function isBrowser(): boolean {
@@ -92,6 +108,23 @@ export function getSessionProfileSnapshot(): SessionProfileSnapshot {
     .join("")
     .toUpperCase();
 
+  const activeStoreId = storeIds[0] ?? "";
+
+  let activeStoreName = "";
+  if (activeStoreId) {
+    if (Array.isArray(user?.stores)) {
+      const match = user.stores.find((s) => (s.storeId ?? s.id) === activeStoreId);
+      if (match?.name) activeStoreName = match.name;
+    }
+    if (!activeStoreName && user?.store?.id === activeStoreId && user.store.name) {
+      activeStoreName = user.store.name;
+    }
+    if (!activeStoreName && Array.isArray(user?.userStores)) {
+      const match = user.userStores.find((s) => (s.storeId ?? s.store?.id) === activeStoreId);
+      if (match?.store?.name) activeStoreName = match.store.name;
+    }
+  }
+
   return {
     user,
     userId: user?.id?.trim() || "",
@@ -102,7 +135,8 @@ export function getSessionProfileSnapshot(): SessionProfileSnapshot {
     initials: initials || "U",
     storeType,
     storeIds,
-    activeStoreId: storeIds[0] ?? "",
+    activeStoreId,
+    activeStoreName,
     canSeePackages: storeType === "WHOLESALE",
   };
 }

@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSessionProfileSnapshot, subscribeToSessionChange, type SessionProfileSnapshot } from "@/lib/session";
+import {
+  EMPTY_PROFILE_SNAPSHOT,
+  getSessionProfileSnapshot,
+  subscribeToSessionChange,
+  type SessionProfileSnapshot,
+} from "@/lib/session";
 
 export function useSessionProfile(): SessionProfileSnapshot {
-  const [profile, setProfile] = useState<SessionProfileSnapshot>(() => getSessionProfileSnapshot());
+  const [profile, setProfile] = useState<SessionProfileSnapshot>(EMPTY_PROFILE_SNAPSHOT);
 
-  useEffect(() => subscribeToSessionChange(() => setProfile(getSessionProfileSnapshot())), []);
+  useEffect(() => {
+    setProfile(getSessionProfileSnapshot());
+    return subscribeToSessionChange(() => setProfile(getSessionProfileSnapshot()));
+  }, []);
 
   return profile;
 }

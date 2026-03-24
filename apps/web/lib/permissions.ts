@@ -50,6 +50,7 @@ export type RolePermission = {
 export type RoleEntry = {
   role: string;
   isActive: boolean;
+  level?: number;
   permissions: RolePermission[];
 };
 
@@ -61,6 +62,7 @@ export type RolesListResponse = {
 export type GetRolesParams = {
   page?: number;
   limit?: number;
+  isActive?: boolean | "all";
 };
 
 export type ReplaceRolePermissionsDto = {
@@ -98,10 +100,11 @@ export async function updatePermission(id: string, dto: UpdatePermissionDto): Pr
   });
 }
 
-export async function getRoles({ page, limit }: GetRolesParams = {}): Promise<RolesListResponse> {
+export async function getRoles({ page, limit, isActive }: GetRolesParams = {}): Promise<RolesListResponse> {
   const query = new URLSearchParams();
   if (page != null) query.append("page", String(page));
   if (limit != null) query.append("limit", String(limit));
+  if (isActive != null && isActive !== "all") query.append("isActive", String(isActive));
 
   const qs = query.toString();
   return apiFetch<RolesListResponse>(`/permissions/roles${qs ? `?${qs}` : ""}`);
@@ -124,12 +127,14 @@ export async function replaceRolePermissions(
 export type CreateRoleDto = {
   name: string;
   permissionNames: string[];
+  level?: number;
 };
 
 export type UpdateRoleDto = {
   name: string;
   permissionNames: string[];
   isActive: boolean;
+  level?: number;
 };
 
 export async function createRole(dto: CreateRoleDto): Promise<RoleEntry> {

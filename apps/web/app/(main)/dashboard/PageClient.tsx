@@ -4,7 +4,16 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { useLang } from "@/context/LangContext";
-import { RevenueTrendChart, ProductSalesChart } from "@/components/dashboard/Chart";
+import dynamic from "next/dynamic";
+
+const RevenueTrendChart = dynamic(
+  () => import("@/components/dashboard/Chart").then((m) => ({ default: m.RevenueTrendChart })),
+  { ssr: false },
+);
+const ProductSalesChart = dynamic(
+  () => import("@/components/dashboard/Chart").then((m) => ({ default: m.ProductSalesChart })),
+  { ssr: false },
+);
 import DashboardLowStock from "@/components/dashboard/DashboardLowStock";
 import DashboardCancellations from "@/components/dashboard/DashboardCancellations";
 import { usePermissions } from "@/hooks/usePermissions";

@@ -1,8 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
 import { cn } from "@/lib/cn";
-import { useStores } from "@/hooks/useStores";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useLang } from "@/context/LangContext";
 
@@ -13,13 +11,7 @@ type ActiveStoreChipProps = {
 
 export default function ActiveStoreChip({ className, compact = false }: ActiveStoreChipProps) {
   const { t } = useLang();
-  const stores = useStores();
-  const { activeStoreId } = useSessionProfile();
-
-  const activeStoreName = useMemo(
-    () => stores.find((store) => store.id === activeStoreId)?.name ?? activeStoreId,
-    [stores, activeStoreId],
-  );
+  const { activeStoreName } = useSessionProfile();
 
   return (
     <div

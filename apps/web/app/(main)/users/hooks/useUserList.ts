@@ -7,11 +7,11 @@ import { getUsers, updateUser, type Meta, type User } from "@/lib/users";
 
 type Options = {
   t?: (key: string) => string;
-  tenantStoreId?: string;
+  isTenantOnly?: boolean;
 };
 
-export function useUserList({ tenantStoreId }: Options = {}) {
-  const stores = useStores();
+export function useUserList({ isTenantOnly }: Options = {}) {
+  const stores = isTenantOnly ? useStores() : [];
 
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -28,7 +28,7 @@ export function useUserList({ tenantStoreId }: Options = {}) {
 
   const debouncedSearch = useDebounceStr(searchTerm, 500);
 
-  const storeFilterOptions = useMemo(
+  const storeFilterOptions =  useMemo(
     () => stores.filter((store) => store.isActive).map((store) => ({ value: store.id, label: store.name })),
     [stores],
   );
@@ -40,7 +40,7 @@ export function useUserList({ tenantStoreId }: Options = {}) {
         page: currentPage,
         limit,
         search: debouncedSearch,
-        storeId: tenantStoreId || storeFilter || undefined,
+        storeId: storeFilter || undefined,
         isActive: statusFilter,
         sortBy,
         sortOrder,
@@ -53,7 +53,7 @@ export function useUserList({ tenantStoreId }: Options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, limit, sortBy, sortOrder, statusFilter, storeFilter, tenantStoreId]);
+  }, [currentPage, debouncedSearch, limit, sortBy, sortOrder, statusFilter, storeFilter]);
 
   useEffect(() => {
     void fetchUsers();

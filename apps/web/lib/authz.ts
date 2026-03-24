@@ -70,6 +70,7 @@ export type PermissionName =
   | "USER_CREATE"
   | "USER_UPDATE"
   | "USER_DELETE"
+  | "USER_VIEW"
   | "USER_STORE_ASSIGN"
   // Raporlar
   | "REPORT_STOCK_READ"
@@ -102,7 +103,13 @@ export type PermissionName =
   // Sistem
   | "EXCHANGE_RATE_READ"
   | "AI_CHAT"
-  | "PERMISSION_MANAGE"
+  | "PERMISSION_CREATE"
+  | "PERMISSION_READ"
+  | "PERMISSION_UPDATE"
+  | "ROLE_READ"
+  | "ROLE_CREATE"
+  | "ROLE_UPDATE"
+  | "ROLE_VIEW"
   // Tenant
   | 'TENANT_ONLY';
 
