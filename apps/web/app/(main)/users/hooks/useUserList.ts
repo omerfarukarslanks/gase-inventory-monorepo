@@ -76,7 +76,7 @@ export function useUserList({ isTenantOnly }: Options = {}) {
       await updateUser(user.id, {
         name: user.name,
         surname: user.surname,
-        role: user.roleName,
+        roleId: user.roleId,
         storeIds: user.store ? [user.store.id] : [],
         isActive: next,
       });

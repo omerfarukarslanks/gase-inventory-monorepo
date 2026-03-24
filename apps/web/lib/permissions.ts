@@ -48,6 +48,7 @@ export type RolePermission = {
 };
 
 export type RoleEntry = {
+  id: string;
   role: string;
   isActive: boolean;
   level?: number;

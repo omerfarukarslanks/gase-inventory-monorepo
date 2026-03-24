@@ -14,13 +14,14 @@
     "@gase/core": "*",
     "@gase/design-tokens": "*",
     "@gase/i18n": "*",
+    "@tanstack/react-query": "^5.80.2",
+    "libphonenumber-js": "^1.12.40",
     "lucide-react": "^0.564.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "recharts": "^3.7.0",
-    "@tanstack/react-query": "^5.80.2"
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

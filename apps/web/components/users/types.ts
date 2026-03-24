@@ -7,6 +7,14 @@ export type UserForm = {
   email: string;
   password: string;
   storeId: string;
+  birthDate: string;
+  phoneCountry: string;
+  phone: string;
+  address: string;
+  country: string;
+  city: string;
+  district: string;
+  avatar: string;
 };
 
 export type UserFormErrors = {
@@ -21,10 +29,18 @@ export type UserFormErrors = {
 export const EMPTY_USER_FORM: UserForm = {
   name: "",
   surname: "",
-  role: "STAFF",
+  role: "",
   email: "",
   password: "",
   storeId: "",
+  birthDate: "",
+  phoneCountry: "TR",
+  phone: "",
+  address: "",
+  country: "",
+  city: "",
+  district: "",
+  avatar: "",
 };
 
 export const EMPTY_USER_FORM_ERRORS: UserFormErrors = {

@@ -10,6 +10,26 @@ import {
 import { createUser, updateUser, type User } from "@/lib/users";
 import { getRoles } from "@/lib/permissions";
 import { isValidEmail } from "@gase/core";
+import { parsePhoneNumber, getCountryCallingCode } from "libphonenumber-js";
+
+function parseStoredPhone(raw: string | null | undefined): { phoneCountry: string; phone: string } {
+  if (!raw) return { phoneCountry: "TR", phone: "" };
+  try {
+    const parsed = parsePhoneNumber(raw);
+    return {
+      phoneCountry: parsed.country ?? "TR",
+      phone: parsed.nationalNumber,
+    };
+  } catch {
+    return { phoneCountry: "TR", phone: raw };
+  }
+}
+
+function buildPhoneE164(countryCode: string, localNumber: string): string {
+  const digits = localNumber.replace(/\D/g, "");
+  if (!digits) return "";
+  return `+${getCountryCallingCode(countryCode as Parameters<typeof getCountryCallingCode>[0])}${digits}`;
+}
 
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
@@ -34,7 +54,7 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
     if (!canManage) return;
     getRoles({ limit: 100 })
       .then((res) => {
-        setRoleOptions(res.data.map((r) => ({ value: r.role, label: r.role })));
+        setRoleOptions(res.data.map((r) => ({ value: r.id ?? r.role, label: r.role })));
       })
       .catch(() => {
         setRoleOptions([]);
@@ -59,13 +79,22 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
   const openEdit = (user: User) => {
     setMode("edit");
     setSelectedUser(user);
+    const { phoneCountry, phone } = parseStoredPhone(user.phone);
     setForm({
       name: user.name,
       surname: user.surname,
-      role: user.roleName,
+      role: user.roleId,
       email: user.email,
       password: "",
       storeId: tenantStoreId ?? user.store?.id ?? "",
+      birthDate: user.birthDate ? user.birthDate.slice(0, 10) : "",
+      phoneCountry,
+      phone,
+      address: user.address ?? "",
+      country: user.country ?? "",
+      city: user.city ?? "",
+      district: user.district ?? "",
+      avatar: user.avatar ?? "",
     });
     setFormErrors(EMPTY_USER_FORM_ERRORS);
     setIsDrawerOpen(true);
@@ -149,22 +178,41 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
 
     setSaving(true);
     try {
+      const builtPhone = buildPhoneE164(form.phoneCountry, form.phone);
+      const optionalFields = {
+        ...(form.birthDate ? { birthDate: form.birthDate } : {}),
+        ...(builtPhone ? { phone: builtPhone } : {}),
+        ...(form.address.trim() ? { address: form.address.trim() } : {}),
+        ...(form.country.trim() ? { country: form.country.trim() } : {}),
+        ...(form.city.trim() ? { city: form.city.trim() } : {}),
+        ...(form.district.trim() ? { district: form.district.trim() } : {}),
+        ...(form.avatar.trim() ? { avatar: form.avatar.trim() } : {}),
+      };
+
       if (mode === "create") {
         await createUser({
           email: form.email.trim(),
           password: form.password,
           name: form.name.trim(),
           surname: form.surname.trim(),
-          role: form.role,
+          roleId: form.role,
           storeIds: form.storeId ? [form.storeId] : [],
+          ...optionalFields,
         });
       } else {
         if (!selectedUser) return;
         await updateUser(selectedUser.id, {
           name: form.name,
           surname: form.surname,
-          role: form.role,
+          roleId: form.role,
           storeIds: form.storeId ? [form.storeId] : [],
+          birthDate: form.birthDate || null,
+          phone: builtPhone || null,
+          address: form.address.trim() || null,
+          country: form.country.trim() || null,
+          city: form.city.trim() || null,
+          district: form.district.trim() || null,
+          avatar: form.avatar.trim() || null,
         });
       }
 

@@ -16,6 +16,9 @@ export interface User {
   birthDate?: string | null;
   phone?: string | null;
   address?: string | null;
+  country?: string | null;
+  city?: string | null;
+  district?: string | null;
   avatar?: string | null;
   roleId: string;
   roleName: string;
@@ -52,10 +55,17 @@ export interface GetUsersParams {
 export interface UpdateUserDto {
   name?: string;
   surname?: string;
-  email?: string; 
-  role?: string;
+  email?: string;
+  roleId?: string;
   storeIds?: string[];
   isActive?: boolean;
+  birthDate?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  country?: string | null;
+  city?: string | null;
+  district?: string | null;
+  avatar?: string | null;
 }
 
 export interface CreateUserDto {
@@ -63,8 +73,15 @@ export interface CreateUserDto {
   password?: string;
   name: string;
   surname: string;
-  role: string;
+  roleId: string;
   storeIds: string[];
+  birthDate?: string;
+  phone?: string;
+  address?: string;
+  country?: string;
+  city?: string;
+  district?: string;
+  avatar?: string;
 }
 
 export async function getUsers(params: GetUsersParams): Promise<UsersResponse> {

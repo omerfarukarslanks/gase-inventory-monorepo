@@ -13,9 +13,10 @@ type Props = {
   onChange: (v: string) => void;
   error?: string;
   disabled?: boolean;
+  autoComplete?: string;
 };
 
-export default function InputField({ label, type, placeholder, icon, value, onChange, error, disabled }: Props) {
+export default function InputField({ label, type, placeholder, icon, value, onChange, error, disabled, autoComplete }: Props) {
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
   const isPw = type === "password";
@@ -52,6 +53,7 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           disabled={disabled}
+          autoComplete={autoComplete}
           className="w-full flex-1 appearance-none bg-transparent px-3.5 py-[13px] text-[14px] text-text outline-none placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed"
         />
 
