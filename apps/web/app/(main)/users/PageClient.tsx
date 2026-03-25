@@ -4,6 +4,7 @@ import { useState } from "react";
 import UsersFilters from "@/components/users/UsersFilters";
 import UserDrawer from "@/components/users/UserDrawer";
 import UserDetailDialog from "@/components/users/UserDetailDialog";
+import UserDetailDrawer from "@/components/users/UserDetailDrawer";
 import UsersMobileList from "@/components/users/UsersMobileList";
 import UsersTable from "@/components/users/UsersTable";
 import TablePagination from "@/components/ui/TablePagination";
@@ -60,6 +61,7 @@ export default function UsersPage() {
           loading={list.loading}
           canUpdate={canUpdate}
           togglingUserIds={list.togglingUserIds}
+          onViewDetail={setDetailUser}
           onEdit={drawer.openEdit}
           onToggleUserActive={(user, next) => void list.onToggleUserActive(user, next)}
           footer={
@@ -106,7 +108,11 @@ export default function UsersPage() {
         />
       )}
 
-      <UserDetailDialog user={detailUser} onClose={() => setDetailUser(null)} />
+      {isMobile ? (
+        <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} />
+      ) : (
+        <UserDetailDialog user={detailUser} onClose={() => setDetailUser(null)} />
+      )}
 
       <UserDrawer
         open={drawer.isDrawerOpen}

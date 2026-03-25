@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
@@ -11,6 +12,7 @@ type UsersMobileListProps = {
   loading: boolean;
   canUpdate: boolean;
   togglingUserIds: string[];
+  onViewDetail: (user: User) => void;
   onEdit: (user: User) => void;
   onToggleUserActive: (user: User, next: boolean) => void;
   footer?: ReactNode;
@@ -27,13 +29,7 @@ function LoadingCard() {
 }
 
 function getAssignedStores(user: User) {
-  const storeNames = user.userStores?.map((userStore) => userStore.store.name) ?? [];
-
-  if (storeNames.length <= 2) {
-    return storeNames.join(", ") || "-";
-  }
-
-  return `${storeNames.slice(0, 2).join(", ")} +${storeNames.length - 2}`;
+  return user.store?.name;
 }
 
 export default function UsersMobileList({
@@ -41,6 +37,7 @@ export default function UsersMobileList({
   loading,
   canUpdate,
   togglingUserIds,
+  onViewDetail,
   onEdit,
   onToggleUserActive,
   footer,
@@ -81,7 +78,7 @@ export default function UsersMobileList({
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">Rol</dt>
                     <dd className="mt-1">
                       <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                        {user.role}
+                        {user.roleName}
                       </span>
                     </dd>
                   </div>
@@ -91,7 +88,15 @@ export default function UsersMobileList({
                   </div>
                 </dl>
 
-                <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                  <Button
+                    label="Detay"
+                    variant="secondary"
+                    className="h-10 px-4"
+                    onClick={() => onViewDetail(user)}
+                  />
+
+                  <div className="flex items-center gap-2">
                   {canUpdate ? (
                     <IconButton
                       onClick={() => onEdit(user)}
@@ -110,6 +115,7 @@ export default function UsersMobileList({
                       disabled={isToggling}
                     />
                   ) : null}
+                  </div>
                 </div>
               </article>
             );

@@ -5,6 +5,7 @@ import TablePagination from "@/components/ui/TablePagination";
 import StoresFilters from "@/components/stores/StoresFilters";
 import StoreDrawer from "@/components/stores/StoreDrawer";
 import StoreDetailDialog from "@/components/stores/StoreDetailDialog";
+import StoreDetailDrawer from "@/components/stores/StoreDetailDrawer";
 import StoresMobileList from "@/components/stores/StoresMobileList";
 import StoresTable from "@/components/stores/StoresTable";
 import { PageShell } from "@/components/layout/PageShell";
@@ -56,6 +57,7 @@ export default function StoresPage() {
           stores={list.stores}
           canUpdate={canUpdate}
           togglingStoreIds={list.togglingStoreIds}
+          onViewDetail={setDetailStore}
           onEditStore={(id) => void drawer.onEditStore(id)}
           onToggleStoreActive={(store, next) => void list.onToggleStoreActive(store, next)}
           footer={
@@ -100,7 +102,11 @@ export default function StoresPage() {
         />
       )}
 
-      <StoreDetailDialog store={detailStore} onClose={() => setDetailStore(null)} />
+      {isMobile ? (
+        <StoreDetailDrawer store={detailStore} onClose={() => setDetailStore(null)} />
+      ) : (
+        <StoreDetailDialog store={detailStore} onClose={() => setDetailStore(null)} />
+      )}
 
       <StoreDrawer
         open={drawer.drawerOpen}

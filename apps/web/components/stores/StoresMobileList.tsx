@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
@@ -13,6 +14,7 @@ type StoresMobileListProps = {
   stores: Store[];
   canUpdate: boolean;
   togglingStoreIds: string[];
+  onViewDetail: (store: Store) => void;
   onEditStore: (id: string) => void;
   onToggleStoreActive: (store: Store, next: boolean) => void;
   footer?: ReactNode;
@@ -34,6 +36,7 @@ export default function StoresMobileList({
   stores,
   canUpdate,
   togglingStoreIds,
+  onViewDetail,
   onEditStore,
   onToggleStoreActive,
   footer,
@@ -82,7 +85,15 @@ export default function StoresMobileList({
                       <p className="mt-1 text-sm text-text2">{store.address ?? "-"}</p>
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                      <Button
+                        label="Detay"
+                        variant="secondary"
+                        className="h-10 px-4"
+                        onClick={() => onViewDetail(store)}
+                      />
+
+                      <div className="flex items-center gap-2">
                       {canUpdate ? (
                         <IconButton
                           onClick={() => onEditStore(store.id)}
@@ -101,6 +112,7 @@ export default function StoresMobileList({
                           disabled={isToggling}
                         />
                       ) : null}
+                      </div>
                     </div>
                   </article>
                 );
