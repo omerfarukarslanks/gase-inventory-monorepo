@@ -78,6 +78,15 @@ export default function Drawer({
     };
   }, [mounted, open]);
 
+  useEffect(() => {
+    if (!open || closeDisabled) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, closeDisabled, onClose]);
+
   if (!mounted) return null;
 
   return createPortal(
@@ -102,7 +111,7 @@ export default function Drawer({
         style={fullscreen ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
       >
         {(title || description) && (
-          <div className="sticky top-0 border-b border-border bg-surface/95 px-5 py-4 backdrop-blur">
+          <div className="sticky top-0 z-40 border-b border-border bg-surface/95 px-5 py-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
                 {title && <h2 className="text-base font-semibold text-text">{title}</h2>}
@@ -140,7 +149,7 @@ export default function Drawer({
         {footer && (
           <div
             className={cn(
-              "sticky bottom-0 border-t border-border bg-surface/95 px-5 py-4 backdrop-blur",
+              "sticky bottom-0 z-40 border-t border-border bg-surface/95 px-5 py-4 backdrop-blur",
               footerClassName,
             )}
             style={fullscreen ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" } : undefined}

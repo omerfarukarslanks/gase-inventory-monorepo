@@ -153,12 +153,12 @@ export function StoreFormSheet({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
-                onChange("taxIdType", "taxNumber");
+                onChange("taxIdType", "taxNo");
                 onChange("taxIdValue", "");
               }}
-              style={[styles.taxIdBtn, form.taxIdType === "taxNumber" && styles.taxIdBtnActive]}
+              style={[styles.taxIdBtn, form.taxIdType === "taxNo" && styles.taxIdBtnActive]}
             >
-              <Text style={[styles.taxIdBtnText, form.taxIdType === "taxNumber" && styles.taxIdBtnTextActive]}>
+              <Text style={[styles.taxIdBtnText, form.taxIdType === "taxNo" && styles.taxIdBtnTextActive]}>
                 Vergi No
               </Text>
             </TouchableOpacity>

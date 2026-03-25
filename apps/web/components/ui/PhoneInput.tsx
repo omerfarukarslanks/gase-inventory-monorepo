@@ -103,7 +103,7 @@ export default function PhoneInput({
     <div>
       <div
         ref={containerRef}
-        className={`relative flex overflow-visible rounded-[10px] border-[1.5px] bg-surface transition-all duration-[250ms] ${borderClass} ${focused || open ? "bg-primary/[0.03]" : ""}`}
+        className={`relative flex overflow-visible rounded-xl border-[1.5px] bg-surface transition-all duration-[250ms] ${borderClass} ${focused || open ? "bg-primary/[0.03]" : ""}`}
       >
         {/* Country selector trigger */}
         <button

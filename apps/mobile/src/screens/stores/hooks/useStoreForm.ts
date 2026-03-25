@@ -79,8 +79,8 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
       slug: store.slug ?? "",
       logo: store.logo ?? "",
       description: store.description ?? "",
-      taxIdType: store.tckn ? "tckn" : "taxNumber",
-      taxIdValue: store.tckn ?? store.taxNumber ?? "",
+      taxIdType: store.tckn ? "tckn" : "taxNo",
+      taxIdValue: store.tckn ?? store.taxNo ?? "",
     });
     setFormAttempted(false);
     setFormError("");
@@ -117,9 +117,9 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
 
     const taxIdPayload = form.taxIdValue.trim()
       ? form.taxIdType === "tckn"
-        ? { tckn: form.taxIdValue.trim(), taxNumber: null }
-        : { taxNumber: form.taxIdValue.trim(), tckn: null }
-      : { tckn: null, taxNumber: null };
+        ? { tckn: form.taxIdValue.trim(), taxNo: null }
+        : { taxNo: form.taxIdValue.trim(), tckn: null }
+      : { tckn: null, taxNo: null };
 
     setSubmitting(true);
     setFormError("");
@@ -149,7 +149,7 @@ export function useStoreForm({ fetchStores, setSelectedStore }: UseStoreFormPara
           ...(form.taxIdValue.trim()
             ? form.taxIdType === "tckn"
               ? { tckn: form.taxIdValue.trim() }
-              : { taxNumber: form.taxIdValue.trim() }
+              : { taxNo: form.taxIdValue.trim() }
             : {}),
         });
       }

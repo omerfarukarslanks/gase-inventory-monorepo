@@ -2,8 +2,11 @@
 
 import type { FormEvent } from "react";
 import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
+import FormField from "@/components/ui/FormField";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import TextareaField from "@/components/ui/TextareaField";
 import { CURRENCY_OPTIONS } from "@/components/products/types";
 import { useLang } from "@/context/LangContext";
 import type { Currency } from "@/lib/products";
@@ -88,8 +91,7 @@ export default function StoreDrawer({
               placeholder={t("stores.codePlaceholder")}
             />
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">{t("stores.storeType")}</label>
+            <FormField label={t("stores.storeType")}>
               <SearchableDropdown
                 options={[...storeTypeOptions]}
                 value={form.storeType}
@@ -101,10 +103,9 @@ export default function StoreDrawer({
                 toggleAriaLabel={t("stores.storeType")}
                 disabled={Boolean(editingStoreId)}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">{t("stores.currency")}</label>
+            <FormField label={t("stores.currency")}>
               <SearchableDropdown
                 options={CURRENCY_OPTIONS}
                 value={form.currency}
@@ -116,7 +117,7 @@ export default function StoreDrawer({
                 toggleAriaLabel={t("stores.currency")}
                 disabled={Boolean(editingStoreId)}
               />
-            </div>
+            </FormField>
 
             <InputField
               label={t("stores.address")}
@@ -150,40 +151,23 @@ export default function StoreDrawer({
               />
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-muted">Kimlik No</label>
-                <div className="flex overflow-hidden rounded-lg border border-border text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onFormChange("taxIdType", "tckn");
-                      onFormChange("taxIdValue", "");
-                    }}
-                    className={[
-                      "px-2.5 py-1 transition",
-                      form.taxIdType === "tckn" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
-                    ].join(" ")}
-                  >
-                    TCKN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onFormChange("taxIdType", "taxNumber");
-                      onFormChange("taxIdValue", "");
-                    }}
-                    className={[
-                      "px-2.5 py-1 transition",
-                      form.taxIdType === "taxNumber" ? "bg-primary text-white" : "text-muted hover:bg-surface2",
-                    ].join(" ")}
-                  >
-                    Vergi No
-                  </button>
-                </div>
-              </div>
+            <FormField label="Kimlik No" error={taxIdError} className="space-y-2">
+              <SegmentedControl
+                ariaLabel="Kimlik tipi seçimi"
+                options={[
+                  { value: "tckn", label: "TCKN" },
+                  { value: "taxNo", label: "Vergi No" },
+                ]}
+                value={form.taxIdType}
+                onChange={(value) => {
+                  onFormChange("taxIdType", value as StoreForm["taxIdType"]);
+                  onFormChange("taxIdValue", "");
+                }}
+                className="gap-2"
+                buttonClassName="text-xs font-semibold"
+              />
               <InputField
-                label=""
+                label={undefined}
                 type="text"
                 value={form.taxIdValue}
                 onChange={(v) => {
@@ -192,9 +176,8 @@ export default function StoreDrawer({
                   onFormChange("taxIdValue", digits.slice(0, max));
                 }}
                 placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN" : "10 haneli Vergi No"}
-                error={taxIdError}
               />
-            </div>
+            </FormField>
 
             <InputField
               label={t("stores.slug")}
@@ -212,15 +195,14 @@ export default function StoreDrawer({
               placeholder={t("stores.logoPlaceholder")}
             />
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">{t("stores.description")}</label>
-              <textarea
-                value={form.description}
-                onChange={(event) => onFormChange("description", event.target.value)}
-                className="min-h-[92px] w-full rounded-xl2 border border-border bg-surface2 px-3 py-2.5 text-sm text-text outline-none focus:border-primary/60"
-                placeholder={t("stores.descPlaceholder")}
-              />
-            </div>
+            <TextareaField
+              label={t("stores.description")}
+              value={form.description}
+              onChange={(value) => onFormChange("description", value)}
+              placeholder={t("stores.descPlaceholder")}
+              rows={4}
+              textareaClassName="min-h-[92px]"
+            />
 
             {formError && <p className="text-sm text-error">{formError}</p>}
           </>

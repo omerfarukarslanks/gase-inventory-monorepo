@@ -15,6 +15,7 @@ type StoresTableProps = {
   canUpdate: boolean;
   togglingStoreIds: string[];
   onEditStore: (id: string) => void;
+  onViewDetail: (store: Store) => void;
   onToggleStoreActive: (store: Store, next: boolean) => void;
   footer?: ReactNode;
 };
@@ -26,6 +27,7 @@ export default function StoresTable({
   canUpdate,
   togglingStoreIds,
   onEditStore,
+  onViewDetail,
   onToggleStoreActive,
   footer,
 }: StoresTableProps) {
@@ -60,7 +62,15 @@ export default function StoresTable({
                       key={store.id}
                       className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
                     >
-                      <td className="px-4 py-3 text-sm font-medium text-text">{store.name}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => onViewDetail(store)}
+                          className="cursor-pointer text-left text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+                        >
+                          {store.name}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.code}</td>
                       <td className="px-4 py-3 text-sm text-text2">{store.address ?? "-"}</td>
                       <td className="px-4 py-3">

@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import TablePagination from "@/components/ui/TablePagination";
 import StoresFilters from "@/components/stores/StoresFilters";
 import StoreDrawer from "@/components/stores/StoreDrawer";
+import StoreDetailDialog from "@/components/stores/StoreDetailDialog";
 import StoresMobileList from "@/components/stores/StoresMobileList";
 import StoresTable from "@/components/stores/StoresTable";
 import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useViewportMode } from "@/hooks/useViewportMode";
 import { useLang } from "@/context/LangContext";
+import type { Store } from "@/lib/stores";
 import { useStoreList } from "./hooks/useStoreList";
 import { useStoreDrawer } from "./hooks/useStoreDrawer";
 
@@ -16,6 +19,7 @@ export default function StoresPage() {
   const { can } = usePermissions();
   const isMobile = useViewportMode() === "mobile";
   const { t } = useLang();
+  const [detailStore, setDetailStore] = useState<Store | null>(null);
 
   const canCreate = can("STORE_CREATE");
   const canUpdate = can("STORE_UPDATE");
@@ -77,6 +81,7 @@ export default function StoresPage() {
           canUpdate={canUpdate}
           togglingStoreIds={list.togglingStoreIds}
           onEditStore={(id) => void drawer.onEditStore(id)}
+          onViewDetail={setDetailStore}
           onToggleStoreActive={(store, next) => void list.onToggleStoreActive(store, next)}
           footer={
             list.meta ? (
@@ -94,6 +99,8 @@ export default function StoresPage() {
           }
         />
       )}
+
+      <StoreDetailDialog store={detailStore} onClose={() => setDetailStore(null)} />
 
       <StoreDrawer
         open={drawer.drawerOpen}

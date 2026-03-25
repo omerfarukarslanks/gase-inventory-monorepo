@@ -5,8 +5,8 @@ import { cn } from "@/lib/cn";
 import { EyeIcon } from "../auth/icon";
 
 type Props = {
-  label: string;
-  type: "text" | "email" | "password";
+  label?: string;
+  type: "text" | "email" | "password" | "date";
   placeholder?: string;
   icon?: React.ReactNode;
   value: string;
@@ -23,18 +23,20 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
 
   return (
     <div className="mb-5">
-      <label
-        className={cn(
-          "mb-2 block text-[13px] font-semibold tracking-[0.3px] transition-colors duration-200",
-          error ? "text-error" : "text-text2"
-        )}
-      >
-        {label}
-      </label>
+      {label ? (
+        <label
+          className={cn(
+            "mb-2 block text-[13px] font-semibold tracking-[0.3px] transition-colors duration-200",
+            error ? "text-error" : "text-text2"
+          )}
+        >
+          {label}
+        </label>
+      ) : null}
 
       <div
         className={cn(
-          "flex items-center rounded-[10px] border-[1.5px] transition-all duration-[250ms]",
+          "flex items-center rounded-xl border-[1.5px] transition-all duration-[250ms]",
           error ? "border-error" : focused ? "border-primary" : "border-border",
           focused ? "bg-primary/[0.03] shadow-[0_0_0_3px_rgba(16,185,129,0.1)]" : "bg-surface"
         )}
@@ -46,7 +48,7 @@ export default function InputField({ label, type, placeholder, icon, value, onCh
         )}
 
         <input
-          type={isPw && !show ? "password" : "text"}
+          type={isPw && !show ? "password" : type}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}

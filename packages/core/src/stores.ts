@@ -19,7 +19,7 @@ export type Store = {
   logo: string | null;
   description: string | null;
   tckn?: string | null;
-  taxNumber?: string | null;
+  taxNo?: string | null;
 };
 
 export type StoresListMeta = {
@@ -45,7 +45,7 @@ export type CreateStoreRequest = {
   logo?: string;
   description?: string;
   tckn?: string;
-  taxNumber?: string;
+  taxNo?: string;
 };
 
 export type UpdateStoreRequest = {
@@ -57,7 +57,7 @@ export type UpdateStoreRequest = {
   description?: string;
   isActive: boolean;
   tckn?: string | null;
-  taxNumber?: string | null;
+  taxNo?: string | null;
 };
 
 export type GetStoresParams = {
@@ -106,7 +106,7 @@ export async function createStore(payload: CreateStoreRequest, token?: string): 
     ...(payload.logo ? { logo: payload.logo } : {}),
     ...(payload.description ? { description: payload.description } : {}),
     ...(payload.tckn ? { tckn: payload.tckn } : {}),
-    ...(payload.taxNumber ? { taxNumber: payload.taxNumber } : {}),
+    ...(payload.taxNo ? { taxNo: payload.taxNo } : {}),
   };
 
   return apiFetch<Store>("/stores", {
@@ -133,7 +133,7 @@ export async function updateStore(id: string, payload: UpdateStoreRequest, token
     ...(payload.description ? { description: payload.description } : {}),
     isActive: payload.isActive,
     ...(payload.tckn !== undefined ? { tckn: payload.tckn } : {}),
-    ...(payload.taxNumber !== undefined ? { taxNumber: payload.taxNumber } : {}),
+    ...(payload.taxNo !== undefined ? { taxNo: payload.taxNo } : {}),
   };
 
   return apiFetch<Store>(`/stores/${id}`, {

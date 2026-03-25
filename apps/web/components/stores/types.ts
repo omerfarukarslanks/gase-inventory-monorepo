@@ -15,7 +15,7 @@ export type StoreForm = {
   slug: string;
   logo: string;
   description: string;
-  taxIdType: "tckn" | "taxNumber";
+  taxIdType: "tckn" | "taxNo";
   taxIdValue: string;
 };
 

@@ -82,8 +82,8 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
       }
 
       const detail = await getStoreById(id, token);
-      const taxIdType = detail.tckn ? "tckn" : "taxNumber";
-      const taxIdValue = detail.tckn ?? detail.taxNumber ?? "";
+      const taxIdType = detail.tckn ? "tckn" : "taxNo";
+      const taxIdValue = detail.tckn ?? detail.taxNo ?? "";
       setForm({
         name: detail.name ?? "",
         storeType: normalizeStoreType(String(detail.storeType ?? "RETAIL")),
@@ -147,9 +147,9 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
     const taxIdPayload =
       form.taxIdValue.trim()
         ? form.taxIdType === "tckn"
-          ? { tckn: form.taxIdValue.trim(), taxNumber: null }
-          : { taxNumber: form.taxIdValue.trim(), tckn: null }
-        : { tckn: null, taxNumber: null };
+          ? { tckn: form.taxIdValue.trim(), taxNo: null }
+          : { taxNo: form.taxIdValue.trim(), tckn: null }
+        : { tckn: null, taxNo: null };
 
     setSubmitting(true);
 
@@ -189,7 +189,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
             ...(form.taxIdValue.trim()
               ? form.taxIdType === "tckn"
                 ? { tckn: form.taxIdValue.trim() }
-                : { taxNumber: form.taxIdValue.trim() }
+                : { taxNo: form.taxIdValue.trim() }
               : {}),
           },
           token,
