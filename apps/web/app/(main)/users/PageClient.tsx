@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import UsersFilters from "@/components/users/UsersFilters";
 import UserDrawer from "@/components/users/UserDrawer";
+import UserDetailDialog from "@/components/users/UserDetailDialog";
 import UsersMobileList from "@/components/users/UsersMobileList";
 import UsersTable from "@/components/users/UsersTable";
 import TablePagination from "@/components/ui/TablePagination";
@@ -9,6 +11,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useViewportMode } from "@/hooks/useViewportMode";
+import type { User } from "@/lib/users";
 import { useUserList } from "./hooks/useUserList";
 import { useUserDrawer } from "./hooks/useUserDrawer";
 
@@ -16,6 +19,7 @@ export default function UsersPage() {
   const { can } = usePermissions();
   const session = useSessionProfile();
   const isMobile = useViewportMode() === "mobile";
+  const [detailUser, setDetailUser] = useState<User | null>(null);
 
   const canCreate = can("USER_CREATE");
   const canUpdate = can("USER_UPDATE");
@@ -83,6 +87,7 @@ export default function UsersPage() {
           togglingUserIds={list.togglingUserIds}
           onSort={list.handleSort}
           onEdit={drawer.openEdit}
+          onViewDetail={setDetailUser}
           onToggleUserActive={(user, next) => void list.onToggleUserActive(user, next)}
           footer={
             list.meta ? (
@@ -100,6 +105,8 @@ export default function UsersPage() {
           }
         />
       )}
+
+      <UserDetailDialog user={detailUser} onClose={() => setDetailUser(null)} />
 
       <UserDrawer
         open={drawer.isDrawerOpen}

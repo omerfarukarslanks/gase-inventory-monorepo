@@ -7,6 +7,13 @@ import { EditIcon } from "@/components/ui/icons/TableIcons";
 import type { User } from "@/lib/users";
 import TableSkeletonRows from "@/components/ui/TableSkeletonRows";
 
+function isBirthday(birthDate?: string | null): boolean {
+  if (!birthDate) return false;
+  const today = new Date();
+  const birth = new Date(birthDate);
+  return birth.getMonth() === today.getMonth() && birth.getDate() === today.getDate();
+}
+
 const SortAscIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="m3 8 4-4 4 4" />
@@ -36,6 +43,7 @@ type UsersTableProps = {
   togglingUserIds: string[];
   onSort: (key: string) => void;
   onEdit: (user: User) => void;
+  onViewDetail: (user: User) => void;
   onToggleUserActive: (user: User, next: boolean) => void;
   footer?: ReactNode;
 };
@@ -49,6 +57,7 @@ export default function UsersTable({
   togglingUserIds,
   onSort,
   onEdit,
+  onViewDetail,
   onToggleUserActive,
   footer,
 }: UsersTableProps) {
@@ -101,8 +110,19 @@ export default function UsersTable({
                   key={user.id}
                   className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
                 >
-                  <td className="px-6 py-3 font-medium text-text">
-                    {user.name} {user.surname}
+                  <td className="px-6 py-3">
+                    <button
+                      type="button"
+                      onClick={() => onViewDetail(user)}
+                      className="cursor-pointer text-left text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        {user.name} {user.surname}
+                        {isBirthday(user.birthDate) && (
+                          <span title="Bugün doğum günü! 🎂" className="text-base leading-none">🎂</span>
+                        )}
+                      </span>
+                    </button>
                   </td>
                   <td className="px-6 py-3 text-text2">{user.email}</td>
                   <td className="px-6 py-3">
