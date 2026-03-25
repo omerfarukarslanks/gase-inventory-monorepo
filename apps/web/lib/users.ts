@@ -15,6 +15,7 @@ export interface User {
   authProviderId?: string | null;
   birthDate?: string | null;
   phone?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | null;
   address?: string | null;
   country?: string | null;
   city?: string | null;
@@ -61,6 +62,7 @@ export interface UpdateUserDto {
   isActive?: boolean;
   birthDate?: string | null;
   phone?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | null;
   address?: string | null;
   country?: string | null;
   city?: string | null;
@@ -77,6 +79,7 @@ export interface CreateUserDto {
   storeIds: string[];
   birthDate?: string;
   phone?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
   address?: string;
   country?: string;
   city?: string;

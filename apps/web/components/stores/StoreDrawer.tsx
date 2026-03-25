@@ -126,6 +126,30 @@ export default function StoreDrawer({
               placeholder={t("stores.addressPlaceholder")}
             />
 
+            <div className="grid grid-cols-3 gap-3">
+              <InputField
+                label="Ülke"
+                type="text"
+                value={form.country}
+                onChange={(value) => onFormChange("country", value)}
+                placeholder="Türkiye"
+              />
+              <InputField
+                label="İl"
+                type="text"
+                value={form.city}
+                onChange={(value) => onFormChange("city", value)}
+                placeholder="İstanbul"
+              />
+              <InputField
+                label="İlçe"
+                type="text"
+                value={form.district}
+                onChange={(value) => onFormChange("district", value)}
+                placeholder="Kadıköy"
+              />
+            </div>
+
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-semibold text-muted">Kimlik No</label>

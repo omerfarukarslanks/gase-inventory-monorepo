@@ -9,6 +9,9 @@ export type StoreForm = {
   currency: Currency;
   code: string;
   address: string;
+  country: string;
+  city: string;
+  district: string;
   slug: string;
   logo: string;
   description: string;
@@ -22,6 +25,9 @@ export const EMPTY_FORM: StoreForm = {
   currency: "TRY",
   code: "",
   address: "",
+  country: "",
+  city: "",
+  district: "",
   slug: "",
   logo: "",
   description: "",

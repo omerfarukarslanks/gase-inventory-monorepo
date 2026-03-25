@@ -14,6 +14,9 @@ export type Store = {
   storeType: StoreType | null;
   currency: Currency | null;
   address: string | null;
+  country: string | null;
+  city: string | null;
+  district: string | null;
   isActive: boolean;
   slug: string;
   logo: string | null;
@@ -41,6 +44,9 @@ export type CreateStoreRequest = {
   currency: Currency;
   code?: string;
   address?: string;
+  country?: string;
+  city?: string;
+  district?: string;
   slug?: string;
   logo?: string;
   description?: string;
@@ -52,6 +58,9 @@ export type UpdateStoreRequest = {
   name: string;
   code?: string;
   address?: string;
+  country?: string | null;
+  city?: string | null;
+  district?: string | null;
   slug?: string;
   logo?: string;
   description?: string;

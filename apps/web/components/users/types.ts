@@ -1,5 +1,7 @@
 "use client";
 
+export type Gender = "MALE" | "FEMALE" | "OTHER";
+
 export type UserForm = {
   name: string;
   surname: string;
@@ -10,6 +12,7 @@ export type UserForm = {
   birthDate: string;
   phoneCountry: string;
   phone: string;
+  gender: Gender;
   address: string;
   country: string;
   city: string;
@@ -36,6 +39,7 @@ export const EMPTY_USER_FORM: UserForm = {
   birthDate: "",
   phoneCountry: "TR",
   phone: "",
+  gender: "MALE",
   address: "",
   country: "",
   city: "",

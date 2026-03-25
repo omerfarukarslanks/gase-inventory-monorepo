@@ -136,6 +136,34 @@ export default function UserDrawer({
           </div>
         )}
 
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-muted">Cinsiyet</label>
+          <div className="flex gap-3">
+            {(
+              [
+                { value: "MALE", label: "Erkek" },
+                { value: "FEMALE", label: "Kadın" },
+                { value: "OTHER", label: "Diğer" },
+              ] as const
+            ).map(({ value, label }) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:bg-surface2 has-[:checked]:border-primary has-[:checked]:bg-primary/[0.05] has-[:checked]:text-primary"
+              >
+                <input
+                  type="radio"
+                  name="gender"
+                  value={value}
+                  checked={form.gender === value}
+                  onChange={() => onFormChange("gender", value)}
+                  className="accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted">Telefon</label>
           <PhoneInput

@@ -6,6 +6,7 @@ import {
   EMPTY_USER_FORM_ERRORS,
   type UserForm,
   type UserFormErrors,
+  type Gender,
 } from "@/components/users/types";
 import { createUser, updateUser, type User } from "@/lib/users";
 import { getRoles } from "@/lib/permissions";
@@ -90,6 +91,7 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
       birthDate: user.birthDate ? user.birthDate.slice(0, 10) : "",
       phoneCountry,
       phone,
+      gender: (user.gender as UserForm["gender"]) ?? "MALE",
       address: user.address ?? "",
       country: user.country ?? "",
       city: user.city ?? "",
@@ -182,6 +184,7 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
       const optionalFields = {
         ...(form.birthDate ? { birthDate: form.birthDate } : {}),
         ...(builtPhone ? { phone: builtPhone } : {}),
+        gender: form.gender,
         ...(form.address.trim() ? { address: form.address.trim() } : {}),
         ...(form.country.trim() ? { country: form.country.trim() } : {}),
         ...(form.city.trim() ? { city: form.city.trim() } : {}),
@@ -208,6 +211,7 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
           storeIds: form.storeId ? [form.storeId] : [],
           birthDate: form.birthDate || null,
           phone: builtPhone || null,
+          gender: form.gender,
           address: form.address.trim() || null,
           country: form.country.trim() || null,
           city: form.city.trim() || null,
