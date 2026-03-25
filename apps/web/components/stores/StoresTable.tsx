@@ -50,8 +50,10 @@ export default function StoresTable({
                   <th className="px-4 py-3">{t("stores.colAddress")}</th>
                   <th className="px-4 py-3">{t("stores.colStatus")}</th>
                   <th className="px-4 py-3">{t("stores.colSlug")}</th>
-                  <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("stores.colActions")}</th>
-                </tr>
+                  {canUpdate && (
+                    <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("stores.colActions")}</th>
+                    )}
+                  </tr>
               </thead>
               <tbody>
                 {loading ? (
@@ -83,9 +85,9 @@ export default function StoresTable({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-text2">{store.slug}</td>
+                       {canUpdate && (
                       <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                         <div className="inline-flex items-center gap-1">
-                          {canUpdate && (
                             <IconButton
                               onClick={() => onEditStore(store.id)}
                               disabled={togglingStoreIds.includes(store.id)}
@@ -94,16 +96,14 @@ export default function StoresTable({
                             >
                               <EditIcon />
                             </IconButton>
-                          )}
-                          {canUpdate && (
                             <ToggleSwitch
                               checked={store.isActive}
                               onChange={(next) => onToggleStoreActive(store, next)}
                               disabled={togglingStoreIds.includes(store.id)}
                             />
-                          )}
                         </div>
                       </td>
+                        )}
                     </tr>
                   ))
                 )}
