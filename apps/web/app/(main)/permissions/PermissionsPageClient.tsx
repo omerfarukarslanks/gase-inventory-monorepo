@@ -19,6 +19,9 @@ import IconButton from "@/components/ui/IconButton";
 import InputField from "@/components/ui/InputField";
 import PageFilterBar from "@/components/ui/PageFilterBar";
 import PermissionsMobileList from "@/components/permissions/PermissionsMobileList";
+import RoleDetailDialog from "@/components/permissions/RoleDetailDialog";
+import RoleDetailDrawer from "@/components/permissions/RoleDetailDrawer";
+import RoleDrawer from "@/components/permissions/RoleDrawer";
 import RolesMobileList from "@/components/permissions/RolesMobileList";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import TablePagination from "@/components/ui/TablePagination";
@@ -108,6 +111,7 @@ export default function PermissionsPage() {
   const [roleNameError, setRoleNameError] = useState("");
   const [roleLevel, setRoleLevel] = useState<number | undefined>(undefined);
   const [togglingRoleIds, setTogglingRoleIds] = useState<string[]>([]);
+  const [detailRole, setDetailRole] = useState<RoleEntry | null>(null);
 
   const LEVEL_OPTIONS = Array.from({ length: 10 }, (_, i) => ({
     value: String(i + 1),
@@ -656,6 +660,7 @@ export default function PermissionsPage() {
               error={rolesError}
               roles={roles}
               canManage={canUpdateRole}
+              onViewRole={setDetailRole}
               onEditRole={openRoleDrawer}
               togglingRoleIds={togglingRoleIds}
               onToggleRoleActive={(role, next) => void onToggleRoleActive(role, next)}
@@ -693,7 +698,17 @@ export default function PermissionsPage() {
                             className="group border-b border-border last:border-b-0 transition-colors hover:bg-surface2/50"
                           >
                             <td className="px-4 py-3 font-mono text-sm font-medium text-text">
-                              {role.role}
+                              {canViewRole || canReadRole || canUpdateRole ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailRole(role)}
+                                  className="cursor-pointer break-all text-left text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+                                >
+                                  {role.role}
+                                </button>
+                              ) : (
+                                role.role
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <span
@@ -805,102 +820,33 @@ export default function PermissionsPage() {
         </div>
       </Drawer>
 
-      {/* ── ROL YETKİLERİ DRAWER ─────────────────────────────────────────────── */}
-      <Drawer
+      {isMobile ? (
+        <RoleDetailDrawer role={detailRole} onClose={() => setDetailRole(null)} />
+      ) : (
+        <RoleDetailDialog role={detailRole} onClose={() => setDetailRole(null)} />
+      )}
+
+      <RoleDrawer
         open={roleDrawerOpen}
+        editingRole={editingRole}
+        roleName={roleName}
+        roleNameError={roleNameError}
+        roleLevel={roleLevel}
+        levelOptions={LEVEL_OPTIONS}
+        roleLoading={roleLoading}
+        roleSubmitting={roleSubmitting}
+        roleFormError={roleFormError}
+        groupedPerms={groupedPerms}
+        selectedPermNames={selectedPermNames}
         onClose={onCloseRoleDrawer}
-        side="right"
-        title={editingRole ? `${editingRole.role} — Yetkiler` : "Yeni Rol"}
-        description={
-          editingRole
-            ? "Rol için aktif yetkileri seçin. Kaydet ile mevcut atama tamamen değiştirilir."
-            : "Rol adını girin ve atanacak yetkileri seçin."
-        }
-        closeDisabled={roleSubmitting || roleLoading}
-        mobileFullscreen
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              label="İptal"
-              type="button"
-              onClick={onCloseRoleDrawer}
-              disabled={roleSubmitting || roleLoading}
-              variant="secondary"
-            />
-            <Button
-              label={roleSubmitting ? "Kaydediliyor..." : "Kaydet"}
-              type="button"
-              onClick={onSaveRolePerms}
-              disabled={roleSubmitting || roleLoading}
-              variant="primarySolid"
-            />
-          </div>
-        }
-      >
-        <div className="space-y-5 p-5">
-          <InputField
-            label="Rol Adı *"
-            type="text"
-            value={roleName}
-            onChange={(v) => {
-              setRoleNameError("");
-              setRoleName(v);
-            }}
-            placeholder="KASIYER"
-            error={roleNameError}
-            disabled={roleSubmitting}
-          />
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Seviye</label>
-            <SearchableDropdown
-              options={LEVEL_OPTIONS}
-              value={roleLevel != null ? String(roleLevel) : ""}
-              onChange={(v) => setRoleLevel(v ? Number(v) : undefined)}
-              placeholder="Seviye seçin"
-              showEmptyOption
-              allowClear
-              inputAriaLabel="Rol seviyesi"
-              toggleAriaLabel="Rol seviyesi listesini aç"
-              disabled={roleSubmitting}
-            />
-          </div>
-
-          {roleLoading ? (
-            <p className="text-sm text-muted">Yükleniyor...</p>
-          ) : groupedPerms.size === 0 && !roleFormError ? (
-            <p className="text-sm text-muted">Yetki bulunamadı.</p>
-          ) : (
-            [...groupedPerms.entries()].map(([group, perms]) => (
-              <div key={group} className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{group}</p>
-                <div className="space-y-1">
-                  {perms.map((p) => (
-                    <label
-                      key={p.name}
-                      className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2 hover:bg-surface2/60 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                        checked={selectedPermNames.has(p.name)}
-                        onChange={(e) => onToggleRolePerm(p.name, e.target.checked)}
-                        disabled={roleSubmitting}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-mono font-semibold text-text">{p.name}</p>
-                        <p className="text-xs text-muted">{p.description}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-
-          {roleFormError && <p className="text-sm text-error">{roleFormError}</p>}
-        </div>
-      </Drawer>
+        onSave={onSaveRolePerms}
+        onRoleNameChange={(value) => {
+          setRoleNameError("");
+          setRoleName(value);
+        }}
+        onRoleLevelChange={setRoleLevel}
+        onToggleRolePerm={onToggleRolePerm}
+      />
     </div>
   );
 }

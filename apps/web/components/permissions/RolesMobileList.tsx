@@ -1,5 +1,6 @@
 "use client";
 
+import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
@@ -11,6 +12,7 @@ type RolesMobileListProps = {
   roles: RoleEntry[];
   canManage: boolean;
   togglingRoleIds: string[];
+  onViewRole: (role: RoleEntry) => void;
   onEditRole: (role: RoleEntry) => void | Promise<void>;
   onToggleRoleActive: (role: RoleEntry, next: boolean) => void;
 };
@@ -31,6 +33,7 @@ export default function RolesMobileList({
   roles,
   canManage,
   togglingRoleIds,
+  onViewRole,
   onEditRole,
   onToggleRoleActive,
 }: RolesMobileListProps) {
@@ -65,25 +68,34 @@ export default function RolesMobileList({
                   </span>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
-                  {canManage ? (
-                    <ToggleSwitch
-                      checked={role.isActive}
-                      onChange={(next) => onToggleRoleActive(role, next)}
-                      disabled={togglingRoleIds.includes(role.role)}
-                    />
-                  ) : null}
-                  {canManage ? (
-                    <IconButton
-                      onClick={() => void onEditRole(role)}
-                      disabled={togglingRoleIds.includes(role.role)}
-                      aria-label="Rol yetkilerini duzenle"
-                      title="Yetkileri Duzenle"
-                      className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  ) : null}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                  <Button
+                    label="Detay"
+                    variant="secondary"
+                    className="h-10 px-4"
+                    onClick={() => onViewRole(role)}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    {canManage ? (
+                      <ToggleSwitch
+                        checked={role.isActive}
+                        onChange={(next) => onToggleRoleActive(role, next)}
+                        disabled={togglingRoleIds.includes(role.role)}
+                      />
+                    ) : null}
+                    {canManage ? (
+                      <IconButton
+                        onClick={() => void onEditRole(role)}
+                        disabled={togglingRoleIds.includes(role.role)}
+                        aria-label="Rol yetkilerini duzenle"
+                        title="Yetkileri Duzenle"
+                        className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    ) : null}
+                  </div>
                 </div>
               </article>
             ))
