@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
+import { useLang } from "@/context/LangContext";
 import type { User } from "@/lib/users";
 
 type UsersMobileListProps = {
@@ -42,6 +43,8 @@ export default function UsersMobileList({
   onToggleUserActive,
   footer,
 }: UsersMobileListProps) {
+  const { t } = useLang();
+
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface shadow-sm">
       <div className="space-y-3 p-3">
@@ -49,7 +52,7 @@ export default function UsersMobileList({
           Array.from({ length: 3 }).map((_, index) => <LoadingCard key={index} />)
         ) : users.length === 0 ? (
           <div className="rounded-xl2 border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-            Kayit bulunamadi.
+            {t("common.noData")}
           </div>
         ) : (
           users.map((user) => {
@@ -69,13 +72,13 @@ export default function UsersMobileList({
                       user.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                     }`}
                   >
-                    {user.isActive ? "Aktif" : "Pasif"}
+                    {user.isActive ? t("common.active") : t("common.passive")}
                   </span>
                 </div>
 
                 <dl className="grid gap-3 text-sm text-text2">
                   <div>
-                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">Rol</dt>
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">{t("users.colRole")}</dt>
                     <dd className="mt-1">
                       <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                         {user.roleName}
@@ -83,14 +86,14 @@ export default function UsersMobileList({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">Magazalar</dt>
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">{t("users.storesLabel")}</dt>
                     <dd className="mt-1">{getAssignedStores(user)}</dd>
                   </div>
                 </dl>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                   <Button
-                    label="Detay"
+                    label={t("common.detail")}
                     variant="secondary"
                     className="h-10 px-4"
                     onClick={() => onViewDetail(user)}
@@ -101,8 +104,8 @@ export default function UsersMobileList({
                     <IconButton
                       onClick={() => onEdit(user)}
                       disabled={isToggling}
-                      aria-label="Kullanici duzenle"
-                      title="Duzenle"
+                      aria-label={t("users.editAria")}
+                      title={t("common.edit")}
                       className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
                     >
                       <EditIcon />

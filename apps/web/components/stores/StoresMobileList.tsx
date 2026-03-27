@@ -81,13 +81,13 @@ export default function StoresMobileList({
                     </div>
 
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">Adres</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{t("stores.address")}</p>
                       <p className="mt-1 text-sm text-text2">{store.address ?? "-"}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                       <Button
-                        label="Detay"
+                        label={t("common.detail")}
                         variant="secondary"
                         className="h-10 px-4"
                         onClick={() => onViewDetail(store)}
@@ -98,8 +98,8 @@ export default function StoresMobileList({
                         <IconButton
                           onClick={() => onEditStore(store.id)}
                           disabled={isToggling}
-                          aria-label="Magaza duzenle"
-                          title="Duzenle"
+                          aria-label={t("stores.update")}
+                          title={t("common.edit")}
                           className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
                         >
                           <EditIcon />

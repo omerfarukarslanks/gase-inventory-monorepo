@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
 import { FieldError } from "@/components/ui/FieldError";
+import { useLang } from "@/context/LangContext";
 import type { CreateCustomerRequest, Customer, CustomerGender } from "@/lib/customers";
 
 type QuickCustomerForm = {
@@ -49,6 +50,7 @@ export function QuickCreateCustomerForm({
   onSuccess,
   onQuickCreateCustomer,
 }: QuickCreateCustomerFormProps) {
+  const { t } = useLang();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +77,7 @@ export function QuickCreateCustomerForm({
 
   const onSubmit = async () => {
     if (!form.name.trim() || !form.surname.trim()) {
-      setError("Isim ve soyisim zorunludur.");
+      setError(t("customers.quickCreate.nameRequired"));
       return;
     }
 
@@ -100,7 +102,7 @@ export function QuickCreateCustomerForm({
       setError("");
       setForm(EMPTY_FORM);
     } catch {
-      setError("Musteri olusturulamadi. Lutfen tekrar deneyin.");
+      setError(t("customers.quickCreate.createError"));
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +117,7 @@ export function QuickCreateCustomerForm({
           disabled={submitting}
           className="rounded-lg border border-border bg-surface2 px-2 py-1 text-[11px] font-semibold text-text2 transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-60"
         >
-          {open ? "Kapat" : "+ Musteri Ekle"}
+          {open ? t("customers.quickCreate.toggleClose") : t("customers.quickCreate.toggleOpen")}
         </button>
       </div>
 
@@ -123,7 +125,7 @@ export function QuickCreateCustomerForm({
         <div className="mt-3 rounded-xl border border-border bg-surface2/40 p-3">
           <div className="grid gap-2 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Isim *</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.nameLabel")}</label>
               <input
                 type="text"
                 value={form.name}
@@ -132,7 +134,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Soyisim *</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.surnameLabel")}</label>
               <input
                 type="text"
                 value={form.surname}
@@ -141,7 +143,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Telefon</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.phoneLabel")}</label>
               <input
                 type="text"
                 value={form.phoneNumber}
@@ -150,7 +152,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">E-posta</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.emailLabel")}</label>
               <input
                 type="email"
                 value={form.email}
@@ -159,7 +161,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Ulke</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.countryLabel")}</label>
               <input
                 type="text"
                 value={form.country}
@@ -168,7 +170,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Sehir</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.cityLabel")}</label>
               <input
                 type="text"
                 value={form.city}
@@ -177,7 +179,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Ilce</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.districtLabel")}</label>
               <input
                 type="text"
                 value={form.district}
@@ -186,17 +188,17 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Cinsiyet</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.genderLabel")}</label>
               <SearchableDropdown
                 options={GENDER_OPTIONS}
                 value={form.gender}
                 onChange={(value) => onChangeField("gender", value)}
-                placeholder="Cinsiyet secin"
-                emptyOptionLabel="Cinsiyet secin"
+                placeholder={t("customers.quickCreate.genderPlaceholder")}
+                emptyOptionLabel={t("customers.quickCreate.genderPlaceholder")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-muted">Dogum Tarihi</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.birthDateLabel")}</label>
               <input
                 type="date"
                 value={form.birthDate}
@@ -205,7 +207,7 @@ export function QuickCreateCustomerForm({
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-semibold text-muted">Adres</label>
+              <label className="mb-1 block text-xs font-semibold text-muted">{t("customers.quickCreate.addressLabel")}</label>
               <input
                 type="text"
                 value={form.address}
@@ -219,14 +221,14 @@ export function QuickCreateCustomerForm({
 
           <div className="mt-3 flex items-center justify-end gap-2">
             <Button
-              label="Vazgec"
+              label={t("common.cancel")}
               variant="secondary"
               className="px-2 py-1 text-xs"
               onClick={onCancel}
               disabled={submitting}
             />
             <Button
-              label={submitting ? "Ekleniyor..." : "Musteri Ekle"}
+              label={submitting ? t("customers.quickCreate.adding") : t("customers.quickCreate.submit")}
               variant="primarySolid"
               className="px-2 py-1 text-xs"
               onClick={onSubmit}

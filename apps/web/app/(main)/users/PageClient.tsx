@@ -12,11 +12,13 @@ import { PageShell } from "@/components/layout/PageShell";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSessionProfile } from "@/hooks/useSessionProfile";
 import { useViewportMode } from "@/hooks/useViewportMode";
+import { useLang } from "@/context/LangContext";
 import type { User } from "@/lib/users";
 import { useUserList } from "./hooks/useUserList";
 import { useUserDrawer } from "./hooks/useUserDrawer";
 
 export default function UsersPage() {
+  const { t } = useLang();
   const { can } = usePermissions();
   const session = useSessionProfile();
   const isMobile = useViewportMode() === "mobile";
@@ -27,9 +29,9 @@ export default function UsersPage() {
   const isTenantOnly = can("TENANT_ONLY");
   const tenantStoreId = !isTenantOnly ? session.activeStoreId : undefined;
 
-  const list = useUserList({ isTenantOnly });
+  const list = useUserList({ isTenantOnly, t });
 
-  const drawer = useUserDrawer({ onSaved: list.fetchUsers, tenantStoreId, canManage: canCreate || canUpdate });
+  const drawer = useUserDrawer({ onSaved: list.fetchUsers, tenantStoreId, canManage: canCreate || canUpdate, t });
 
   return (
     <PageShell

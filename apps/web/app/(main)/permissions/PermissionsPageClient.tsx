@@ -32,6 +32,7 @@ import { useViewportMode } from "@/hooks/useViewportMode";
 import { useDebounceStr } from "@/hooks/useDebounce";
 import { STATUS_FILTER_OPTIONS, parseIsActiveFilter } from "@/components/products/types";
 import { cn } from "@/lib/cn";
+import { useLang } from "@/context/LangContext";
 
 // Tipler
 
@@ -54,6 +55,7 @@ const EMPTY_PERM_FORM: PermForm = {
 // ─── Bileşen ──────────────────────────────────────────────────────────────────
 
 export default function PermissionsPage() {
+  const { t } = useLang();
   const { can } = usePermissions();
   const isMobile = useViewportMode() === "mobile";
   const canReadPermission = can("PERMISSION_READ");
@@ -132,7 +134,7 @@ export default function PermissionsPage() {
       setPermissions(res.data);
       setPermMeta(res.meta);
     } catch {
-      setPermError("Yetkiler yüklenemedi. Lütfen tekrar deneyin.");
+      setPermError(t("permissions.loadError"));
       setPermissions([]);
       setPermMeta(null);
     } finally {
@@ -160,7 +162,7 @@ export default function PermissionsPage() {
       const res = await getRoles({ isActive: roleStatusFilter });
       setRoles(res.data);
     } catch {
-      setRolesError("Roller yüklenemedi. Lütfen tekrar deneyin.");
+      setRolesError(t("permissions.rolesLoadError"));
       setRoles([]);
     } finally {
       setRolesLoading(false);
@@ -186,7 +188,7 @@ export default function PermissionsPage() {
       await updatePermission(perm.id, { isActive: next });
       await fetchPermissions();
     } catch {
-      setPermError("Yetki durumu güncellenemedi. Lütfen tekrar deneyin.");
+      setPermError(t("permissions.permissionToggleError"));
     } finally {
       setTogglingPermIds((prev) => prev.filter((id) => id !== perm.id));
     }
@@ -233,15 +235,15 @@ export default function PermissionsPage() {
   const validatePermForm = () => {
     let valid = true;
     if (!permForm.name.trim()) {
-      setPermNameError("Ad zorunludur.");
+      setPermNameError(t("permissions.nameRequired"));
       valid = false;
     }
     if (!permForm.description.trim()) {
-      setPermDescError("Açıklama zorunludur.");
+      setPermDescError(t("permissions.descRequired"));
       valid = false;
     }
     if (!permForm.group.trim()) {
-      setPermGroupError("Grup zorunludur.");
+      setPermGroupError(t("permissions.groupRequired"));
       valid = false;
     }
     return valid;
@@ -270,7 +272,7 @@ export default function PermissionsPage() {
       setPermDrawerOpen(false);
       await fetchPermissions();
     } catch {
-      setPermFormError(editingPermId ? "Yetki güncellenemedi." : "Yetki oluşturulamadı.");
+      setPermFormError(editingPermId ? t("permissions.permissionUpdateError") : t("permissions.permissionCreateError"));
     } finally {
       setPermSubmitting(false);
     }
@@ -289,7 +291,7 @@ export default function PermissionsPage() {
     setRoleLoading(true);
     getPermissions({})
       .then((res) => setAllPermsForRole(res.data))
-      .catch(() => setRoleFormError("Yetkiler yuklenemedi."))
+      .catch(() => setRoleFormError(t("permissions.loadError")))
       .finally(() => setRoleLoading(false));
   };
 
@@ -312,7 +314,7 @@ export default function PermissionsPage() {
       setSelectedPermNames(new Set(rolePerms.map((p) => p.name)));
       setAllPermsForRole(allPermsRes.data);
     } catch {
-      setRoleFormError("Yetki bilgileri yuklenemedi. Lutfen tekrar deneyin.");
+      setRoleFormError(t("permissions.roleDetailError"));
     } finally {
       setRoleLoading(false);
     }
@@ -339,7 +341,7 @@ export default function PermissionsPage() {
       // Oluşturma modu
       const trimmedName = roleName.trim();
       if (!trimmedName) {
-        setRoleNameError("Rol adı zorunludur.");
+        setRoleNameError(t("permissions.roleNameRequired"));
         return;
       }
       setRoleSubmitting(true);
@@ -352,7 +354,7 @@ export default function PermissionsPage() {
         setRoleDrawerOpen(false);
         await fetchRoles();
       } catch {
-        setRoleFormError("Rol oluşturulamadı. Lütfen tekrar deneyin.");
+        setRoleFormError(t("permissions.roleCreateError"));
       } finally {
         setRoleSubmitting(false);
       }
@@ -371,7 +373,7 @@ export default function PermissionsPage() {
       setRoleDrawerOpen(false);
       await fetchRoles();
     } catch {
-      setRoleFormError("Rol yetkileri güncellenemedi. Lütfen tekrar deneyin.");
+      setRoleFormError(t("permissions.rolePermissionsUpdateError"));
     } finally {
       setRoleSubmitting(false);
     }
@@ -387,7 +389,7 @@ export default function PermissionsPage() {
       });
       await fetchRoles();
     } catch {
-      setRolesError("Rol durumu güncellenemedi. Lütfen tekrar deneyin.");
+      setRolesError(t("permissions.roleToggleError"));
     } finally {
       setTogglingRoleIds((prev) => prev.filter((id) => id !== role.role));
     }
@@ -409,8 +411,8 @@ export default function PermissionsPage() {
     <div className="space-y-4">
       {/* Başlık */}
       <div>
-        <h1 className="text-xl font-semibold text-text">Yetki Yönetimi</h1>
-        <p className="text-sm text-muted">Sistem yetkilerini ve rol atamalarını yönetin.</p>
+        <h1 className="text-xl font-semibold text-text">{t("permissions.managementTitle")}</h1>
+        <p className="text-sm text-muted">{t("permissions.managementSubtitle")}</p>
       </div>
 
       {/* Sekmeler */}
@@ -425,7 +427,7 @@ export default function PermissionsPage() {
                 : "text-muted hover:text-text",
             )}
           >
-            Yetkiler
+            {t("permissions.tabPermissions")}
           </button>
         )}
         {(canViewRole || canCreateRole || canUpdateRole) && (
@@ -438,7 +440,7 @@ export default function PermissionsPage() {
                 : "text-muted hover:text-text",
             )}
           >
-            Roller
+            {t("permissions.tabRoles")}
           </button>
         )}
       </div>
@@ -447,32 +449,32 @@ export default function PermissionsPage() {
       {activeTab === "permissions" && (
         <>
           <PageFilterBar
-            title="Yetkiler"
-            subtitle="Sistem yetkilerini filtreleyin ve yonetin."
+            title={t("permissions.title")}
+            subtitle={t("permissions.permissionsSubtitle")}
             searchTerm={permSearch}
             onSearchTermChange={setPermSearch}
-            searchPlaceholder="Ara..."
+            searchPlaceholder={t("common.search")}
             showAdvancedFilters={showPermFilters}
             onToggleAdvancedFilters={() => setShowPermFilters((prev) => !prev)}
-            filterLabel="Detayli Filtre"
-            hideFilterLabel="Detayli Filtreyi Gizle"
+            filterLabel={t("common.filter")}
+            hideFilterLabel={t("common.hideFilter")}
             canCreate={canCreatePermission}
-            createLabel="Yeni Yetki"
+            createLabel={t("permissions.new")}
             onCreate={openCreatePermDrawer}
-            mobileAdvancedFiltersTitle="Yetki Filtreleri"
+            mobileAdvancedFiltersTitle={t("permissions.permissionFiltersTitle")}
             advancedFilters={(
               <>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted">Durum</label>
+                  <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
                   <SearchableDropdown
                     options={STATUS_FILTER_OPTIONS}
                     value={permStatusFilter === "all" ? "all" : String(permStatusFilter)}
                     onChange={(value) => setPermStatusFilter(parseIsActiveFilter(value))}
-                    placeholder="Tum Durumlar"
+                    placeholder={t("common.allStatuses")}
                     showEmptyOption={false}
                     allowClear={false}
-                    inputAriaLabel="Yetki durum filtresi"
-                    toggleAriaLabel="Yetki durum listesini ac"
+                    inputAriaLabel={t("permissions.permissionStatusFilterAria")}
+                    toggleAriaLabel={t("permissions.permissionStatusFilterToggleAria")}
                   />
                 </div>
                 <div className="md:col-span-2 lg:col-span-3">
@@ -481,7 +483,7 @@ export default function PermissionsPage() {
                     onClick={() => setPermStatusFilter("all")}
                     className="inline-flex rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text transition-colors hover:bg-surface2"
                   >
-                    Filtreleri Temizle
+                    {t("common.clearFilters")}
                   </button>
                 </div>
               </>
@@ -515,7 +517,7 @@ export default function PermissionsPage() {
           ) : (
             <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
               {permLoading ? (
-                <div className="p-6 text-sm text-muted">Yetkiler yukleniyor...</div>
+                <div className="p-6 text-sm text-muted">{t("permissions.loadingPermissions")}</div>
               ) : permError ? (
                 <div className="p-6">
                   <p className="text-sm text-error">{permError}</p>
@@ -526,18 +528,18 @@ export default function PermissionsPage() {
                     <table className="w-full min-w-[800px]">
                       <thead className="border-b border-border bg-surface2/70">
                         <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                          <th className="px-4 py-3">Ad</th>
-                          <th className="px-4 py-3">Grup</th>
-                          <th className="px-4 py-3">Aciklama</th>
-                          <th className="px-4 py-3">Durum</th>
-                          <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                          <th className="px-4 py-3">{t("permissions.colName")}</th>
+                          <th className="px-4 py-3">{t("permissions.colGroup")}</th>
+                          <th className="px-4 py-3">{t("permissions.colDescription")}</th>
+                          <th className="px-4 py-3">{t("permissions.colStatus")}</th>
+                          <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("permissions.colActions")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {permissions.length === 0 ? (
                           <tr>
                             <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
-                              Kayit bulunamadi.
+                              {t("common.noData")}
                             </td>
                           </tr>
                         ) : (
@@ -561,7 +563,7 @@ export default function PermissionsPage() {
                                     perm.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                                   }`}
                                 >
-                                  {perm.isActive ? "Aktif" : "Pasif"}
+                                  {perm.isActive ? t("common.active") : t("common.passive")}
                                 </span>
                               </td>
                               <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
@@ -570,8 +572,8 @@ export default function PermissionsPage() {
                                     <IconButton
                                       onClick={() => openEditPermDrawer(perm)}
                                       disabled={togglingPermIds.includes(perm.id)}
-                                      aria-label="Yetki duzenle"
-                                      title="Duzenle"
+                                      aria-label={t("permissions.editPermissionAria")}
+                                      title={t("common.edit")}
                                     >
                                       <EditIcon />
                                     </IconButton>
@@ -615,31 +617,31 @@ export default function PermissionsPage() {
       {activeTab === "roles" && (
         <>
           <PageFilterBar
-            title="Roller"
-            subtitle="Sistem rollerini filtreleyin ve yönetin."
+            title={t("permissions.rolesTitle")}
+            subtitle={t("permissions.rolesSubtitle")}
             searchTerm=""
             onSearchTermChange={() => undefined}
             showAdvancedFilters={showRoleFilters}
             onToggleAdvancedFilters={() => setShowRoleFilters((prev) => !prev)}
-            filterLabel="Detaylı Filtre"
-            hideFilterLabel="Detaylı Filtreyi Gizle"
+            filterLabel={t("common.filter")}
+            hideFilterLabel={t("common.hideFilter")}
             canCreate={canCreateRole}
-            createLabel="Yeni Rol"
+            createLabel={t("permissions.newRole")}
             onCreate={openCreateRoleDrawer}
-            mobileAdvancedFiltersTitle="Rol Filtreleri"
+            mobileAdvancedFiltersTitle={t("permissions.roleFiltersTitle")}
             advancedFilters={(
               <>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-muted">Durum</label>
+                  <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
                   <SearchableDropdown
                     options={STATUS_FILTER_OPTIONS}
                     value={roleStatusFilter === "all" ? "all" : String(roleStatusFilter)}
                     onChange={(value) => setRoleStatusFilter(parseIsActiveFilter(value))}
-                    placeholder="Tüm Durumlar"
+                    placeholder={t("common.allStatuses")}
                     showEmptyOption={false}
                     allowClear={false}
-                    inputAriaLabel="Rol durum filtresi"
-                    toggleAriaLabel="Rol durum listesini aç"
+                    inputAriaLabel={t("permissions.roleStatusFilterAria")}
+                    toggleAriaLabel={t("permissions.roleStatusFilterToggleAria")}
                   />
                 </div>
                 <div className="md:col-span-2 lg:col-span-3">
@@ -648,7 +650,7 @@ export default function PermissionsPage() {
                     onClick={() => setRoleStatusFilter("all")}
                     className="inline-flex rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text transition-colors hover:bg-surface2"
                   >
-                    Filtreleri Temizle
+                    {t("common.clearFilters")}
                   </button>
                 </div>
               </>
@@ -668,7 +670,7 @@ export default function PermissionsPage() {
           ) : (
             <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
               {rolesLoading ? (
-                <div className="p-6 text-sm text-muted">Roller yukleniyor...</div>
+                <div className="p-6 text-sm text-muted">{t("permissions.loadingRoles")}</div>
               ) : rolesError ? (
                 <div className="p-6">
                   <p className="text-sm text-error">{rolesError}</p>
@@ -678,17 +680,17 @@ export default function PermissionsPage() {
                   <table className="w-full min-w-[600px]">
                     <thead className="border-b border-border bg-surface2/70">
                       <tr className="text-left text-xs uppercase tracking-wide text-muted">
-                        <th className="px-4 py-3">Rol</th>
-                        <th className="px-4 py-3">Durum</th>
-                        <th className="px-4 py-3">Yetki Sayisi</th>
-                        <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">Islemler</th>
+                        <th className="px-4 py-3">{t("permissions.colRole")}</th>
+                        <th className="px-4 py-3">{t("permissions.colStatus")}</th>
+                        <th className="px-4 py-3">{t("permissions.permissionCount")}</th>
+                        <th className="sticky right-0 z-20 bg-surface2/70 px-4 py-3 text-right">{t("permissions.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {roles.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted">
-                            Kayit bulunamadi.
+                            {t("common.noData")}
                           </td>
                         </tr>
                       ) : (
@@ -716,11 +718,11 @@ export default function PermissionsPage() {
                                   role.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                                 }`}
                               >
-                                {role.isActive ? "Aktif" : "Pasif"}
+                                {role.isActive ? t("common.active") : t("common.passive")}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-text2">
-                              {role.permissions.length} yetki
+                              {role.permissions.length} {t("permissions.permissionCountSuffix")}
                             </td>
                             <td className="sticky right-0 z-10 bg-surface px-4 py-3 text-right group-hover:bg-surface2/50">
                               <div className="inline-flex items-center gap-1">
@@ -728,8 +730,8 @@ export default function PermissionsPage() {
                                   <IconButton
                                     onClick={() => void openRoleDrawer(role)}
                                     disabled={togglingRoleIds.includes(role.role)}
-                                    aria-label="Rol yetkilerini duzenle"
-                                    title="Yetkileri Duzenle"
+                                    aria-label={t("permissions.editRoleAria")}
+                                    title={t("permissions.editRoleTitle")}
                                   >
                                     <EditIcon />
                                   </IconButton>
@@ -760,25 +762,25 @@ export default function PermissionsPage() {
         open={permDrawerOpen}
         onClose={onClosePermDrawer}
         side="right"
-        title={editingPermId ? "Yetki Düzenle" : "Yeni Yetki"}
+        title={editingPermId ? t("permissions.editTitle") : t("permissions.createTitle")}
         description={
           editingPermId
-            ? "Yetki açıklamasını ve grubunu güncelleyin."
-            : "Sisteme yeni bir yetki tanımı ekleyin."
+            ? t("permissions.permissionEditDescription")
+            : t("permissions.permissionCreateDescription")
         }
         closeDisabled={permSubmitting}
         mobileFullscreen
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button
-              label="İptal"
+              label={t("common.cancel")}
               type="button"
               onClick={onClosePermDrawer}
               disabled={permSubmitting}
               variant="secondary"
             />
             <Button
-              label={permSubmitting ? "Kaydediliyor..." : "Kaydet"}
+              label={permSubmitting ? t("common.saving") : t("common.save")}
               type="button"
               onClick={onSubmitPermForm}
               disabled={permSubmitting}
@@ -789,7 +791,7 @@ export default function PermissionsPage() {
       >
         <div className="space-y-4 p-5">
           <InputField
-            label="Ad *"
+            label={t("permissions.name")}
             type="text"
             value={permForm.name}
             onChange={(v) => onPermFormChange("name", v)}
@@ -799,20 +801,20 @@ export default function PermissionsPage() {
           />
 
           <InputField
-            label="Açıklama *"
+            label={t("permissions.description")}
             type="text"
             value={permForm.description}
             onChange={(v) => onPermFormChange("description", v)}
-            placeholder="Yeni satış fişi oluşturma"
+            placeholder={t("permissions.descriptionPlaceholder")}
             error={permDescError}
           />
 
           <InputField
-            label="Grup *"
+            label={t("permissions.group")}
             type="text"
             value={permForm.group}
             onChange={(v) => onPermFormChange("group", v)}
-            placeholder="Satış"
+            placeholder={t("permissions.groupPlaceholder")}
             error={permGroupError}
           />
 

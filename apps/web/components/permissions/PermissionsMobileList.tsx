@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
+import { useLang } from "@/context/LangContext";
 import type { Permission } from "@/lib/permissions";
 
 type PermissionsMobileListProps = {
@@ -37,6 +38,7 @@ export default function PermissionsMobileList({
   onTogglePermissionActive,
   footer,
 }: PermissionsMobileListProps) {
+  const { t } = useLang();
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       {error ? (
@@ -50,7 +52,7 @@ export default function PermissionsMobileList({
               Array.from({ length: 3 }).map((_, index) => <LoadingCard key={index} />)
             ) : permissions.length === 0 ? (
               <div className="rounded-xl2 border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-                Kayit bulunamadi.
+                {t("common.noData")}
               </div>
             ) : (
               permissions.map((permission) => {
@@ -68,7 +70,7 @@ export default function PermissionsMobileList({
                           permission.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                         }`}
                       >
-                        {permission.isActive ? "Aktif" : "Pasif"}
+                        {permission.isActive ? t("common.active") : t("common.passive")}
                       </span>
                     </div>
 
@@ -79,8 +81,8 @@ export default function PermissionsMobileList({
                         <IconButton
                           onClick={() => onEditPermission(permission)}
                           disabled={isToggling}
-                          aria-label="Yetki duzenle"
-                          title="Duzenle"
+                          aria-label={t("permissions.editPermissionAria")}
+                          title={t("common.edit")}
                           className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
                         >
                           <EditIcon />

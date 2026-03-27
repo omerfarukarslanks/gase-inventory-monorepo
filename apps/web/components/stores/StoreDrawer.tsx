@@ -129,31 +129,31 @@ export default function StoreDrawer({
 
             <div className="grid grid-cols-3 gap-3">
               <InputField
-                label="Ülke"
+                label={t("stores.country")}
                 type="text"
                 value={form.country}
                 onChange={(value) => onFormChange("country", value)}
-                placeholder="Türkiye"
+                placeholder={t("stores.countryPlaceholder")}
               />
               <InputField
-                label="İl"
+                label={t("stores.city")}
                 type="text"
                 value={form.city}
                 onChange={(value) => onFormChange("city", value)}
-                placeholder="İstanbul"
+                placeholder={t("stores.cityPlaceholder")}
               />
               <InputField
-                label="İlçe"
+                label={t("stores.district")}
                 type="text"
                 value={form.district}
                 onChange={(value) => onFormChange("district", value)}
-                placeholder="Kadıköy"
+                placeholder={t("stores.districtPlaceholder")}
               />
             </div>
 
-            <FormField label="Kimlik No" error={taxIdError} className="space-y-2">
+            <FormField label={t("stores.identityNumber")} error={taxIdError} className="space-y-2">
               <SegmentedControl
-                ariaLabel="Kimlik tipi seçimi"
+                ariaLabel={t("stores.identityTypeAria")}
                 options={[
                   { value: "tckn", label: "TCKN" },
                   { value: "taxNo", label: "Vergi No" },
@@ -175,7 +175,7 @@ export default function StoreDrawer({
                   const max = form.taxIdType === "tckn" ? 11 : 10;
                   onFormChange("taxIdValue", digits.slice(0, max));
                 }}
-                placeholder={form.taxIdType === "tckn" ? "11 haneli TCKN" : "10 haneli Vergi No"}
+                placeholder={form.taxIdType === "tckn" ? t("stores.tcknPlaceholder") : t("stores.taxNumberPlaceholder")}
               />
             </FormField>
 

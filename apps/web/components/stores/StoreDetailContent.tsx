@@ -1,18 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLang } from "@/context/LangContext";
 import type { Store } from "@/lib/stores";
-
-const STORE_TYPE_LABELS: Record<string, string> = {
-  RETAIL: "Perakende",
-  WHOLESALE: "Toptan",
-};
-
-const CURRENCY_LABELS: Record<string, string> = {
-  TRY: "Türk Lirası (₺)",
-  USD: "Amerikan Doları ($)",
-  EUR: "Euro (€)",
-};
 
 function formatDateTime(iso?: string | null): string {
   if (!iso) return "—";
@@ -62,6 +52,17 @@ type StoreDetailContentProps = {
 };
 
 export default function StoreDetailContent({ store, trailingAction }: StoreDetailContentProps) {
+  const { t } = useLang();
+  const storeTypeLabels: Record<string, string> = {
+    RETAIL: t("stores.storeTypeRetail"),
+    WHOLESALE: t("stores.storeTypeWholesale"),
+  };
+  const currencyLabels: Record<string, string> = {
+    TRY: t("stores.currencyTry"),
+    USD: t("stores.currencyUsd"),
+    EUR: t("stores.currencyEur"),
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-4 border-b border-border p-5">
@@ -74,7 +75,7 @@ export default function StoreDetailContent({ store, trailingAction }: StoreDetai
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {store.storeType ? (
                 <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                  {STORE_TYPE_LABELS[store.storeType] ?? store.storeType}
+                  {storeTypeLabels[store.storeType] ?? store.storeType}
                 </span>
               ) : null}
               <span
@@ -84,7 +85,7 @@ export default function StoreDetailContent({ store, trailingAction }: StoreDetai
                     : "bg-rose-100 text-rose-600"
                 }`}
               >
-                {store.isActive ? "Aktif" : "Pasif"}
+                {store.isActive ? t("common.active") : t("common.passive")}
               </span>
             </div>
           </div>
@@ -94,42 +95,42 @@ export default function StoreDetailContent({ store, trailingAction }: StoreDetai
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Genel</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("stores.generalSection")}</p>
         <div className="mb-5 grid grid-cols-2 gap-4">
-          <Row label="Para Birimi" value={store.currency ? CURRENCY_LABELS[store.currency] ?? store.currency : undefined} />
+          <Row label={t("stores.currency")} value={store.currency ? currencyLabels[store.currency] ?? store.currency : undefined} />
           <Row
-            label="Kimlik No"
+            label={t("stores.identityNumber")}
             value={
               store.tckn ? `TCKN: ${store.tckn}`
-              : store.taxNo ? `Vergi No: ${store.taxNo}`
+              : store.taxNo ? `${t("stores.taxNumberShort")}: ${store.taxNo}`
               : undefined
             }
           />
         </div>
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Adres</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("stores.address")}</p>
         <div className="mb-5 grid grid-cols-1 gap-4">
-          <Row label="Adres" value={store.address} />
+          <Row label={t("stores.address")} value={store.address} />
           <div className="grid grid-cols-3 gap-4">
-            <Row label="İlçe" value={store.district} />
-            <Row label="İl" value={store.city} />
-            <Row label="Ülke" value={store.country} />
+            <Row label={t("stores.district")} value={store.district} />
+            <Row label={t("stores.city")} value={store.city} />
+            <Row label={t("stores.country")} value={store.country} />
           </div>
         </div>
 
         {store.description ? (
           <>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Açıklama</p>
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("stores.description")}</p>
             <div className="mb-5">
               <p className="text-sm text-text">{store.description}</p>
             </div>
           </>
         ) : null}
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Sistem Bilgileri</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("stores.systemSection")}</p>
         <div className="grid grid-cols-2 gap-4">
-          <Row label="Oluşturulma" value={formatDateTime(store.createdAt)} />
-          <Row label="Güncellenme" value={formatDateTime(store.updatedAt)} />
+          <Row label={t("stores.createdAt")} value={formatDateTime(store.createdAt)} />
+          <Row label={t("stores.updatedAt")} value={formatDateTime(store.updatedAt)} />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLang } from "@/context/LangContext";
 import type { RoleEntry } from "@/lib/permissions";
 
 function Row({ label, value }: { label: string; value?: string | number | null }) {
@@ -18,6 +19,7 @@ type RoleDetailContentProps = {
 };
 
 export default function RoleDetailContent({ role, trailingAction }: RoleDetailContentProps) {
+  const { t } = useLang();
   const groupedPermissions = role.permissions.reduce<Record<string, typeof role.permissions>>((acc, permission) => {
     const current = acc[permission.group] ?? [];
     current.push(permission);
@@ -38,11 +40,11 @@ export default function RoleDetailContent({ role, trailingAction }: RoleDetailCo
                   : "bg-rose-100 text-rose-600"
               }`}
             >
-              {role.isActive ? "Aktif" : "Pasif"}
+              {role.isActive ? t("common.active") : t("common.passive")}
             </span>
             {role.level != null ? (
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                Seviye {role.level}
+                {t("permissions.level")} {role.level}
               </span>
             ) : null}
           </div>
@@ -52,15 +54,15 @@ export default function RoleDetailContent({ role, trailingAction }: RoleDetailCo
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Özet</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("permissions.summarySection")}</p>
         <div className="mb-5 grid grid-cols-2 gap-4">
-          <Row label="Yetki Sayısı" value={role.permissions.length} />
-          <Row label="Grup Sayısı" value={Object.keys(groupedPermissions).length} />
+          <Row label={t("permissions.permissionCount")} value={role.permissions.length} />
+          <Row label={t("permissions.groupCount")} value={Object.keys(groupedPermissions).length} />
         </div>
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Yetkiler</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("permissions.tabPermissions")}</p>
         {role.permissions.length === 0 ? (
-          <p className="text-sm text-muted">Bu role atanmış yetki bulunmuyor.</p>
+          <p className="text-sm text-muted">{t("permissions.noAssignedPermissions")}</p>
         ) : (
           <div className="space-y-4">
             {Object.entries(groupedPermissions).map(([group, permissions]) => (

@@ -35,7 +35,7 @@ function buildPhoneE164(countryCode: string, localNumber: string): string {
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 type Options = {
-  t?: (key: string) => string;
+  t: (key: string) => string;
   onSaved: () => Promise<void>;
   tenantStoreId?: string;
   canManage?: boolean;
@@ -142,32 +142,32 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
     };
 
     if (!form.name.trim()) {
-      nextErrors.name = "Ad zorunludur.";
+      nextErrors.name = t("users.nameRequired");
     } else if (form.name.trim().length < 2) {
-      nextErrors.name = "Ad en az 2 karakter olmalıdır.";
+      nextErrors.name = t("users.nameMinLength");
     }
 
     if (!form.surname.trim()) {
-      nextErrors.surname = "Soyad zorunludur.";
+      nextErrors.surname = t("users.surnameRequired");
     } else if (form.surname.trim().length < 2) {
-      nextErrors.surname = "Soyad en az 2 karakter olmalıdır.";
+      nextErrors.surname = t("users.surnameMinLength");
     }
 
     if (!form.role) {
-      nextErrors.role = "Rol seçimi zorunludur.";
+      nextErrors.role = t("users.roleRequired");
     }
 
     if (mode === "create") {
       if (!form.email.trim()) {
-        nextErrors.email = "E-posta zorunludur.";
+        nextErrors.email = t("users.emailRequired");
       } else if (!isValidEmail(form.email)) {
-        nextErrors.email = "Geçerli bir e-posta giriniz.";
+        nextErrors.email = t("users.emailInvalid");
       }
 
       if (!form.password) {
-        nextErrors.password = "Şifre zorunludur.";
+        nextErrors.password = t("users.passwordRequired");
       } else if (!passwordPattern.test(form.password)) {
-        nextErrors.password = "Şifre en az 8 karakter olmalı, büyük-küçük harf ve rakam içermelidir.";
+        nextErrors.password = t("users.passwordStrength");
       }
     }
 
@@ -224,7 +224,7 @@ export function useUserDrawer({ onSaved, tenantStoreId, canManage = false }: Opt
       setFormErrors(EMPTY_USER_FORM_ERRORS);
       await onSaved();
     } catch {
-      alert("İşlem başarısız oldu.");
+      alert(t("users.operationError"));
     } finally {
       setSaving(false);
     }

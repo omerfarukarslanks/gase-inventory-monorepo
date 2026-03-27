@@ -7,6 +7,26 @@ import {
 } from "@/lib/customers";
 import { isValidEmail } from "@gase/core";
 import { EMPTY_FORM, type CustomerForm } from "@/components/customers/types";
+import { getCountryCallingCode, parsePhoneNumber } from "libphonenumber-js";
+
+function parseStoredPhone(raw: string | null | undefined): Pick<CustomerForm, "phoneCountry" | "phoneNumber"> {
+  if (!raw) return { phoneCountry: "TR", phoneNumber: "" };
+  try {
+    const parsed = parsePhoneNumber(raw);
+    return {
+      phoneCountry: parsed.country ?? "TR",
+      phoneNumber: parsed.nationalNumber,
+    };
+  } catch {
+    return { phoneCountry: "TR", phoneNumber: raw };
+  }
+}
+
+function buildPhoneE164(countryCode: string, localNumber: string): string {
+  const digits = localNumber.replace(/\D/g, "");
+  if (!digits) return "";
+  return `+${getCountryCallingCode(countryCode as Parameters<typeof getCountryCallingCode>[0])}${digits}`;
+}
 
 type Options = {
   onSuccess: () => Promise<void>;
@@ -59,6 +79,7 @@ export function useCustomerDrawer({ onSuccess, t }: Options) {
     setLoadingCustomerDetail(true);
     try {
       const detail = await getCustomerById(id);
+      const { phoneCountry, phoneNumber } = parseStoredPhone(detail.phoneNumber);
       setForm({
         name: detail.name ?? "",
         surname: detail.surname ?? "",
@@ -66,7 +87,8 @@ export function useCustomerDrawer({ onSuccess, t }: Options) {
         country: detail.country ?? "",
         city: detail.city ?? "",
         district: detail.district ?? "",
-        phoneNumber: detail.phoneNumber ?? "",
+        phoneCountry,
+        phoneNumber,
         email: detail.email ?? "",
         gender: detail.gender ?? "",
         birthDate: detail.birthDate ? String(detail.birthDate).slice(0, 10) : "",
@@ -88,23 +110,30 @@ export function useCustomerDrawer({ onSuccess, t }: Options) {
     setSurnameError("");
     setEmailError("");
 
+    let hasError = false;
+
     if (!form.name.trim()) {
-      setNameError("Isim alani zorunludur.");
-      return;
+      setNameError(t("customers.nameRequired"));
+      hasError = true;
     }
 
     if (!form.surname.trim()) {
-      setSurnameError("Soyisim alani zorunludur.");
-      return;
+      setSurnameError(t("customers.surnameRequired"));
+      hasError = true;
     }
 
     if (form.email.trim() && !isValidEmail(form.email)) {
-      setEmailError("Gecerli bir e-posta girin.");
+      setEmailError(t("customers.emailInvalid"));
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setSubmitting(true);
     try {
+      const builtPhone = buildPhoneE164(form.phoneCountry, form.phoneNumber);
       if (editingCustomerId) {
         await updateCustomer(editingCustomerId, {
           name: form.name.trim(),
@@ -113,7 +142,7 @@ export function useCustomerDrawer({ onSuccess, t }: Options) {
           country: form.country.trim() || undefined,
           city: form.city.trim() || undefined,
           district: form.district.trim() || undefined,
-          phoneNumber: form.phoneNumber.trim() || undefined,
+          phoneNumber: builtPhone || undefined,
           email: form.email.trim() || undefined,
           gender: (form.gender || undefined) as CustomerGender | undefined,
           birthDate: form.birthDate || undefined,
@@ -127,7 +156,7 @@ export function useCustomerDrawer({ onSuccess, t }: Options) {
           country: form.country.trim() || undefined,
           city: form.city.trim() || undefined,
           district: form.district.trim() || undefined,
-          phoneNumber: form.phoneNumber.trim() || undefined,
+          phoneNumber: builtPhone || undefined,
           email: form.email.trim() || undefined,
           gender: (form.gender || undefined) as CustomerGender | undefined,
           birthDate: form.birthDate || undefined,

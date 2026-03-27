@@ -119,7 +119,7 @@ export default function UsersTable({
                       <span className="inline-flex items-center gap-1.5">
                         {user.name} {user.surname}
                         {isBirthday(user.birthDate) && (
-                          <span title="Bugün doğum günü! 🎂" className="text-base leading-none">🎂</span>
+                          <span title={t("users.birthdayToday")} className="text-base leading-none">🎂</span>
                         )}
                       </span>
                     </button>

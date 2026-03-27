@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLang } from "@/context/LangContext";
 import type { RoleEntry } from "@/lib/permissions";
 import RoleDetailContent from "./RoleDetailContent";
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export default function RoleDetailDialog({ role, onClose }: Props) {
+  const { t } = useLang();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -47,8 +49,8 @@ export default function RoleDetailDialog({ role, onClose }: Props) {
                 type="button"
                 onClick={onClose}
                 className="shrink-0 rounded-lg p-1.5 text-muted cursor-pointer transition-colors hover:bg-surface2 hover:text-text"
-                aria-label="Detayı kapat"
-                title="Detayı kapat"
+                aria-label={t("common.closeDetail")}
+                title={t("common.closeDetail")}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />

@@ -133,7 +133,7 @@ export function useStoreDrawer({ t, onSuccess }: Options) {
           ? isValidTckn(form.taxIdValue.trim())
           : isValidTaxNumber(form.taxIdValue.trim());
       if (!valid) {
-        setTaxIdError(form.taxIdType === "tckn" ? "TCKN 11 haneli olmalıdır." : "Vergi No 10 haneli olmalıdır.");
+        setTaxIdError(form.taxIdType === "tckn" ? t("stores.tcknInvalid") : t("stores.taxNumberInvalid"));
         return;
       }
     }

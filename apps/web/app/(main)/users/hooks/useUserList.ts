@@ -6,11 +6,11 @@ import { useStores } from "@/hooks/useStores";
 import { getUsers, updateUser, type Meta, type User } from "@/lib/users";
 
 type Options = {
-  t?: (key: string) => string;
+  t: (key: string) => string;
   isTenantOnly?: boolean;
 };
 
-export function useUserList({ isTenantOnly }: Options = {}) {
+export function useUserList({ t, isTenantOnly }: Options) {
   const allStores = useStores();
   const stores = isTenantOnly ? allStores : [];
 
@@ -82,7 +82,7 @@ export function useUserList({ isTenantOnly }: Options = {}) {
       });
       await fetchUsers();
     } catch {
-      alert("Kullanıcı durumu güncellenemedi.");
+      alert(t("users.toggleError"));
     } finally {
       setTogglingUserIds((prev) => prev.filter((id) => id !== user.id));
     }

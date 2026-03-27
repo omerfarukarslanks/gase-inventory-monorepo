@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLang } from "@/context/LangContext";
 import type { User } from "@/lib/users";
 
 const AVATAR_COLORS = [
@@ -37,12 +38,6 @@ function formatDateTime(iso?: string | null): string {
   }
 }
 
-const GENDER_LABELS: Record<string, string> = {
-  MALE: "Erkek",
-  FEMALE: "Kadın",
-  OTHER: "Diğer",
-};
-
 function isBirthday(birthDate?: string | null): boolean {
   if (!birthDate) return false;
   const today = new Date();
@@ -65,6 +60,13 @@ type UserDetailContentProps = {
 };
 
 export default function UserDetailContent({ user, trailingAction }: UserDetailContentProps) {
+  const { t } = useLang();
+  const genderLabels: Record<string, string> = {
+    MALE: t("users.genderMale"),
+    FEMALE: t("users.genderFemale"),
+    OTHER: t("users.genderOther"),
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-4 border-b border-border p-5">
@@ -97,7 +99,7 @@ export default function UserDetailContent({ user, trailingAction }: UserDetailCo
                     : "bg-rose-100 text-rose-600"
                 }`}
               >
-                {user.isActive !== false ? "Aktif" : "Pasif"}
+                {user.isActive !== false ? t("common.active") : t("common.passive")}
               </span>
             </div>
           </div>
@@ -107,40 +109,40 @@ export default function UserDetailContent({ user, trailingAction }: UserDetailCo
       </div>
 
       <div className="flex-1 overflow-y-auto p-5">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">İletişim</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("users.contactSection")}</p>
         <div className="mb-5 grid grid-cols-2 gap-4">
-          <Row label="Telefon" value={user.phone} />
-          <Row label="Mağaza" value={user.store?.name} />
+          <Row label={t("customers.colPhone")} value={user.phone} />
+          <Row label={t("users.store")} value={user.store?.name} />
         </div>
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Kişisel</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("users.personalSection")}</p>
         <div className="mb-5 grid grid-cols-2 gap-4">
-          <Row label="Cinsiyet" value={user.gender ? GENDER_LABELS[user.gender] : undefined} />
+          <Row label={t("users.gender")} value={user.gender ? genderLabels[user.gender] : undefined} />
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Doğum Tarihi</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">{t("users.birthDate")}</span>
             <span className="inline-flex items-center gap-1.5 text-sm text-text">
               {formatDate(user.birthDate)}
               {isBirthday(user.birthDate) && (
-                <span title="Bugün doğum günü!" className="text-base leading-none">🎂</span>
+                <span title={t("users.birthdayToday")} className="text-base leading-none">🎂</span>
               )}
             </span>
           </div>
         </div>
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Adres</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("users.addressSection")}</p>
         <div className="mb-5 grid grid-cols-1 gap-4">
-          <Row label="Adres" value={user.address} />
+          <Row label={t("users.address")} value={user.address} />
           <div className="grid grid-cols-3 gap-4">
-            <Row label="İlçe" value={user.district} />
-            <Row label="İl" value={user.city} />
-            <Row label="Ülke" value={user.country} />
+            <Row label={t("users.district")} value={user.district} />
+            <Row label={t("users.city")} value={user.city} />
+            <Row label={t("users.country")} value={user.country} />
           </div>
         </div>
 
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Sistem Bilgileri</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">{t("users.systemSection")}</p>
         <div className="grid grid-cols-2 gap-4">
-          <Row label="Oluşturulma" value={formatDateTime(user.createdAt)} />
-          <Row label="Güncellenme" value={formatDateTime(user.updatedAt)} />
+          <Row label={t("users.createdAt")} value={formatDateTime(user.createdAt)} />
+          <Row label={t("users.updatedAt")} value={formatDateTime(user.updatedAt)} />
         </div>
       </div>
     </div>

@@ -45,59 +45,49 @@ export default function UsersFilters({
   onClearFilters,
 }: UsersFiltersProps) {
   const { t } = useLang();
-  const sortFieldOptions = [
-    { value: "name", label: "Ad Soyad" },
-    { value: "email", label: "E-Posta" },
-    { value: "role", label: "Rol" },
-  ];
-  const sortOrderOptions = [
-    { value: "ASC", label: "Artan" },
-    { value: "DESC", label: "Azalan" },
-  ];
-
   return (
     <PageFilterBar
-      title="Kullanıcılar"
-      subtitle="Sisteme kayıtlı kullanıcıları yönetin."
+      title={t("users.title")}
+      subtitle={t("users.subtitle")}
       searchTerm={searchTerm}
       onSearchTermChange={onSearchTermChange}
-      searchPlaceholder="Ara..."
+      searchPlaceholder={t("common.search")}
       showAdvancedFilters={showAdvancedFilters}
       onToggleAdvancedFilters={onToggleAdvancedFilters}
       filterLabel={t("common.filter")}
       hideFilterLabel={t("common.hideFilter")}
       canCreate={canCreate}
-      createLabel="Yeni Kullanıcı"
+      createLabel={t("users.new")}
       onCreate={onCreate}
       mobileAdvancedFiltersTitle={t("common.filter")}
       advancedFilters={(
         <>
           {showStoreFilter && (
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted">Mağaza</label>
+              <label className="text-xs font-semibold text-muted">{t("common.storeFilter")}</label>
               <SearchableDropdown
                 options={storeFilterOptions}
                 value={storeFilter}
                 onChange={onStoreFilterChange}
-                placeholder="Tüm Mağazalar"
-                emptyOptionLabel="Tüm Mağazalar"
-                inputAriaLabel="Mağaza filtresi"
-                clearAriaLabel="Mağaza filtresini temizle"
-                toggleAriaLabel="Mağaza listesini aç"
+                placeholder={t("users.allStores")}
+                emptyOptionLabel={t("users.allStores")}
+                inputAriaLabel={t("users.storeFilterAria")}
+                clearAriaLabel={t("users.storeFilterClearAria")}
+                toggleAriaLabel={t("users.storeFilterToggleAria")}
               />
             </div>
           )}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted">Durum</label>
+            <label className="text-xs font-semibold text-muted">{t("common.status")}</label>
             <SearchableDropdown
               options={STATUS_FILTER_OPTIONS}
               value={statusFilter === "all" ? "all" : String(statusFilter)}
               onChange={(value) => onStatusFilterChange(parseIsActiveFilter(value))}
-              placeholder="Tüm Durumlar"
+              placeholder={t("common.allStatuses")}
               showEmptyOption={false}
               allowClear={false}
-              inputAriaLabel="Kullanıcı durum filtresi"
-              toggleAriaLabel="Kullanıcı durum listesini aç"
+              inputAriaLabel={t("users.statusFilterAria")}
+              toggleAriaLabel={t("users.statusFilterToggleAria")}
             />
           </div>
           <div className="md:col-span-2 lg:col-span-3">
@@ -106,7 +96,7 @@ export default function UsersFilters({
               onClick={onClearFilters}
               className="inline-flex rounded-xl2 border border-border bg-surface px-3 py-2 text-sm text-text transition-colors hover:bg-surface2"
             >
-              Filtreleri Temizle
+              {t("common.clearFilters")}
             </button>
           </div>
         </>

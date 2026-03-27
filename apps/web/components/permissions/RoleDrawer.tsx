@@ -4,6 +4,7 @@ import Drawer, { DrawerFooter } from "@/components/ui/Drawer";
 import FormField from "@/components/ui/FormField";
 import InputField from "@/components/ui/InputField";
 import SearchableDropdown from "@/components/ui/SearchableDropdown";
+import { useLang } from "@/context/LangContext";
 import type { Permission, RoleEntry } from "@/lib/permissions";
 
 type RoleDrawerProps = {
@@ -43,26 +44,28 @@ export default function RoleDrawer({
   onRoleLevelChange,
   onToggleRolePerm,
 }: RoleDrawerProps) {
+  const { t } = useLang();
+
   return (
     <Drawer
       open={open}
       onClose={onClose}
       side="right"
-      title={editingRole ? `${editingRole.role} — Yetkiler` : "Yeni Rol"}
+      title={editingRole ? `${editingRole.role} — ${t("permissions.tabPermissions")}` : t("permissions.newRole")}
       description={
         editingRole
-          ? "Rol için aktif yetkileri seçin. Kaydet ile mevcut atama tamamen değiştirilir."
-          : "Rol adını girin ve atanacak yetkileri seçin."
+          ? t("permissions.roleDrawerEditDescription")
+          : t("permissions.roleDrawerCreateDescription")
       }
       closeDisabled={roleSubmitting || roleLoading}
       mobileFullscreen
       footer={
         <DrawerFooter
-          cancelLabel="İptal"
+          cancelLabel={t("common.cancel")}
           onCancel={onClose}
           cancelDisabled={roleSubmitting || roleLoading}
           onSave={onSave}
-          saveLabel="Kaydet"
+          saveLabel={t("common.save")}
           saveDisabled={roleSubmitting || roleLoading}
           saving={roleSubmitting}
         />
@@ -70,7 +73,7 @@ export default function RoleDrawer({
     >
       <div className="space-y-5 p-5">
         <InputField
-          label="Rol Adı *"
+          label={t("permissions.roleName")}
           type="text"
           value={roleName}
           onChange={onRoleNameChange}
@@ -79,24 +82,24 @@ export default function RoleDrawer({
           disabled={roleSubmitting}
         />
 
-        <FormField label="Seviye">
+        <FormField label={t("permissions.level")}>
           <SearchableDropdown
             options={levelOptions}
             value={roleLevel != null ? String(roleLevel) : ""}
             onChange={(value) => onRoleLevelChange(value ? Number(value) : undefined)}
-            placeholder="Seviye seçin"
+            placeholder={t("permissions.levelPlaceholder")}
             showEmptyOption
             allowClear
-            inputAriaLabel="Rol seviyesi"
-            toggleAriaLabel="Rol seviyesi listesini aç"
+            inputAriaLabel={t("permissions.level")}
+            toggleAriaLabel={t("permissions.levelToggleAria")}
             disabled={roleSubmitting}
           />
         </FormField>
 
         {roleLoading ? (
-          <p className="text-sm text-muted">Yükleniyor...</p>
+          <p className="text-sm text-muted">{t("common.loading")}</p>
         ) : groupedPerms.size === 0 && !roleFormError ? (
-          <p className="text-sm text-muted">Yetki bulunamadı.</p>
+          <p className="text-sm text-muted">{t("permissions.noPermissionsFound")}</p>
         ) : (
           [...groupedPerms.entries()].map(([group, perms]) => (
             <div key={group} className="space-y-2">

@@ -4,6 +4,7 @@ import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import ToggleSwitch from "@/components/ui/ToggleSwitch";
 import { EditIcon } from "@/components/ui/icons/TableIcons";
+import { useLang } from "@/context/LangContext";
 import type { RoleEntry } from "@/lib/permissions";
 
 type RolesMobileListProps = {
@@ -37,6 +38,7 @@ export default function RolesMobileList({
   onEditRole,
   onToggleRoleActive,
 }: RolesMobileListProps) {
+  const { t } = useLang();
   return (
     <section className="overflow-hidden rounded-xl2 border border-border bg-surface">
       {error ? (
@@ -49,7 +51,7 @@ export default function RolesMobileList({
             Array.from({ length: 3 }).map((_, index) => <LoadingCard key={index} />)
           ) : roles.length === 0 ? (
             <div className="rounded-xl2 border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
-              Kayit bulunamadi.
+              {t("common.noData")}
             </div>
           ) : (
             roles.map((role) => (
@@ -57,20 +59,20 @@ export default function RolesMobileList({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-all font-mono text-sm font-semibold text-text">{role.role}</h2>
-                    <p className="mt-1 text-xs text-muted">{role.permissions.length} yetki</p>
+                    <p className="mt-1 text-xs text-muted">{role.permissions.length} {t("permissions.permissionCountSuffix")}</p>
                   </div>
                   <span
                     className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
                       role.isActive ? "bg-primary/15 text-primary" : "bg-error/15 text-error"
                     }`}
                   >
-                    {role.isActive ? "Aktif" : "Pasif"}
+                    {role.isActive ? t("common.active") : t("common.passive")}
                   </span>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                   <Button
-                    label="Detay"
+                    label={t("common.detail")}
                     variant="secondary"
                     className="h-10 px-4"
                     onClick={() => onViewRole(role)}
@@ -88,8 +90,8 @@ export default function RolesMobileList({
                       <IconButton
                         onClick={() => void onEditRole(role)}
                         disabled={togglingRoleIds.includes(role.role)}
-                        aria-label="Rol yetkilerini duzenle"
-                        title="Yetkileri Duzenle"
+                        aria-label={t("permissions.editRoleAria")}
+                        title={t("permissions.editRoleTitle")}
                         className="h-10 w-10 rounded-xl border border-border text-text2 hover:bg-surface2 hover:text-text"
                       >
                         <EditIcon />

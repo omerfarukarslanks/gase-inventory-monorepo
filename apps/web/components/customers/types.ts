@@ -7,6 +7,7 @@ export type CustomerForm = {
   country: string;
   city: string;
   district: string;
+  phoneCountry: string;
   phoneNumber: string;
   email: string;
   gender: string;
@@ -26,6 +27,7 @@ export const EMPTY_FORM: CustomerForm = {
   country: "",
   city: "",
   district: "",
+  phoneCountry: "TR",
   phoneNumber: "",
   email: "",
   gender: "",
